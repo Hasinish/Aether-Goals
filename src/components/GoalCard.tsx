@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Goal } from "../lib/types";
+import { useGoalsStore } from "../lib/store";
 import { MoreHorizontal, ArrowUpRight } from "lucide-react";
 
 interface GoalCardProps {
@@ -11,16 +12,21 @@ interface GoalCardProps {
 }
 
 export default function GoalCard({ goal, onTap, onEditTap }: GoalCardProps) {
+  const { pendingGoalId } = useGoalsStore();
+  const isPending = pendingGoalId === goal.id;
+
   // Configurable number of segments in the progress bar (e.g. 30 segments)
   const totalSegments = 30;
   const activeSegments = Math.round(((goal.progressPercent || 0) / 100) * totalSegments);
   
   return (
     <div
-      onClick={() => onTap(goal)}
-      className="group relative flex flex-col justify-between w-full min-h-[320px] p-6 bg-black border border-neutral-800 rounded-2xl cursor-pointer hover:border-neutral-700 transition-all duration-300 select-none overflow-hidden"
+      onClick={() => !isPending && onTap(goal)}
+      className={`group relative flex flex-col justify-between w-full min-h-[320px] p-6 bg-black border border-neutral-800 rounded-2xl cursor-pointer hover:border-neutral-700 select-none overflow-hidden transition-all duration-300 ${
+        isPending ? "opacity-50 pointer-events-none" : "opacity-100"
+      }`}
     >
-      {/* Top Header Row: Tags and Options */}
+      {/* Top Header Row: Tags and Options/Pending spinner */}
       <div className="flex items-center justify-between gap-4 mb-5">
         <div className="flex flex-wrap gap-1.5 max-w-[80%]">
           {goal.tags.map((tag) => (
@@ -32,13 +38,18 @@ export default function GoalCard({ goal, onTap, onEditTap }: GoalCardProps) {
             </span>
           ))}
         </div>
-        <button
-          onClick={(e) => onEditTap(goal, e)}
-          className="p-1 text-neutral-500 hover:text-white hover:bg-neutral-900 rounded-lg transition-colors duration-200"
-          aria-label="Goal Options"
-        >
-          <MoreHorizontal size={18} />
-        </button>
+        
+        {isPending ? (
+          <div className="w-5 h-5 border-2 border-neutral-800 border-t-white rounded-full animate-spin shrink-0" />
+        ) : (
+          <button
+            onClick={(e) => onEditTap(goal, e)}
+            className="p-1 text-neutral-500 hover:text-white hover:bg-neutral-900 rounded-lg transition-colors duration-200"
+            aria-label="Goal Options"
+          >
+            <MoreHorizontal size={18} />
+          </button>
+        )}
       </div>
 
       {/* Goal Title */}

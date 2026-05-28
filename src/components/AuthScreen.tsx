@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useGoalsStore } from "../lib/store";
-import { supabase, isSupabaseConfigured } from "../lib/supabase";
+import { getSupabaseClient, isSupabaseConfigured } from "../lib/supabase";
 import { Sparkles, ArrowRight, ShieldAlert } from "lucide-react";
 
 export default function AuthScreen() {
@@ -30,14 +30,15 @@ export default function AuthScreen() {
     setMessage("");
     setError("");
 
-    if (!isDbReady || !supabase) {
+    if (!isDbReady) {
       setError("Supabase URL and API keys are missing. Please continue in Guest Mode.");
       setLoading(false);
       return;
     }
 
     try {
-      const { error: authError } = await supabase.auth.signInWithOtp({
+      const client = getSupabaseClient();
+      const { error: authError } = await client.auth.signInWithOtp({
         email: email.trim(),
         options: {
           emailRedirectTo: typeof window !== "undefined" ? window.location.origin : undefined,
@@ -47,9 +48,10 @@ export default function AuthScreen() {
       if (authError) throw authError;
 
       setMessage("A magic link has been sent to your email. Check your inbox.");
-    } catch (e: any) {
-      console.error(e);
-      setError(e.message || "Failed to log in.");
+    } catch (err: unknown) {
+      console.error(err);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      setError(errMsg || "Failed to log in.");
     } finally {
       setLoading(false);
     }
@@ -105,7 +107,7 @@ export default function AuthScreen() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email address..."
-                className="w-full px-4 py-3 bg-neutral-950 border border-neutral-800 rounded-xl text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
+                className="w-full px-4 py-3 bg-neutral-950 border border-neutral-800 rounded-xl text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-650 focus:border-neutral-650 transition-colors"
               />
             </div>
 

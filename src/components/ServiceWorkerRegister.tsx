@@ -4,7 +4,7 @@ import { useEffect } from "react";
 
 export default function ServiceWorkerRegister() {
   useEffect(() => {
-    if ("serviceWorker" in navigator && (window as any).workbox === undefined) {
+    if ("serviceWorker" in navigator && (window as typeof globalThis & { workbox?: unknown }).workbox === undefined) {
       const handleLoad = () => {
         navigator.serviceWorker
           .register("/sw.js")

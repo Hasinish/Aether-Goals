@@ -1,36 +1,156 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Aether Goals
 
-## Getting Started
+**Aether Goals** is a premium, minimalist, mobile-first PWA (Progressive Web App) goal tracker. Designed with sleek dark aesthetics, bold typography, and interactive segmented progress meters, it provides highly responsive discipline and milestone tracking.
 
-First, run the development server:
+---
 
+## 🚀 Tech Stack
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Database & Auth**: Supabase (Email Login/Signup & OTP Magic Links)
+- **Offline / Syncing**: Native Service Worker Caching, PWA Standalone Manifest, and a robust LocalStorage sandbox fallback.
+
+---
+
+## 📋 Prerequisites
+Before running or developing, make sure you have the following installed:
+- **Node.js**: `v18.0.0` or higher
+- **npm**: `v9.0.0` or higher
+- A **Supabase** account and project (for database syncing).
+
+---
+
+## 🛠️ Setup Instructions
+
+### 1. Clone the Project
+Open your shell and clone the codebase:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/Hasinish/Aether-Goals.git
+cd Aether-Goals
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Install Packages
+Restore the application dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Local Environment Variables (`.env.local`)
+Create a `.env.local` file in the root of the project to enable Supabase integration:
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anonymous-anon-key-string
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+*Note: If these variables are not present or configured, Aether automatically boots in **Offline Sandbox Mode** (using secure browser LocalStorage) so you can test all features instantly.*
 
-## Learn More
+### 4. Supabase Database Schema Setup
+Execute the following SQL queries inside your **Supabase Dashboard > SQL Editor** to establish the backend database structure and security rules:
 
-To learn more about Next.js, take a look at the following resources:
+```sql
+-- 1. Create goals table
+create table public.goals (
+  id text not null primary key,
+  user_id uuid references auth.users(id) on delete cascade,
+  title text not null,
+  tags text[] not null default '{}',
+  created_at timestamp with time zone not null default timezone('utc'::text, now())
+);
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+-- Enable Row Level Security (RLS)
+alter table public.goals enable row level security;
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+-- Setup secure Row Level Security policies for user goals
+create policy "Allow logged-in users to view their own goals" 
+  on public.goals for select 
+  using (auth.uid() = user_id);
 
-## Deploy on Vercel
+create policy "Allow logged-in users to insert their own goals" 
+  on public.goals for insert 
+  with check (auth.uid() = user_id);
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+create policy "Allow logged-in users to update their own goals" 
+  on public.goals for update 
+  using (auth.uid() = user_id);
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+create policy "Allow logged-in users to delete their own goals" 
+  on public.goals for delete 
+  using (auth.uid() = user_id);
+
+-- 2. Create subtasks table linked to goals
+create table public.subtasks (
+  id text not null primary key,
+  goal_id text references public.goals(id) on delete cascade,
+  title text not null,
+  is_complete boolean not null default false
+);
+
+-- Enable Row Level Security
+alter table public.subtasks enable row level security;
+
+-- Setup Row Level Security policies for subtasks (inherited from goal ownership)
+create policy "Allow users to view subtasks linked to their goals" 
+  on public.subtasks for select 
+  using (
+    exists (
+      select 1 from public.goals 
+      where goals.id = subtasks.goal_id and goals.user_id = auth.uid()
+    )
+  );
+
+create policy "Allow users to insert subtasks linked to their goals" 
+  on public.subtasks for insert 
+  with check (
+    exists (
+      select 1 from public.goals 
+      where goals.id = subtasks.goal_id and goals.user_id = auth.uid()
+    )
+  );
+
+  create policy "Allow users to update subtasks linked to their goals" 
+  on public.subtasks for update 
+  using (
+    exists (
+      select 1 from public.goals 
+      where goals.id = subtasks.goal_id and goals.user_id = auth.uid()
+    )
+  );
+
+create policy "Allow users to delete subtasks linked to their goals" 
+  on public.subtasks for delete 
+  using (
+    exists (
+      select 1 from public.goals 
+      where goals.id = subtasks.goal_id and goals.user_id = auth.uid()
+    )
+  );
+```
+
+### 5. Disable Email Confirmations (No SMTP Required)
+If you want users to log in or register instantly without having to verify emails via SMTP setup:
+- Navigate to **Authentication > Providers > Email** in your Supabase Dashboard.
+- Toggle **Confirm email** to **OFF** (Disabled).
+- Click **Save**.
+
+---
+
+## 💻 Running the Development Server
+Launch the local development process:
+```bash
+npm run dev
+```
+Open **`http://localhost:3000`** in your browser to view the application.
+
+---
+
+## ⚡ Deployment to Vercel
+Deploy your application directly to Vercel:
+
+1. Push your code to your GitHub repository.
+2. Log in to [Vercel](https://vercel.com) and click **Add New > Project**.
+3. Select your repository (`Aether-Goals`).
+4. Under **Environment Variables**, add:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+5. Click **Deploy**. Vercel will build and distribute your PWA goal tracker with global CDN delivery.

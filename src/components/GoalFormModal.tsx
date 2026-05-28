@@ -10,11 +10,17 @@ interface GoalFormModalProps {
   onClose: () => void;
 }
 
+interface FormSubtask {
+  id?: string;
+  title: string;
+  is_complete?: boolean;
+}
+
 export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps) {
   const { addGoal, updateGoal } = useGoalsStore();
   const [title, setTitle] = useState("");
   const [tagsInput, setTagsInput] = useState("");
-  const [subtasks, setSubtasks] = useState<string[]>([]);
+  const [subtasks, setSubtasks] = useState<FormSubtask[]>([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -24,7 +30,13 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
     if (editGoal) {
       setTitle(editGoal.title);
       setTagsInput(editGoal.tags.join(", "));
-      setSubtasks((editGoal.subtasks || []).map((s) => s.title));
+      setSubtasks(
+        (editGoal.subtasks || []).map((s) => ({
+          id: s.id,
+          title: s.title,
+          is_complete: s.is_complete,
+        }))
+      );
     } else {
       setTitle("");
       setTagsInput("");
@@ -38,12 +50,12 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
     const trimmed = newSubtaskTitle.trim();
     if (!trimmed) return;
 
-    if (subtasks.includes(trimmed)) {
+    if (subtasks.some((s) => s.title.toLowerCase() === trimmed.toLowerCase())) {
       setError("This subtask already exists in the list.");
       return;
     }
 
-    setSubtasks([...subtasks, trimmed]);
+    setSubtasks([...subtasks, { title: trimmed, is_complete: false }]);
     setNewSubtaskTitle("");
     setError("");
   };
@@ -71,14 +83,21 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
     setIsSubmitting(true);
     try {
       if (editGoal) {
+        // Pass full subtask structures to keep ID mappings intact
         await updateGoal(editGoal.id, trimmedTitle, processedTags, subtasks);
       } else {
-        await addGoal(trimmedTitle, processedTags, subtasks);
+        // Pass just titles for new goals (which generates IDs)
+        await addGoal(
+          trimmedTitle,
+          processedTags,
+          subtasks.map((s) => s.title)
+        );
       }
       onClose();
-    } catch (e: any) {
-      console.error(e);
-      setError(e.message || "Failed to save goal.");
+    } catch (err: unknown) {
+      console.error(err);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      setError(errMsg || "Failed to save goal.");
     } finally {
       setIsSubmitting(false);
     }
@@ -197,7 +216,7 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
                   key={idx}
                   className="flex items-center justify-between gap-3 p-3.5 border border-neutral-900 bg-neutral-950/40 rounded-xl"
                 >
-                  <span className="text-xs text-neutral-300">{task}</span>
+                  <span className="text-xs text-neutral-300">{task.title}</span>
                   <button
                     type="button"
                     onClick={() => handleRemoveSubtask(idx)}

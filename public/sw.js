@@ -1,8 +1,11 @@
-const CACHE_NAME = "aether-goals-v1";
+const CACHE_NAME = "aether-goals-v2";
 const ASSETS_TO_CACHE = [
   "/",
   "/favicon.ico",
   "/manifest.json",
+  "/icon.svg",
+  "/icon-192.png",
+  "/icon-512.png"
 ];
 
 self.addEventListener("install", (event) => {
@@ -30,51 +33,87 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  // Only cache GET requests and ignore internal next build files/web sockets if needed
   if (event.request.method !== "GET") return;
 
   const url = new URL(event.request.url);
 
-  // Bypass next dev HMR & hot-reloader connections
+  // Bypass next dev HMR & webpack hot-reloader connections
   if (url.pathname.startsWith("/_next/webpack-hmr") || url.pathname.includes("hot-update")) {
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Fetch in background to update cache (stale-while-revalidate)
-        fetch(event.request)
-          .then((networkResponse) => {
-            if (networkResponse.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, networkResponse);
-              });
-            }
-          })
-          .catch(() => {
-            // Silently ignore background fetch errors (e.g. offline)
-          });
-        return cachedResponse;
-      }
+  const isApiOrDatabase = url.pathname.startsWith("/api") || url.host.includes("supabase.co");
 
-      return fetch(event.request)
+  if (isApiOrDatabase) {
+    // Network-First strategy for real-time Supabase operations and API traffic
+    event.respondWith(
+      fetch(event.request)
         .then((networkResponse) => {
-          if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== "basic") {
-            return networkResponse;
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
           }
-
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-
           return networkResponse;
         })
         .catch(() => {
-          // Offline fallback
-          return caches.match("/");
-        });
-    })
-  );
+          return caches.match(event.request).then((cachedResponse) => {
+            return cachedResponse || caches.match("/");
+          });
+        })
+    );
+  } else {
+    // Cache-First strategy for static code files, next bundles, and image graphics
+    const isStaticAsset =
+      ASSETS_TO_CACHE.includes(url.pathname) ||
+      url.pathname.startsWith("/_next/static/") ||
+      url.pathname.endsWith(".js") ||
+      url.pathname.endsWith(".css") ||
+      url.pathname.endsWith(".png") ||
+      url.pathname.endsWith(".svg") ||
+      url.pathname.endsWith(".ico") ||
+      url.pathname.endsWith(".json");
+
+    if (isStaticAsset) {
+      event.respondWith(
+        caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+
+          return fetch(event.request)
+            .then((networkResponse) => {
+              if (networkResponse && networkResponse.status === 200) {
+                const responseToCache = networkResponse.clone();
+                caches.open(CACHE_NAME).then((cache) => {
+                  cache.put(event.request, responseToCache);
+                });
+              }
+              return networkResponse;
+            })
+            .catch(() => caches.match("/"));
+        })
+      );
+    } else {
+      // Default: Stale-While-Revalidate for default routing page navigations
+      event.respondWith(
+        caches.match(event.request).then((cachedResponse) => {
+          const fetchPromise = fetch(event.request)
+            .then((networkResponse) => {
+              if (networkResponse && networkResponse.status === 200) {
+                const responseToCache = networkResponse.clone();
+                caches.open(CACHE_NAME).then((cache) => {
+                  cache.put(event.request, responseToCache);
+                });
+              }
+              return networkResponse;
+            })
+            .catch(() => caches.match("/"));
+
+          return cachedResponse || fetchPromise;
+        })
+      );
+    }
+  }
 });
