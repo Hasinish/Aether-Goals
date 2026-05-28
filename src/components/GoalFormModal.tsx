@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Goal } from "../lib/types";
 import { useGoalsStore } from "../lib/store";
 import { X, Plus, Trash2, GripVertical } from "lucide-react";
@@ -25,6 +25,8 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  
+  const formRef = useRef<HTMLFormElement>(null);
 
   // Pre-populate if editing
   useEffect(() => {
@@ -93,6 +95,24 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
     setDraggedIndex(null);
   };
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (!formRef.current) return;
+
+    // Auto-scroll the modal form when dragging subtasks near the top/bottom boundaries
+    const rect = formRef.current.getBoundingClientRect();
+    const threshold = 80; // px threshold from boundaries
+    const clientY = e.clientY;
+
+    const relativeY = clientY - rect.top;
+
+    if (relativeY < threshold) {
+      formRef.current.scrollBy(0, -8);
+    } else if (relativeY > rect.height - threshold) {
+      formRef.current.scrollBy(0, 8);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -156,7 +176,11 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
       </div>
 
       {/* Form Content (Scrollable) */}
-      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-8 space-y-6">
+      <form
+        ref={formRef}
+        onSubmit={handleSubmit}
+        className="flex-1 overflow-y-auto px-6 py-8 space-y-6"
+      >
         {error && (
           <div className="p-3.5 border border-red-900 bg-red-950/40 rounded-xl text-xs text-red-400 leading-normal">
             {error}
@@ -252,9 +276,9 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
                   onDragStart={() => handleDragStart(idx)}
                   onDragEnter={() => handleDragEnter(idx)}
                   onDragEnd={handleDragEnd}
-                  onDragOver={(e) => e.preventDefault()}
+                  onDragOver={handleDragOver}
                   className={`flex items-center justify-between gap-3 p-3.5 border border-neutral-900 bg-neutral-950/40 rounded-xl focus-within:border-neutral-700 transition-all duration-250 select-none ${
-                    draggedIndex === idx ? "opacity-30 border-dashed border-neutral-700" : "opacity-100"
+                    draggedIndex === idx ? "scale-[0.98] border-dashed border-neutral-750 bg-neutral-900/60" : "opacity-100 scale-100"
                   }`}
                 >
                   {/* Grip Handle Icon */}

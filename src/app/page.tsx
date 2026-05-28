@@ -62,6 +62,22 @@ export default function Home() {
     setDraggedGoalIndex(null);
   };
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (!canDragSort) return;
+
+    // Auto-scroll when dragging near viewport edges (sleek usability)
+    const threshold = 120; // px threshold from top/bottom
+    const clientY = e.clientY;
+    const viewportHeight = window.innerHeight;
+
+    if (clientY < threshold) {
+      window.scrollBy(0, -10);
+    } else if (clientY > viewportHeight - threshold) {
+      window.scrollBy(0, 10);
+    }
+  };
+
   // Get all unique tags for the horizontal tag filters
   const allTags = Array.from(
     new Set(goals.flatMap((g) => g.tags))
@@ -181,10 +197,10 @@ export default function Home() {
                 onDragStart={() => canDragSort && handleDragStart(idx)}
                 onDragEnter={() => canDragSort && handleDragEnter(idx)}
                 onDragEnd={handleDragEnd}
-                onDragOver={(e) => canDragSort && e.preventDefault()}
+                onDragOver={handleDragOver}
                 className={`transition-all duration-200 select-none ${
                   draggedGoalIndex === idx
-                    ? "opacity-35 scale-[0.98] border border-dashed border-neutral-700 rounded-2xl"
+                    ? "scale-[0.98] border border-neutral-700 rounded-2xl bg-neutral-900/20"
                     : "opacity-100 scale-100"
                 }`}
               >
