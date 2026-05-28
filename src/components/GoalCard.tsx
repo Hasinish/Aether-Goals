@@ -83,8 +83,8 @@ export default function GoalCard({
     <div
       onClick={() => !isPending && !showDeleteConfirm && onTap(goal)}
       onMouseLeave={() => setShowMenu(false)}
-      className={`group relative flex flex-col justify-between w-full min-h-[160px] p-4 bg-black border border-neutral-800 rounded-lg cursor-pointer select-none overflow-visible transition-all duration-300 ${
-        isPending ? "opacity-50 pointer-events-none" : "hover:border-neutral-700 hover:shadow-[0_4px_20px_rgba(255,255,255,0.01)]"
+      className={`group relative flex flex-col justify-between w-full min-h-[160px] p-4 bg-neutral-950 border border-neutral-800 rounded-lg cursor-pointer select-none overflow-visible transition-all duration-300 ${
+        isPending ? "opacity-50 pointer-events-none" : "hover:border-neutral-600 hover:shadow-[0_4px_32px_rgba(255,255,255,0.06)]"
       }`}
     >
       {/* Inline delete confirmation overlay */}
@@ -198,23 +198,18 @@ export default function GoalCard({
         )}
       </div>
 
-      {/* Goal Title & Status */}
-      <div className="flex-1 flex flex-col justify-start">
-        <h2 className="text-lg font-bold tracking-tight text-white line-clamp-1 leading-none mb-1.5">
+      {/* Goal Title */}
+      <div className="flex-1 flex flex-col justify-start mb-3">
+        <h2 className="text-lg font-bold tracking-tight text-white line-clamp-1 leading-snug">
           {goal.title}
         </h2>
-        
-        {/* Status Message */}
-        <p className="text-[11px] text-neutral-500 font-normal leading-normal line-clamp-1 mb-3">
-          {goal.statusMessage || "On track to reach your goals."}
-        </p>
       </div>
 
       {/* Stats and Segmented Progress Bar */}
       <div>
         {/* Stats Row */}
         <div className="flex items-center justify-between gap-4 mb-2 select-none">
-          <span className="text-white font-mono text-[10px] tracking-wider font-bold">
+          <span className="text-white font-mono text-sm tracking-wider font-extrabold">
             {goal.progressPercent || 0}%
           </span>
         </div>
@@ -223,9 +218,9 @@ export default function GoalCard({
         <div className="mt-1">
           <SegmentedProgressBar
             progressPercent={goal.progressPercent || 0}
-            totalSegments={20}
-            heightClass="h-3"
-            gapClass="gap-[2px]"
+            totalSegments={30}
+            heightClass="h-8"
+            gapClass="gap-[3px]"
             segmentIdPrefix={`segment-${goal.id}`}
           />
         </div>

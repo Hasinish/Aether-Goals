@@ -15,8 +15,8 @@ export default function SegmentedProgressBar({
   totalSegments = 20,
   heightClass = "h-3",
   gapClass = "gap-[2px]",
-  activeColorClass = "bg-neutral-200 opacity-100 shadow-[0_0_8px_rgba(255,255,255,0.05)]",
-  inactiveColorClass = "bg-neutral-800 opacity-30",
+  activeColorClass = "bg-white opacity-100",
+  inactiveColorClass = "bg-neutral-700 opacity-60",
   segmentIdPrefix,
 }: SegmentedProgressBarProps) {
   const activeSegments = Math.round((progressPercent / 100) * totalSegments);

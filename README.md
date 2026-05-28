@@ -5,7 +5,7 @@
 ---
 
 ## 🚀 Tech Stack
-- **Framework**: Next.js 14 (App Router)
+- **Framework**: Next.js 15 (App Router)
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
 - **Database & Auth**: Supabase (Email Login/Signup & OTP Magic Links)
@@ -126,6 +126,83 @@ create policy "Allow users to delete subtasks linked to their goals"
       where goals.id = subtasks.goal_id and goals.user_id = auth.uid()
     )
   );
+```
+
+### 4b. Database Migration (For Existing Databases)
+If you have an existing database from an older installation and need to support subtask sorting, run the following migration query in your **Supabase SQL Editor**:
+
+```sql
+-- Add sort_order column to existing subtasks table if not already present
+ALTER TABLE public.subtasks ADD COLUMN IF NOT EXISTS sort_order integer not null default 0;
+```
+
+### 4c. Safe Remote Updates RPC (For Atomic Transactions)
+To ensure remote updates are safe from partial failures, run the following SQL segment inside your **Supabase Dashboard > SQL Editor** to establish the update transaction function:
+
+```sql
+create or replace function public.update_goal_with_subtasks(
+  p_goal_id text,
+  p_title text,
+  p_tags text[],
+  p_sort_order integer,
+  p_subtasks jsonb,
+  p_deleted_subtask_ids text[]
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.goals
+  set title = p_title,
+      tags = p_tags,
+      sort_order = p_sort_order
+  where id = p_goal_id
+    and user_id = auth.uid();
+
+  if not found then
+    raise exception 'Goal not found or access denied';
+  end if;
+
+  delete from public.subtasks
+  where id = any(p_deleted_subtask_ids)
+    and exists (
+      select 1
+      from public.goals
+      where goals.id = subtasks.goal_id
+        and goals.user_id = auth.uid()
+    );
+
+  insert into public.subtasks (id, goal_id, title, is_complete, sort_order)
+  select
+    item->>'id',
+    p_goal_id,
+    item->>'title',
+    coalesce((item->>'is_complete')::boolean, false),
+    coalesce((item->>'sort_order')::integer, 0)
+  from jsonb_array_elements(p_subtasks) item
+  on conflict (id) do update
+  set title = excluded.title,
+      is_complete = excluded.is_complete,
+      sort_order = excluded.sort_order
+  where exists (
+    select 1
+    from public.goals
+    where goals.id = subtasks.goal_id
+      and goals.user_id = auth.uid()
+  );
+end;
+$$;
+
+grant execute on function public.update_goal_with_subtasks(
+  text,
+  text,
+  text[],
+  integer,
+  jsonb,
+  text[]
+) to authenticated;
 ```
 
 ### 5. Disable Email Confirmations (No SMTP Required)
