@@ -1,9 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Goal } from "../lib/types";
 import { useGoalsStore } from "../lib/store";
-import { MoreHorizontal, ArrowUpRight } from "lucide-react";
+import { MoreHorizontal, ArrowUpRight, Edit2, Trash2 } from "lucide-react";
 
 interface GoalCardProps {
   goal: Goal;
@@ -12,22 +12,60 @@ interface GoalCardProps {
 }
 
 export default function GoalCard({ goal, onTap, onEditTap }: GoalCardProps) {
-  const { pendingGoalId } = useGoalsStore();
+  const { pendingGoalId, deleteGoal } = useGoalsStore();
   const isPending = pendingGoalId === goal.id;
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // Configurable number of segments in the progress bar (e.g. 30 segments)
   const totalSegments = 30;
   const activeSegments = Math.round(((goal.progressPercent || 0) / 100) * totalSegments);
+
+  // Close the dropdown when clicking outside of it
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    }
+
+    if (showMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showMenu]);
+
+  const handleMenuToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowMenu(!showMenu);
+  };
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowMenu(false);
+    onEditTap(goal, e);
+  };
+
+  const handleDeleteClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowMenu(false);
+    if (confirm(`Are you sure you want to permanently delete the goal "${goal.title}"?`)) {
+      await deleteGoal(goal.id);
+    }
+  };
   
   return (
     <div
       onClick={() => !isPending && onTap(goal)}
-      className={`group relative flex flex-col justify-between w-full min-h-[320px] p-6 bg-black border border-neutral-800 rounded-2xl cursor-pointer hover:border-neutral-700 select-none overflow-hidden transition-all duration-300 ${
+      onMouseLeave={() => setShowMenu(false)} // Auto-close when cursor exits card (sleek usability)
+      className={`group relative flex flex-col justify-between w-full min-h-[320px] p-6 bg-black border border-neutral-800 rounded-2xl cursor-pointer hover:border-neutral-700 select-none overflow-visible transition-all duration-300 ${
         isPending ? "opacity-50 pointer-events-none" : "opacity-100"
       }`}
     >
       {/* Top Header Row: Tags and Options/Pending spinner */}
-      <div className="flex items-center justify-between gap-4 mb-5">
+      <div className="flex items-center justify-between gap-4 mb-5 relative">
         <div className="flex flex-wrap gap-1.5 max-w-[80%]">
           {goal.tags.map((tag) => (
             <span
@@ -42,13 +80,38 @@ export default function GoalCard({ goal, onTap, onEditTap }: GoalCardProps) {
         {isPending ? (
           <div className="w-5 h-5 border-2 border-neutral-800 border-t-white rounded-full animate-spin shrink-0" />
         ) : (
-          <button
-            onClick={(e) => onEditTap(goal, e)}
-            className="p-1 text-neutral-500 hover:text-white hover:bg-neutral-900 rounded-lg transition-colors duration-200"
-            aria-label="Goal Options"
-          >
-            <MoreHorizontal size={18} />
-          </button>
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={handleMenuToggle}
+              className={`p-1 text-neutral-500 hover:text-white hover:bg-neutral-900 rounded-lg transition-colors duration-200 ${
+                showMenu ? "text-white bg-neutral-900" : ""
+              }`}
+              aria-label="Goal Options"
+            >
+              <MoreHorizontal size={18} />
+            </button>
+
+            {/* Dropdown Options Popup Menu */}
+            {showMenu && (
+              <div className="absolute right-0 top-8 z-30 w-40 p-1.5 bg-neutral-950 border border-neutral-850 border-neutral-800 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.8)] animate-fade-in select-none">
+                <button
+                  onClick={handleEditClick}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-[11px] uppercase tracking-wider font-mono text-neutral-400 hover:text-white hover:bg-neutral-900 rounded-lg transition-colors text-left"
+                >
+                  <Edit2 size={12} />
+                  <span>Edit Goal</span>
+                </button>
+                <div className="w-full h-[1px] bg-neutral-900 my-1" />
+                <button
+                  onClick={handleDeleteClick}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-[11px] uppercase tracking-wider font-mono text-neutral-500 hover:text-red-400 hover:bg-red-950/20 rounded-lg transition-colors text-left"
+                >
+                  <Trash2 size={12} />
+                  <span>Delete</span>
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
