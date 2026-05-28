@@ -10,12 +10,13 @@ import GoalFormModal from "@/components/GoalFormModal";
 import { LogOut, Plus, Search, Sparkles } from "lucide-react";
 
 export default function Home() {
-  const { goals, loading, user, logout } = useGoalsStore();
+  const { goals, loading, user, logout, reorderGoals } = useGoalsStore();
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [draggedGoalIndex, setDraggedGoalIndex] = useState<number | null>(null);
 
   // Authenticate Gate
   if (!user) {
@@ -42,6 +43,23 @@ export default function Home() {
     setSelectedGoalId(null);
     setEditingGoal(goal);
     setIsFormOpen(true);
+  };
+
+  // --- DRAG AND DROP GOAL REORDER ---
+  const canDragSort = !searchQuery && !selectedTag;
+
+  const handleDragStart = (idx: number) => {
+    setDraggedGoalIndex(idx);
+  };
+
+  const handleDragEnter = (targetIdx: number) => {
+    if (draggedGoalIndex === null || draggedGoalIndex === targetIdx) return;
+    reorderGoals(draggedGoalIndex, targetIdx);
+    setDraggedGoalIndex(targetIdx);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedGoalIndex(null);
   };
 
   // Get all unique tags for the horizontal tag filters
@@ -89,7 +107,7 @@ export default function Home() {
         <div className="flex items-center gap-3 p-4 border border-neutral-900 bg-neutral-950/40 rounded-2xl select-none">
           <Sparkles size={16} className="text-neutral-400 shrink-0" />
           <p className="text-[10px] font-mono text-neutral-400 tracking-wide leading-relaxed">
-            &quot;The secret of getting ahead is getting started.&quot; Keep iterating, keep building.
+            &quot;The secret of getting ahead is getting started.&quot; Drag cards to sort dashboard goals.
           </p>
         </div>
 
@@ -156,13 +174,26 @@ export default function Home() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6">
-            {filteredGoals.map((goal) => (
-              <GoalCard
+            {filteredGoals.map((goal, idx) => (
+              <div
                 key={goal.id}
-                goal={goal}
-                onTap={handleCardTap}
-                onEditTap={handleEditTap}
-              />
+                draggable={canDragSort}
+                onDragStart={() => canDragSort && handleDragStart(idx)}
+                onDragEnter={() => canDragSort && handleDragEnter(idx)}
+                onDragEnd={handleDragEnd}
+                onDragOver={(e) => canDragSort && e.preventDefault()}
+                className={`transition-all duration-200 select-none ${
+                  draggedGoalIndex === idx
+                    ? "opacity-35 scale-[0.98] border border-dashed border-neutral-700 rounded-2xl"
+                    : "opacity-100 scale-100"
+                }`}
+              >
+                <GoalCard
+                  goal={goal}
+                  onTap={handleCardTap}
+                  onEditTap={handleEditTap}
+                />
+              </div>
             ))}
           </div>
         )}

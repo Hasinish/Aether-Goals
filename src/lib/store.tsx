@@ -19,6 +19,7 @@ interface StoreContextProps {
   updateGoal: (goalId: string, title: string, tags: string[], subtasksInput: { id?: string; title: string; is_complete?: boolean }[]) => Promise<void>;
   deleteGoal: (goalId: string) => Promise<void>;
   toggleSubtask: (subtaskId: string) => Promise<void>;
+  reorderGoals: (startIndex: number, endIndex: number) => Promise<void>;
   refreshData: () => Promise<void>;
 }
 
@@ -534,6 +535,46 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const reorderGoals = async (startIndex: number, endIndex: number) => {
+    const previousGoals = [...goals];
+
+    const updated = [...goals];
+    const [draggedItem] = updated.splice(startIndex, 1);
+    updated.splice(endIndex, 0, draggedItem);
+
+    // Update React local state immediately
+    setGoals(updated);
+
+    try {
+      if (!isOfflineMode && user && user !== "guest") {
+        const client = getSupabaseClient();
+        // Swap created_at timestamps between both goals in Supabase to maintain custom sorting
+        const draggedGoal = goals[startIndex];
+        const targetGoal = goals[endIndex];
+
+        if (draggedGoal && targetGoal) {
+          const { error: err1 } = await client
+            .from("goals")
+            .update({ created_at: targetGoal.created_at })
+            .eq("id", draggedGoal.id);
+
+          const { error: err2 } = await client
+            .from("goals")
+            .update({ created_at: draggedGoal.created_at })
+            .eq("id", targetGoal.id);
+
+          if (err1 || err2) throw err1 || err2;
+        }
+      } else {
+        // Offline LocalStorage updates
+        localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(updated));
+      }
+    } catch (e) {
+      console.error("Failed to reorder goals, reverting state", e);
+      setGoals(previousGoals);
+    }
+  };
+
   const refreshData = async () => {
     await fetchData();
   };
@@ -552,6 +593,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateGoal,
         deleteGoal,
         toggleSubtask,
+        reorderGoals,
         refreshData,
       }}
     >
