@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Goal } from "../lib/types";
 import { useGoalsStore } from "../lib/store";
-import { X, Plus, Trash2 } from "lucide-react";
+import { X, Plus, Trash2, GripVertical } from "lucide-react";
 
 interface GoalFormModalProps {
   editGoal: Goal | null; // Null means creating a new goal
@@ -24,6 +24,7 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // Pre-populate if editing
   useEffect(() => {
@@ -68,6 +69,28 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
     setSubtasks((prev) =>
       prev.map((s, i) => (i === idx ? { ...s, title: newTitle } : s))
     );
+  };
+
+  // --- DRAG AND DROP REORDER HANDLERS ---
+  const handleDragStart = (idx: number) => {
+    setDraggedIndex(idx);
+  };
+
+  const handleDragEnter = (targetIdx: number) => {
+    if (draggedIndex === null || draggedIndex === targetIdx) return;
+
+    setSubtasks((prev) => {
+      const updated = [...prev];
+      const [draggedItem] = updated.splice(draggedIndex, 1);
+      updated.splice(targetIdx, 0, draggedItem);
+      return updated;
+    });
+
+    setDraggedIndex(targetIdx);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -188,7 +211,7 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
         {/* Subtasks Builder */}
         <div className="space-y-4 pt-2 border-t border-neutral-900">
           <label className="block text-[10px] uppercase font-mono tracking-widest text-neutral-400">
-            Subtasks Checklist (Tap title to rename)
+            Subtasks Checklist (Drag handle to sort, tap title to rename)
           </label>
 
           {/* Add Subtask Sub-Form */}
@@ -225,8 +248,20 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
               subtasks.map((task, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center justify-between gap-3 p-3.5 border border-neutral-900 bg-neutral-950/40 rounded-xl focus-within:border-neutral-700 transition-colors"
+                  draggable
+                  onDragStart={() => handleDragStart(idx)}
+                  onDragEnter={() => handleDragEnter(idx)}
+                  onDragEnd={handleDragEnd}
+                  onDragOver={(e) => e.preventDefault()}
+                  className={`flex items-center justify-between gap-3 p-3.5 border border-neutral-900 bg-neutral-950/40 rounded-xl focus-within:border-neutral-700 transition-all duration-250 select-none ${
+                    draggedIndex === idx ? "opacity-30 border-dashed border-neutral-700" : "opacity-100"
+                  }`}
                 >
+                  {/* Grip Handle Icon */}
+                  <div className="cursor-grab active:cursor-grabbing p-1 text-neutral-600 hover:text-neutral-400 transition-colors shrink-0">
+                    <GripVertical size={14} />
+                  </div>
+
                   <input
                     type="text"
                     required
@@ -234,6 +269,7 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
                     onChange={(e) => handleEditSubtaskTitle(idx, e.target.value)}
                     className="flex-1 bg-transparent border-none text-xs text-neutral-200 placeholder-neutral-600 focus:outline-none"
                   />
+                  
                   <button
                     type="button"
                     onClick={() => handleRemoveSubtask(idx)}
