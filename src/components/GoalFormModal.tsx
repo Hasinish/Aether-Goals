@@ -64,6 +64,12 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
     setSubtasks(subtasks.filter((_, i) => i !== idx));
   };
 
+  const handleEditSubtaskTitle = (idx: number, newTitle: string) => {
+    setSubtasks((prev) =>
+      prev.map((s, i) => (i === idx ? { ...s, title: newTitle } : s))
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -73,6 +79,11 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
       setError("Please provide a goal title.");
       return;
     }
+
+    // Filter out any empty subtask titles that were accidentally blanked out by the user
+    const validatedSubtasks = subtasks
+      .map((s) => ({ ...s, title: s.title.trim() }))
+      .filter((s) => s.title.length > 0);
 
     // Process tags
     const processedTags = tagsInput
@@ -84,13 +95,13 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
     try {
       if (editGoal) {
         // Pass full subtask structures to keep ID mappings intact
-        await updateGoal(editGoal.id, trimmedTitle, processedTags, subtasks);
+        await updateGoal(editGoal.id, trimmedTitle, processedTags, validatedSubtasks);
       } else {
         // Pass just titles for new goals (which generates IDs)
         await addGoal(
           trimmedTitle,
           processedTags,
-          subtasks.map((s) => s.title)
+          validatedSubtasks.map((s) => s.title)
         );
       }
       onClose();
@@ -177,7 +188,7 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
         {/* Subtasks Builder */}
         <div className="space-y-4 pt-2 border-t border-neutral-900">
           <label className="block text-[10px] uppercase font-mono tracking-widest text-neutral-400">
-            Subtasks Checklist
+            Subtasks Checklist (Tap title to rename)
           </label>
 
           {/* Add Subtask Sub-Form */}
@@ -214,13 +225,19 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
               subtasks.map((task, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center justify-between gap-3 p-3.5 border border-neutral-900 bg-neutral-950/40 rounded-xl"
+                  className="flex items-center justify-between gap-3 p-3.5 border border-neutral-900 bg-neutral-950/40 rounded-xl focus-within:border-neutral-700 transition-colors"
                 >
-                  <span className="text-xs text-neutral-300">{task.title}</span>
+                  <input
+                    type="text"
+                    required
+                    value={task.title}
+                    onChange={(e) => handleEditSubtaskTitle(idx, e.target.value)}
+                    className="flex-1 bg-transparent border-none text-xs text-neutral-200 placeholder-neutral-600 focus:outline-none"
+                  />
                   <button
                     type="button"
                     onClick={() => handleRemoveSubtask(idx)}
-                    className="p-1 text-neutral-500 hover:text-red-400 transition-colors"
+                    className="p-1 text-neutral-500 hover:text-red-400 transition-colors shrink-0"
                     aria-label="Remove Subtask"
                   >
                     <Trash2 size={14} />
