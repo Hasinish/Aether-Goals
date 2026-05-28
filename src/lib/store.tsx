@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { Goal, Subtask } from "./types";
 import { getInitialSeedData } from "./seed";
 import { getSupabaseClient, isSupabaseConfigured } from "./supabase";
@@ -12,11 +12,13 @@ interface StoreContextProps {
   loading: boolean;
   user: User | "guest" | null;
   isOfflineMode: boolean;
-  pendingGoalId: string | null;
+  pendingGoalIds: Set<string>;
+  syncError: string | null;
+  clearSyncError: () => void;
   loginAsGuest: () => void;
   logout: () => Promise<void>;
   addGoal: (title: string, tags: string[], subtaskTitles: string[]) => Promise<void>;
-  updateGoal: (goalId: string, title: string, tags: string[], subtasksInput: { id?: string; title: string; is_complete?: boolean }[]) => Promise<void>;
+  updateGoal: (goalId: string, title: string, tags: string[], subtasksInput: { id?: string; title: string; is_complete?: boolean; sort_order?: number }[]) => Promise<void>;
   deleteGoal: (goalId: string) => Promise<void>;
   toggleSubtask: (subtaskId: string) => Promise<void>;
   reorderGoals: (startIndex: number, endIndex: number) => Promise<void>;
@@ -30,9 +32,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [loading, setLoading] = useState<boolean>(true);
   const [user, setUser] = useState<User | "guest" | null>(null);
   const [isOfflineMode, setIsOfflineMode] = useState<boolean>(true);
-  const [pendingGoalId, setPendingGoalId] = useState<string | null>(null);
+  
+  // Track concurrent pending goals
+  const [pendingGoalIds, setPendingGoalIds] = useState<Set<string>>(new Set());
+  const addPendingId = useCallback((id: string) => setPendingGoalIds(prev => new Set(prev).add(id)), []);
+  const removePendingId = useCallback((id: string) => setPendingGoalIds(prev => {
+    const next = new Set(prev);
+    next.delete(id);
+    return next;
+  }), []);
 
-  // Calculates percentage and constructs progress statuses
+  // Concurrent locks
+  const inflightSubtasksRef = useRef<Set<string>>(new Set());
+  const isReorderingRef = useRef<boolean>(false);
+
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const clearSyncError = () => setSyncError(null);
+
   const calculateGoalMetrics = useCallback((goal: Goal): Goal => {
     const subtasks = goal.subtasks || [];
     const total = subtasks.length;
@@ -46,67 +62,80 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, []);
 
-  // Seeding helper for Supabase
   const seedDataToSupabase = useCallback(async (userId: string) => {
     try {
       const client = getSupabaseClient();
       const { goals: seedGoals, subtasks: seedSubtasks } = getInitialSeedData();
 
-      // Insert goals with user_id
-      const goalsToInsert = seedGoals.map(g => ({
-        id: g.id,
+      const goalIdMap: Record<string, string> = {};
+      seedGoals.forEach((g) => {
+        goalIdMap[g.id] = crypto.randomUUID();
+      });
+
+      const goalsToInsert = seedGoals.map((g, i) => ({
+        id: goalIdMap[g.id],
         user_id: userId,
         title: g.title,
         tags: g.tags,
-        created_at: g.created_at
+        created_at: g.created_at,
+        sort_order: i,
       }));
 
       const { error: goalsError } = await client.from("goals").insert(goalsToInsert);
       if (goalsError) throw goalsError;
 
-      // Insert subtasks
-      const { error: subtasksError } = await client.from("subtasks").insert(seedSubtasks);
-      if (subtasksError) throw subtasksError;
+      const subtasksToInsert = seedSubtasks.map((s) => ({
+        id: crypto.randomUUID(),
+        goal_id: goalIdMap[s.goal_id],
+        title: s.title,
+        is_complete: s.is_complete,
+        sort_order: s.sort_order || 0
+      }));
 
-      // Optimistically assemble and set goals directly to resolve fetch dependencies
+      const { error: subtasksError } = await client.from("subtasks").insert(subtasksToInsert);
+      if (subtasksError) {
+        // Rollback goal insertion
+        await client.from("goals").delete().in("id", goalsToInsert.map(g => g.id));
+        throw subtasksError;
+      }
+
       const assembledGoals = seedGoals.map((g) => {
-        const goalSubtasks = seedSubtasks.filter((s) => s.goal_id === g.id);
+        const goalSubtasks = subtasksToInsert.filter((s) => s.goal_id === goalIdMap[g.id]);
         return calculateGoalMetrics({
           ...g,
+          id: goalIdMap[g.id],
           subtasks: goalSubtasks,
         });
       });
 
       setGoals(assembledGoals);
     } catch (e) {
-      console.error("Failed to seed Supabase data:", e);
+      const errMsg = e instanceof Error ? e.message : String(e);
+      setSyncError(`Seeding failed: ${errMsg}`);
     }
   }, [calculateGoalMetrics]);
 
-  // Fetch / Sync Data
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const dbConfigured = isSupabaseConfigured();
       if (dbConfigured && user && user !== "guest") {
         const client = getSupabaseClient();
-        // --- SUPABASE DATA FETCH ---
         const { data: goalsData, error: goalsError } = await client
           .from("goals")
           .select("*")
-          .order("created_at", { ascending: false });
+          .order("sort_order", { ascending: true });
 
         if (goalsError) throw goalsError;
 
         if (goalsData && goalsData.length > 0) {
-          // Fetch subtasks
           const { data: subtasksData, error: subtasksError } = await client
             .from("subtasks")
-            .select("*");
+            .select("*")
+            .order("sort_order", { ascending: true });
 
           if (subtasksError) throw subtasksError;
 
-          // Assemble goals
           const assembledGoals: Goal[] = (goalsData as Goal[]).map((g) => {
             const goalSubtasks = (subtasksData as Subtask[] || []).filter((s) => s.goal_id === g.id);
             return calculateGoalMetrics({
@@ -117,11 +146,61 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
           setGoals(assembledGoals);
         } else {
-          // Empty remote database -> Seed data for this user
-          await seedDataToSupabase(user.id);
+          // Migration logic
+          const localGoals = localStorage.getItem(STORAGE_KEYS.GOALS);
+          const localSubtasks = localStorage.getItem(STORAGE_KEYS.SUBTASKS);
+          
+          if (localGoals && localSubtasks && JSON.parse(localGoals).length > 0) {
+            const parsedGoals = JSON.parse(localGoals) as Goal[];
+            const parsedSubtasks = JSON.parse(localSubtasks) as Subtask[];
+            
+            const idMap: Record<string, string> = {};
+            parsedGoals.forEach(g => { idMap[g.id] = crypto.randomUUID(); });
+            
+            const goalsToInsert = parsedGoals.map(g => ({
+              id: idMap[g.id],
+              user_id: user.id,
+              title: g.title,
+              tags: g.tags,
+              created_at: g.created_at,
+              sort_order: g.sort_order,
+            }));
+
+            const { error: syncGError } = await client.from("goals").insert(goalsToInsert);
+            if (!syncGError) {
+              if (parsedSubtasks.length > 0) {
+                const subtasksToInsert = parsedSubtasks.map(s => ({
+                  id: crypto.randomUUID(),
+                  goal_id: idMap[s.goal_id],
+                  title: s.title,
+                  is_complete: s.is_complete,
+                  sort_order: s.sort_order || 0
+                }));
+                const { error: syncSError } = await client.from("subtasks").insert(subtasksToInsert);
+                if (syncSError) {
+                  await client.from("goals").delete().in("id", goalsToInsert.map(g => g.id));
+                  throw syncSError;
+                }
+              }
+            } else {
+              throw syncGError;
+            }
+
+            const assembledGoals = parsedGoals.map((g) => {
+              const goalSubtasks = parsedSubtasks.filter((s) => s.goal_id === g.id);
+              return calculateGoalMetrics({
+                ...g,
+                id: idMap[g.id],
+                user_id: user.id,
+                subtasks: goalSubtasks.map(s => ({...s, goal_id: idMap[s.goal_id]}))
+              });
+            }).sort((a, b) => a.sort_order - b.sort_order);
+            setGoals(assembledGoals);
+          } else {
+            await seedDataToSupabase(user.id);
+          }
         }
       } else {
-        // --- LOCAL STORAGE DATA FETCH (GUEST OR OFFLINE MODE) ---
         const localGoals = localStorage.getItem(STORAGE_KEYS.GOALS);
         const localSubtasks = localStorage.getItem(STORAGE_KEYS.SUBTASKS);
 
@@ -135,11 +214,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               ...g,
               subtasks: goalSubtasks,
             });
-          });
+          }).sort((a, b) => a.sort_order - b.sort_order);
 
           setGoals(assembledGoals);
         } else {
-          // First load / empty storage -> Seed local data
           const { goals: seedGoals, subtasks: seedSubtasks } = getInitialSeedData();
           
           localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(seedGoals));
@@ -151,24 +229,46 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               ...g,
               subtasks: goalSubtasks,
             });
-          });
+          }).sort((a, b) => a.sort_order - b.sort_order);
 
           setGoals(assembledGoals);
         }
       }
     } catch (error) {
-      console.error("Error fetching data:", error);
+      const errMsg = error instanceof Error ? error.message : String(error);
+      setSyncError(`Failed to fetch goals: ${errMsg}`);
     } finally {
       setLoading(false);
     }
   }, [user, calculateGoalMetrics, seedDataToSupabase]);
 
-  // Initialize Auth & Detect Supabase Configuration
   useEffect(() => {
-    const initAuth = async () => {
-      const dbConfigured = isSupabaseConfigured();
-      setIsOfflineMode(!dbConfigured);
+    const dbConfigured = isSupabaseConfigured();
+    setIsOfflineMode(!dbConfigured);
 
+    let subscription: { unsubscribe: () => void } | null = null;
+
+    if (dbConfigured) {
+      try {
+        const client = getSupabaseClient();
+        const { data: { subscription: sub } } = client.auth.onAuthStateChange((_event, session) => {
+          if (session?.user) {
+            setUser(session.user);
+            localStorage.setItem(STORAGE_KEYS.USER, "authenticated");
+          } else {
+            const localUser = localStorage.getItem(STORAGE_KEYS.USER);
+            if (localUser !== "guest") {
+              setUser(null);
+            }
+          }
+        });
+        subscription = sub;
+      } catch {
+        // silent fallback
+      }
+    }
+
+    const initAuth = async () => {
       if (dbConfigured) {
         try {
           const client = getSupabaseClient();
@@ -176,29 +276,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (session?.user) {
             setUser(session.user);
           } else {
-            // Check local storage if previously logged in as guest
             const localUser = localStorage.getItem(STORAGE_KEYS.USER);
             if (localUser === "guest") {
               setUser("guest");
             }
           }
-
-          // Listen for auth state changes
-          const { data: { subscription } } = client.auth.onAuthStateChange((_event, session) => {
-            if (session?.user) {
-              setUser(session.user);
-              localStorage.setItem(STORAGE_KEYS.USER, "authenticated");
-            } else {
-              const localUser = localStorage.getItem(STORAGE_KEYS.USER);
-              if (localUser !== "guest") {
-                setUser(null);
-              }
-            }
-          });
-
-          return () => subscription.unsubscribe();
-        } catch (e) {
-          console.error("Supabase auth error, falling back to offline mode", e);
+        } catch {
           setIsOfflineMode(true);
         }
       } else {
@@ -210,9 +293,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     initAuth();
+
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
   }, []);
 
-  // Fetch / Sync Data when User or Mode changes
   useEffect(() => {
     fetchData();
   }, [fetchData]);
@@ -226,34 +314,37 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!isOfflineMode) {
       try {
         const client = getSupabaseClient();
-        await client.auth.signOut();
+        const { error } = await client.auth.signOut();
+        if (error) throw error;
       } catch (e) {
-        console.error("Sign out error:", e);
+        const errMsg = e instanceof Error ? e.message : String(e);
+        setSyncError(`Logout failed: ${errMsg}`);
+        return; // Don't wipe UI session if DB logout fails
       }
     }
     setUser(null);
     localStorage.removeItem(STORAGE_KEYS.USER);
   };
 
-  // --- ACTIONS ---
-
   const addGoal = async (title: string, tags: string[], subtaskTitles: string[]) => {
     const newGoalId = crypto.randomUUID();
+    const minSortOrder = goals.length > 0 ? Math.min(...goals.map((g) => g.sort_order)) : 0;
+    const newSortOrder = minSortOrder - 1;
     const newGoal: Goal = {
       id: newGoalId,
       user_id: user && user !== "guest" ? user.id : null,
       title,
       tags,
       created_at: new Date().toISOString(),
-      deltaPercent: 0,
-      statusMessage: subtaskTitles.length > 0 ? "Goal initialized. Start ticking off subtasks." : "Goal initialized.",
+      sort_order: newSortOrder,
     };
 
-    const newSubtasks: Subtask[] = subtaskTitles.map((t) => ({
+    const newSubtasks: Subtask[] = subtaskTitles.map((t, idx) => ({
       id: crypto.randomUUID(),
       goal_id: newGoalId,
       title: t,
       is_complete: false,
+      sort_order: idx
     }));
 
     const newGoalWithMetrics = calculateGoalMetrics({
@@ -261,33 +352,33 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       subtasks: newSubtasks,
     });
 
-    // Save previous state for optimistic updates
     const previousGoals = [...goals];
 
-    // Optimistically update React State
     setGoals((prev) => [newGoalWithMetrics, ...prev]);
-    setPendingGoalId(newGoalId);
+    addPendingId(newGoalId);
 
     try {
       if (!isOfflineMode && user && user !== "guest") {
         const client = getSupabaseClient();
-        // Remote write
         const { error: gError } = await client.from("goals").insert({
           id: newGoal.id,
           user_id: newGoal.user_id,
           title: newGoal.title,
           tags: newGoal.tags,
           created_at: newGoal.created_at,
+          sort_order: newGoal.sort_order,
         });
 
         if (gError) throw gError;
 
         if (newSubtasks.length > 0) {
           const { error: sError } = await client.from("subtasks").insert(newSubtasks);
-          if (sError) throw sError;
+          if (sError) {
+            await client.from("goals").delete().eq("id", newGoal.id);
+            throw sError;
+          }
         }
       } else {
-        // Local write
         const localGoals = localStorage.getItem(STORAGE_KEYS.GOALS);
         const localSubtasks = localStorage.getItem(STORAGE_KEYS.SUBTASKS);
 
@@ -301,10 +392,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         localStorage.setItem(STORAGE_KEYS.SUBTASKS, JSON.stringify(parsedSubtasks));
       }
     } catch (e) {
-      console.error("Failed to add goal, reverting state", e);
       setGoals(previousGoals);
+      throw e;
     } finally {
-      setPendingGoalId(null);
+      removePendingId(newGoalId);
     }
   };
 
@@ -312,20 +403,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     goalId: string,
     title: string,
     tags: string[],
-    subtasksInput: { id?: string; title: string; is_complete?: boolean }[]
+    subtasksInput: { id?: string; title: string; is_complete?: boolean; sort_order?: number }[]
   ) => {
-    // Generate IDs for new subtasks, preserve existing ones
-    const updatedSubtasks: Subtask[] = subtasksInput.map((s) => ({
+    const updatedSubtasks: Subtask[] = subtasksInput.map((s, idx) => ({
       id: s.id || crypto.randomUUID(),
       goal_id: goalId,
       title: s.title,
       is_complete: s.is_complete || false,
+      sort_order: idx
     }));
 
-    const previousGoals = [...goals];
-    setPendingGoalId(goalId);
+    addPendingId(goalId);
 
-    // Optimistically update React State
     setGoals((prev) =>
       prev.map((g) => {
         if (g.id === goalId) {
@@ -343,7 +432,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       if (!isOfflineMode && user && user !== "guest") {
         const client = getSupabaseClient();
-        // Remote update
         const { error: gError } = await client
           .from("goals")
           .update({ title, tags })
@@ -351,59 +439,31 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         if (gError) throw gError;
 
-        // Sync subtasks using ID checking
-        const { data: oldSubtasks, error: fetchErr } = await client
-          .from("subtasks")
-          .select("*")
-          .eq("goal_id", goalId);
-
-        if (fetchErr) throw fetchErr;
-
-        const oldSubtasksList = (oldSubtasks as Subtask[]) || [];
-
-        // Subtasks to delete: present in database but not in our updated list
-        const subtasksToDelete = oldSubtasksList.filter(
-          (oldS) => !updatedSubtasks.some((newS) => newS.id === oldS.id)
-        );
-
-        // Subtasks to insert: not present in the database
-        const subtasksToInsert = updatedSubtasks.filter(
-          (newS) => !oldSubtasksList.some((oldS) => oldS.id === newS.id)
-        );
-
-        // Subtasks to update: present in both, sync title & is_complete
-        const subtasksToUpdate = updatedSubtasks.filter((newS) =>
-          oldSubtasksList.some((oldS) => oldS.id === newS.id)
-        );
-
-        if (subtasksToDelete.length > 0) {
+        if (updatedSubtasks.length > 0) {
+          const { error: upsertErr } = await client.from("subtasks").upsert(updatedSubtasks);
+          if (upsertErr) throw upsertErr;
+          
+          const subtaskIds = updatedSubtasks.map((s) => s.id);
           const { error: delErr } = await client
             .from("subtasks")
             .delete()
-            .in("id", subtasksToDelete.map((s) => s.id));
+            .eq("goal_id", goalId)
+            .not("id", "in", `(${subtaskIds.join(",")})`);
+          if (delErr) throw delErr;
+        } else {
+          const { error: delErr } = await client
+            .from("subtasks")
+            .delete()
+            .eq("goal_id", goalId);
           if (delErr) throw delErr;
         }
-
-        if (subtasksToInsert.length > 0) {
-          const { error: insErr } = await client.from("subtasks").insert(subtasksToInsert);
-          if (insErr) throw insErr;
-        }
-
-        for (const s of subtasksToUpdate) {
-          const { error: updErr } = await client
-            .from("subtasks")
-            .update({ title: s.title, is_complete: s.is_complete })
-            .eq("id", s.id);
-          if (updErr) throw updErr;
-        }
       } else {
-        // Local update
         const localGoals = localStorage.getItem(STORAGE_KEYS.GOALS);
         const localSubtasks = localStorage.getItem(STORAGE_KEYS.SUBTASKS);
 
-        if (localGoals && localSubtasks) {
-          let parsedGoals = JSON.parse(localGoals) as Goal[];
-          let parsedSubtasks = JSON.parse(localSubtasks) as Subtask[];
+        if (localGoals || localSubtasks) {
+          let parsedGoals = localGoals ? (JSON.parse(localGoals) as Goal[]) : [];
+          let parsedSubtasks = localSubtasks ? (JSON.parse(localSubtasks) as Subtask[]) : [];
 
           parsedGoals = parsedGoals.map((g) => {
             if (g.id === goalId) {
@@ -412,7 +472,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             return g;
           });
 
-          // Remove old subtasks for this goal and append updated list
           parsedSubtasks = parsedSubtasks.filter((s) => s.goal_id !== goalId);
           parsedSubtasks.push(...updatedSubtasks);
 
@@ -421,37 +480,30 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
       }
     } catch (e) {
-      console.error("Failed to update goal, reverting state", e);
-      setGoals(previousGoals);
+      await refreshData();
+      throw e; 
     } finally {
-      setPendingGoalId(null);
+      removePendingId(goalId);
     }
   };
 
   const deleteGoal = async (goalId: string) => {
-    const previousGoals = [...goals];
-    setPendingGoalId(goalId);
-
-    // Optimistically update React State
+    addPendingId(goalId);
     setGoals((prev) => prev.filter((g) => g.id !== goalId));
 
     try {
       if (!isOfflineMode && user && user !== "guest") {
         const client = getSupabaseClient();
-        // Delete subtasks first explicitly to prevent foreign key errors (cascade config safety)
-        const { error: sError } = await client.from("subtasks").delete().eq("goal_id", goalId);
-        if (sError) throw sError;
-
+        // Relies on database ON DELETE CASCADE rule for subtasks
         const { error: gError } = await client.from("goals").delete().eq("id", goalId);
         if (gError) throw gError;
       } else {
-        // Local delete
         const localGoals = localStorage.getItem(STORAGE_KEYS.GOALS);
         const localSubtasks = localStorage.getItem(STORAGE_KEYS.SUBTASKS);
 
-        if (localGoals && localSubtasks) {
-          let parsedGoals = JSON.parse(localGoals) as Goal[];
-          let parsedSubtasks = JSON.parse(localSubtasks) as Subtask[];
+        if (localGoals || localSubtasks) {
+          let parsedGoals = localGoals ? JSON.parse(localGoals) as Goal[] : [];
+          let parsedSubtasks = localSubtasks ? JSON.parse(localSubtasks) as Subtask[] : [];
 
           parsedGoals = parsedGoals.filter((g) => g.id !== goalId);
           parsedSubtasks = parsedSubtasks.filter((s) => s.goal_id !== goalId);
@@ -461,36 +513,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
       }
     } catch (e) {
-      console.error("Failed to delete goal, reverting state", e);
-      setGoals(previousGoals);
+      await refreshData();
+      throw e;
     } finally {
-      setPendingGoalId(null);
+      removePendingId(goalId);
     }
   };
 
   const toggleSubtask = async (subtaskId: string) => {
-    const previousGoals = [...goals];
-    let newIsComplete = false;
+    if (inflightSubtasksRef.current.has(subtaskId)) return;
+    inflightSubtasksRef.current.add(subtaskId);
+
     let targetGoalId = "";
+    let newIsComplete = false;
 
-    // Find the current status in local React state to toggle directly
-    const allSubtasks = goals.flatMap((g) => g.subtasks || []);
-    const subtaskObj = allSubtasks.find((s) => s.id === subtaskId);
-    if (subtaskObj) {
-      newIsComplete = !subtaskObj.is_complete;
-      targetGoalId = subtaskObj.goal_id;
-    }
+    setGoals((prevGoals) => {
+      // Find the subtask synchronously safely
+      let found = false;
+      for (const g of prevGoals) {
+        if (g.subtasks?.some(s => s.id === subtaskId)) {
+          found = true;
+          targetGoalId = g.id;
+          newIsComplete = !g.subtasks.find(s => s.id === subtaskId)!.is_complete;
+          break;
+        }
+      }
+      if (!found) return prevGoals;
 
-    if (targetGoalId) {
-      setPendingGoalId(targetGoalId);
-    }
-
-    // Optimistic UI updates
-    setGoals((prevGoals) =>
-      prevGoals.map((g) => {
-        const subtasks = g.subtasks || [];
-        if (subtasks.some((s) => s.id === subtaskId)) {
-          const updatedSubtasks = subtasks.map((s) => {
+      return prevGoals.map((g) => {
+        if (g.id === targetGoalId) {
+          const updatedSubtasks = (g.subtasks || []).map((s) => {
             if (s.id === subtaskId) {
               return { ...s, is_complete: newIsComplete };
             }
@@ -499,14 +551,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           return calculateGoalMetrics({ ...g, subtasks: updatedSubtasks });
         }
         return g;
-      })
-    );
+      });
+    });
 
-    // Sync database / storage
+    if (!targetGoalId) {
+      inflightSubtasksRef.current.delete(subtaskId);
+      return;
+    }
+
     try {
       if (!isOfflineMode && user && user !== "guest") {
         const client = getSupabaseClient();
-        // Zero-select query round trip optimization (FIX 7): direct update
         const { error: upErr } = await client
           .from("subtasks")
           .update({ is_complete: newIsComplete })
@@ -514,7 +569,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         if (upErr) throw upErr;
       } else {
-        // Local storage update
         const localSubtasks = localStorage.getItem(STORAGE_KEYS.SUBTASKS);
         if (localSubtasks) {
           const parsedSubtasks = JSON.parse(localSubtasks) as Subtask[];
@@ -528,50 +582,53 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
       }
     } catch (e) {
-      console.error("Failed to toggle subtask on backend, reverting state", e);
-      setGoals(previousGoals);
+      const errMsg = e instanceof Error ? e.message : String(e);
+      setSyncError(`Failed to save subtask status: ${errMsg}`);
+      await refreshData();
     } finally {
-      setPendingGoalId(null);
+      inflightSubtasksRef.current.delete(subtaskId);
     }
   };
 
   const reorderGoals = async (startIndex: number, endIndex: number) => {
-    const previousGoals = [...goals];
+    if (isReorderingRef.current) return;
+    isReorderingRef.current = true;
 
-    const updated = [...goals];
-    const [draggedItem] = updated.splice(startIndex, 1);
-    updated.splice(endIndex, 0, draggedItem);
+    let reordered: Goal[] = [];
 
-    // Update React local state immediately
-    setGoals(updated);
+    setGoals((prev) => {
+      const updated = [...prev];
+      const [movedItem] = updated.splice(startIndex, 1);
+      updated.splice(endIndex, 0, movedItem);
+      reordered = updated.map((g, i) => ({ ...g, sort_order: i }));
+      return reordered;
+    });
 
     try {
       if (!isOfflineMode && user && user !== "guest") {
         const client = getSupabaseClient();
-        // Swap created_at timestamps between both goals in Supabase to maintain custom sorting
-        const draggedGoal = goals[startIndex];
-        const targetGoal = goals[endIndex];
-
-        if (draggedGoal && targetGoal) {
-          const { error: err1 } = await client
-            .from("goals")
-            .update({ created_at: targetGoal.created_at })
-            .eq("id", draggedGoal.id);
-
-          const { error: err2 } = await client
-            .from("goals")
-            .update({ created_at: draggedGoal.created_at })
-            .eq("id", targetGoal.id);
-
-          if (err1 || err2) throw err1 || err2;
-        }
+        const { error } = await client
+          .from("goals")
+          .upsert(
+            reordered.map((g) => ({
+              id: g.id,
+              user_id: g.user_id,
+              title: g.title,
+              tags: g.tags,
+              created_at: g.created_at,
+              sort_order: g.sort_order,
+            }))
+          );
+        if (error) throw error;
       } else {
-        // Offline LocalStorage updates
-        localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(updated));
+        localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(reordered));
       }
     } catch (e) {
-      console.error("Failed to reorder goals, reverting state", e);
-      setGoals(previousGoals);
+      const errMsg = e instanceof Error ? e.message : String(e);
+      setSyncError(`Failed to save reorder: ${errMsg}`);
+      await refreshData();
+    } finally {
+      isReorderingRef.current = false;
     }
   };
 
@@ -586,7 +643,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         loading,
         user,
         isOfflineMode,
-        pendingGoalId,
+        pendingGoalIds,
+        syncError,
+        clearSyncError,
         loginAsGuest,
         logout,
         addGoal,

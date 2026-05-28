@@ -43,7 +43,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anonymous-anon-key-string
 ```
 
-*Note: If these variables are not present or configured, Aether automatically boots in **Offline Sandbox Mode** (using secure browser LocalStorage) so you can test all features instantly.*
+*Note: If these variables are not present or configured, Aether automatically boots in **Offline Sandbox Mode** (using browser LocalStorage) so you can test all features instantly.*
 
 ### 4. Supabase Database Schema Setup
 Execute the following SQL queries inside your **Supabase Dashboard > SQL Editor** to establish the backend database structure and security rules:
@@ -55,6 +55,7 @@ create table public.goals (
   user_id uuid references auth.users(id) on delete cascade,
   title text not null,
   tags text[] not null default '{}',
+  sort_order integer not null default 0,
   created_at timestamp with time zone not null default timezone('utc'::text, now())
 );
 
@@ -78,12 +79,12 @@ create policy "Allow logged-in users to delete their own goals"
   on public.goals for delete 
   using (auth.uid() = user_id);
 
--- 2. Create subtasks table linked to goals
 create table public.subtasks (
   id text not null primary key,
   goal_id text references public.goals(id) on delete cascade,
   title text not null,
-  is_complete boolean not null default false
+  is_complete boolean not null default false,
+  sort_order integer not null default 0
 );
 
 -- Enable Row Level Security

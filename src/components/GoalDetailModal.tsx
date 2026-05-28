@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { Goal } from "../lib/types";
 import { useGoalsStore } from "../lib/store";
-import { X, Check, Edit2, Trash2, ArrowUpRight } from "lucide-react";
+import { X, Check, Edit2, Trash2 } from "lucide-react";
+import SegmentedProgressBar from "./SegmentedProgressBar";
 
 interface GoalDetailModalProps {
   goalId: string | null;
@@ -12,28 +13,20 @@ interface GoalDetailModalProps {
 }
 
 export default function GoalDetailModal({ goalId, onClose, onEditTap }: GoalDetailModalProps) {
-  const { goals, toggleSubtask, deleteGoal } = useGoalsStore();
-  const [goal, setGoal] = useState<Goal | null>(null);
+  const { goals, deleteGoal, toggleSubtask } = useGoalsStore();
+  const goal = goals.find((g) => g.id === goalId);
+  const goalExists = !!goal;
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
-  // Sync state with global store whenever goals array updates or selected ID changes
   useEffect(() => {
-    if (goalId) {
-      const found = goals.find((g) => g.id === goalId);
-      if (found) {
-        setGoal(found);
-      } else {
-        onClose(); // Goal was deleted
-      }
-    } else {
-      setGoal(null);
+    // If the modal is open but the goal no longer exists (e.g. deleted), close it
+    if (goalId && !goalExists) {
+      onClose();
     }
-  }, [goals, goalId, onClose]);
+  }, [goalId, goalExists, onClose]);
 
   if (!goal) return null;
 
-  const totalSegments = 30;
-  const activeSegments = Math.round(((goal.progressPercent || 0) / 100) * totalSegments);
   const subtasks = goal.subtasks || [];
   
   const completedCount = subtasks.filter((s) => s.is_complete).length;
@@ -76,7 +69,7 @@ export default function GoalDetailModal({ goalId, onClose, onEditTap }: GoalDeta
         
         {/* Inline Deletion Confirmation Panel (FIX 9) */}
         {isConfirmingDelete && (
-          <div className="p-4 border border-red-900 bg-red-950/20 rounded-2xl flex flex-col gap-3 select-none animate-fade-in">
+          <div className="p-4 border border-red-900 bg-red-950/20 rounded-lg flex flex-col gap-3 select-none animate-fade-in">
             <div className="text-xs text-red-400 font-bold tracking-wide uppercase">
               Permanently Delete Goal?
             </div>
@@ -87,17 +80,21 @@ export default function GoalDetailModal({ goalId, onClose, onEditTap }: GoalDeta
               <button
                 type="button"
                 onClick={() => setIsConfirmingDelete(false)}
-                className="flex-1 py-2.5 text-[10px] font-mono uppercase tracking-widest text-neutral-400 border border-neutral-850 bg-neutral-950 rounded-xl hover:text-white transition-colors"
+                className="flex-1 py-2.5 text-[10px] font-mono uppercase tracking-widest text-neutral-400 border border-neutral-800 bg-neutral-950 rounded-md hover:text-white transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={async () => {
-                  await deleteGoal(goal.id);
-                  onClose();
+                  try {
+                    await deleteGoal(goal.id);
+                    onClose();
+                  } catch {
+                    // Handled globally by store/UI
+                  }
                 }}
-                className="flex-1 py-2.5 text-[10px] font-mono uppercase tracking-widest text-white bg-red-650 bg-red-700 hover:bg-red-800 rounded-xl transition-colors"
+                className="flex-1 py-2.5 text-[10px] font-mono uppercase tracking-widest text-white bg-red-700 hover:bg-red-800 rounded-md transition-colors"
               >
                 Yes, Delete
               </button>
@@ -130,34 +127,22 @@ export default function GoalDetailModal({ goalId, onClose, onEditTap }: GoalDeta
         </div>
 
         {/* Progress Stats Box */}
-        <div className="p-5 border border-neutral-800 bg-neutral-950 rounded-2xl">
+        <div className="p-5 border border-neutral-800 bg-neutral-950 rounded-lg">
           <div className="flex items-baseline gap-4 mb-4 select-none">
             <span className="text-5xl font-extrabold tracking-tighter text-white">
               {goal.progressPercent || 0}%
             </span>
-            <div className="flex items-center gap-1.5">
-              <div className="flex items-center gap-0.5 px-2 py-0.5 text-[11px] font-mono font-medium text-white border border-neutral-800 bg-neutral-900 rounded-md">
-                <ArrowUpRight size={12} className="text-white" />
-                <span>+{goal.deltaPercent || 12}%</span>
-              </div>
-              <span className="text-[10px] text-neutral-500 font-mono">since you last checked</span>
-            </div>
           </div>
 
           {/* Custom Segmented Progress Bar */}
-          <div className="flex items-center gap-[3px] w-full h-7">
-            {Array.from({ length: totalSegments }).map((_, idx) => {
-              const isActive = idx < activeSegments;
-              return (
-                <div
-                  key={idx}
-                  className={`flex-1 h-full rounded-[2px] transition-all duration-500 ${
-                    isActive ? "bg-neutral-200 opacity-100" : "bg-neutral-850 bg-neutral-800 opacity-30"
-                  }`}
-                />
-              );
-            })}
-          </div>
+          <SegmentedProgressBar
+            progressPercent={goal.progressPercent || 0}
+            totalSegments={30}
+            heightClass="h-7"
+            gapClass="gap-[3px]"
+            activeColorClass="bg-neutral-200 opacity-100"
+            segmentIdPrefix={`detail-segment-${goal.id}`}
+          />
 
           <div className="flex justify-between items-center mt-4 text-[10px] font-mono text-neutral-500">
             <span>Progress Details</span>
@@ -178,7 +163,7 @@ export default function GoalDetailModal({ goalId, onClose, onEditTap }: GoalDeta
                   <div
                     key={task.id}
                     onClick={() => toggleSubtask(task.id)}
-                    className="flex items-center gap-4 p-4 border border-neutral-900 bg-neutral-950/60 rounded-xl cursor-pointer hover:border-neutral-800 hover:bg-neutral-950/90 select-none transition-all duration-200"
+                    className="flex items-center gap-4 p-4 border border-neutral-900 bg-neutral-950/60 rounded-md cursor-pointer hover:border-neutral-800 hover:bg-neutral-950/90 select-none transition-all duration-200"
                   >
                     {/* Custom Minimalist Checkbox */}
                     <div

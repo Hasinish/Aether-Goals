@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
+
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect;
 import { useGoalsStore } from "@/lib/store";
 import { Goal } from "@/lib/types";
 import AuthScreen from "@/components/AuthScreen";
@@ -10,13 +12,76 @@ import GoalFormModal from "@/components/GoalFormModal";
 import { LogOut, Plus, Search, Sparkles } from "lucide-react";
 
 export default function Home() {
-  const { goals, loading, user, logout, reorderGoals } = useGoalsStore();
+  const { goals, loading, user, logout, reorderGoals, syncError, clearSyncError } = useGoalsStore();
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [draggedGoalIndex, setDraggedGoalIndex] = useState<number | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
+
+  const cardRectsRef = React.useRef<Record<string, DOMRect>>({});
+  const prevGoalsRef = React.useRef<Goal[]>([]);
+  const isReorderingRef = React.useRef(false);
+
+  // Get all unique tags for the horizontal tag filters (Memoized at top to avoid conditional hook early returns)
+  const allTags = React.useMemo(() => {
+    return Array.from(
+      new Set(goals.flatMap((g) => g.tags))
+    ).filter(Boolean);
+  }, [goals]);
+
+  const measureCards = () => {
+    const elements = document.querySelectorAll("[data-drag-id]");
+    const rects: Record<string, DOMRect> = {};
+    elements.forEach((el) => {
+      const id = el.getAttribute("data-drag-id");
+      if (id) {
+        rects[id] = el.getBoundingClientRect();
+      }
+    });
+    cardRectsRef.current = rects;
+  };
+
+  const animateCards = () => {
+    const elements = document.querySelectorAll("[data-drag-id]") as NodeListOf<HTMLElement>;
+    elements.forEach((el) => {
+      const id = el.getAttribute("data-drag-id");
+      if (!id) return;
+      const firstRect = cardRectsRef.current[id];
+      if (!firstRect) return;
+      const lastRect = el.getBoundingClientRect();
+      const deltaY = firstRect.top - lastRect.top;
+      const deltaX = firstRect.left - lastRect.left;
+
+      if (deltaY !== 0 || deltaX !== 0) {
+        // Invert
+        el.style.transition = "none";
+        el.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+        
+        // Play
+        requestAnimationFrame(() => {
+          elements.forEach((el) => {
+            el.style.transition = "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)";
+            el.style.transform = "";
+          });
+          setTimeout(() => {
+            elements.forEach((el) => {
+              el.style.transition = "";
+            });
+          }, 300);
+        });
+      }
+    });
+  };
+
+  useIsomorphicLayoutEffect(() => {
+    if (isReorderingRef.current && prevGoalsRef.current.length > 0) {
+      animateCards();
+    }
+    prevGoalsRef.current = goals;
+    isReorderingRef.current = false;
+  }, [goals]);
 
   // Authenticate Gate
   if (!user) {
@@ -45,43 +110,24 @@ export default function Home() {
     setIsFormOpen(true);
   };
 
-  // --- DRAG AND DROP GOAL REORDER ---
-  const canDragSort = !searchQuery && !selectedTag;
+  // --- GOAL REORDER CONTROLS ---
+  const canReorder = !searchQuery && !selectedTag;
 
-  const handleDragStart = (idx: number) => {
-    setDraggedGoalIndex(idx);
+  const handleMoveUp = (idx: number) => {
+    if (idx <= 0) return;
+    measureCards();
+    isReorderingRef.current = true;
+    reorderGoals(idx, idx - 1);
   };
 
-  const handleDragEnter = (targetIdx: number) => {
-    if (draggedGoalIndex === null || draggedGoalIndex === targetIdx) return;
-    reorderGoals(draggedGoalIndex, targetIdx);
-    setDraggedGoalIndex(targetIdx);
+  const handleMoveDown = (idx: number) => {
+    if (idx >= filteredGoals.length - 1) return;
+    measureCards();
+    isReorderingRef.current = true;
+    reorderGoals(idx, idx + 1);
   };
 
-  const handleDragEnd = () => {
-    setDraggedGoalIndex(null);
-  };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    if (!canDragSort) return;
-
-    // Auto-scroll when dragging near viewport edges (sleek usability)
-    const threshold = 120; // px threshold from top/bottom
-    const clientY = e.clientY;
-    const viewportHeight = window.innerHeight;
-
-    if (clientY < threshold) {
-      window.scrollBy(0, -10);
-    } else if (clientY > viewportHeight - threshold) {
-      window.scrollBy(0, 10);
-    }
-  };
-
-  // Get all unique tags for the horizontal tag filters
-  const allTags = Array.from(
-    new Set(goals.flatMap((g) => g.tags))
-  ).filter(Boolean);
 
   // Filtering
   const filteredGoals = goals.filter((g) => {
@@ -99,14 +145,30 @@ export default function Home() {
       {/* Dynamic Header */}
       <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-neutral-900 px-6 py-5 flex items-center justify-between">
         <div className="flex items-center gap-2 select-none">
-          <div className="w-2.5 h-2.5 bg-white rounded-full animate-pulse" />
+          <div className="w-2.5 h-2.5 bg-white rounded-lg animate-pulse" />
           <h1 className="text-xl font-black tracking-tighter uppercase">Aether</h1>
         </div>
 
-        <div className="flex items-center gap-4">
-          <span className="text-[10px] uppercase font-mono tracking-widest text-neutral-500 hidden sm:inline-block">
+        <div className="flex items-center gap-2.5">
+          <span className="text-[10px] uppercase font-mono tracking-widest text-neutral-500 hidden sm:inline-block mr-1.5">
             {user === "guest" ? "Guest Sandbox" : user.email?.split("@")[0]}
           </span>
+          <button
+            onClick={() => {
+              setShowSearch(!showSearch);
+              if (showSearch) {
+                setSearchQuery(""); // Clear query when closing search bar
+              }
+            }}
+            className={`p-2 rounded-lg transition-all ${
+              showSearch 
+                ? "text-white bg-neutral-900" 
+                : "text-neutral-500 hover:text-white hover:bg-neutral-900"
+            }`}
+            aria-label="Toggle Search"
+          >
+            <Search size={16} />
+          </button>
           <button
             onClick={() => logout()}
             className="p-2 text-neutral-500 hover:text-white hover:bg-neutral-900 rounded-lg transition-all"
@@ -120,24 +182,27 @@ export default function Home() {
       {/* Main Container */}
       <main className="flex-1 px-6 py-6 space-y-6">
         {/* Decorative Quote Panel */}
-        <div className="flex items-center gap-3 p-4 border border-neutral-900 bg-neutral-950/40 rounded-2xl select-none">
+        <div className="flex items-center gap-3 p-4 border border-neutral-900 bg-neutral-950/40 rounded-lg select-none">
           <Sparkles size={16} className="text-neutral-400 shrink-0" />
           <p className="text-[10px] font-mono text-neutral-400 tracking-wide leading-relaxed">
-            &quot;The secret of getting ahead is getting started.&quot; Drag cards to sort dashboard goals.
+            &quot;The secret of getting ahead is getting started.&quot; Use ↑↓ buttons on cards to reorder.
           </p>
         </div>
 
-        {/* Search Bar */}
-        <div className="relative">
-          <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-600" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search goals or tags..."
-            className="w-full pl-10 pr-4 py-3 bg-neutral-950 border border-neutral-850 border-neutral-800 rounded-xl text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
-          />
-        </div>
+        {/* Search Bar (Toggled) */}
+        {showSearch && (
+          <div className="relative animate-fade-in">
+            <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-600" />
+            <input
+              type="text"
+              autoFocus
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search goals or tags..."
+              className="w-full pl-10 pr-4 py-3 bg-neutral-950 border border-neutral-800 rounded-md text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors animate-fade-in"
+            />
+          </div>
+        )}
 
         {/* Tag Filters Row */}
         {allTags.length > 0 && (
@@ -171,43 +236,39 @@ export default function Home() {
         {/* Content Loading or Display */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 space-y-4">
-            <div className="w-8 h-8 border-2 border-neutral-850 border-t-white rounded-full animate-spin" />
+            <div className="w-8 h-8 border-2 border-neutral-800 border-t-white rounded-full animate-spin" />
             <span className="text-[10px] font-mono tracking-widest text-neutral-500 uppercase animate-pulse">
               Syncing Ledger
             </span>
           </div>
         ) : filteredGoals.length === 0 ? (
-          <div className="text-center py-20 px-4 border border-dashed border-neutral-900 rounded-2xl select-none space-y-3">
+          <div className="text-center py-20 px-4 border border-dashed border-neutral-900 rounded-lg select-none space-y-3">
             <p className="text-xs text-neutral-500 font-light">
               No matching records found in this universe.
             </p>
             <button
               onClick={handleAddTap}
-              className="px-4 py-2 border border-neutral-800 hover:border-neutral-600 bg-neutral-950 text-[10px] uppercase font-mono tracking-widest text-neutral-300 hover:text-white rounded-xl transition-all"
+              className="px-4 py-2 border border-neutral-800 hover:border-neutral-600 bg-neutral-950 text-[10px] uppercase font-mono tracking-widest text-neutral-300 hover:text-white rounded-md transition-all"
             >
               Initialize Goal
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6">
+          <div className="grid grid-cols-1 gap-3.5">
             {filteredGoals.map((goal, idx) => (
               <div
                 key={goal.id}
-                draggable={canDragSort}
-                onDragStart={() => canDragSort && handleDragStart(idx)}
-                onDragEnter={() => canDragSort && handleDragEnter(idx)}
-                onDragEnd={handleDragEnd}
-                onDragOver={handleDragOver}
-                className={`transition-all duration-200 select-none ${
-                  draggedGoalIndex === idx
-                    ? "scale-[0.98] border border-neutral-700 rounded-2xl bg-neutral-900/20"
-                    : "opacity-100 scale-100"
-                }`}
+                data-drag-id={goal.id}
+                className="select-none opacity-100"
               >
                 <GoalCard
                   goal={goal}
                   onTap={handleCardTap}
                   onEditTap={handleEditTap}
+                  onMoveUp={canReorder ? (e) => { e.stopPropagation(); handleMoveUp(idx); } : undefined}
+                  onMoveDown={canReorder ? (e) => { e.stopPropagation(); handleMoveDown(idx); } : undefined}
+                  isFirst={idx === 0}
+                  isLast={idx === filteredGoals.length - 1}
                 />
               </div>
             ))}
@@ -215,11 +276,32 @@ export default function Home() {
         )}
       </main>
 
+      {/* Global Sync Error Banner */}
+      {syncError && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 animate-slide-up w-full max-w-sm px-6 pointer-events-none">
+          <div className="flex items-center justify-between p-4 bg-red-950/90 border border-red-900 rounded-lg shadow-2xl backdrop-blur-md pointer-events-auto">
+            <span className="text-[11px] font-mono tracking-wide text-red-200">
+              {syncError}
+            </span>
+            <button
+              onClick={clearSyncError}
+              className="ml-4 p-1 text-red-400 hover:text-white transition-colors"
+              aria-label="Dismiss Error"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Floating Bottom Add Goal Trigger Bar */}
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-black via-black to-transparent py-6 flex justify-center pointer-events-none">
         <button
           onClick={handleAddTap}
-          className="pointer-events-auto flex items-center justify-center gap-2 px-6 py-4 bg-white text-black text-xs font-bold uppercase tracking-widest rounded-full shadow-[0_4px_24px_rgba(255,255,255,0.2)] hover:bg-neutral-200 transition-all duration-300 hover:scale-105 active:scale-95"
+          className="pointer-events-auto flex items-center justify-center gap-2 px-6 py-4 bg-white text-black text-xs font-bold uppercase tracking-widest rounded-md shadow-[0_4px_24px_rgba(255,255,255,0.2)] hover:bg-neutral-200 transition-all duration-300 hover:scale-105 active:scale-95"
           aria-label="Add New Goal"
         >
           <Plus size={16} strokeWidth={3} />

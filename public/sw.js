@@ -1,7 +1,6 @@
 const CACHE_NAME = "aether-goals-v2";
 const ASSETS_TO_CACHE = [
   "/",
-  "/favicon.ico",
   "/manifest.json",
   "/icon.svg",
   "/icon-192.png",
@@ -45,75 +44,64 @@ self.addEventListener("fetch", (event) => {
   const isApiOrDatabase = url.pathname.startsWith("/api") || url.host.includes("supabase.co");
 
   if (isApiOrDatabase) {
-    // Network-First strategy for real-time Supabase operations and API traffic
+    // DO NOT cache Supabase or API traffic.
+    // Dynamic database responses must always be fresh or fail securely.
+    event.respondWith(fetch(event.request).catch(() => new Response(JSON.stringify({ error: "Offline" }), { status: 503, headers: { 'Content-Type': 'application/json' } })));
+    return;
+  }
+
+  // Cache-First strategy for static code files, next bundles, and image graphics
+  const isStaticAsset =
+    ASSETS_TO_CACHE.includes(url.pathname) ||
+    url.pathname.startsWith("/_next/static/") ||
+    url.pathname.endsWith(".js") ||
+    url.pathname.endsWith(".css") ||
+    url.pathname.endsWith(".png") ||
+    url.pathname.endsWith(".svg") ||
+    url.pathname.endsWith(".ico") ||
+    url.pathname.endsWith(".json");
+
+  if (isStaticAsset) {
     event.respondWith(
-      fetch(event.request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return networkResponse;
-        })
-        .catch(() => {
-          return caches.match(event.request).then((cachedResponse) => {
-            return cachedResponse || caches.match("/");
-          });
-        })
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) return cachedResponse;
+
+        return fetch(event.request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              const responseToCache = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(event.request, responseToCache);
+              });
+            }
+            return networkResponse;
+          })
+          .catch(() => caches.match("/").then(res => res || new Response("Offline", { status: 503 })));
+      })
     );
   } else {
-    // Cache-First strategy for static code files, next bundles, and image graphics
-    const isStaticAsset =
-      ASSETS_TO_CACHE.includes(url.pathname) ||
-      url.pathname.startsWith("/_next/static/") ||
-      url.pathname.endsWith(".js") ||
-      url.pathname.endsWith(".css") ||
-      url.pathname.endsWith(".png") ||
-      url.pathname.endsWith(".svg") ||
-      url.pathname.endsWith(".ico") ||
-      url.pathname.endsWith(".json");
+    // Default: Stale-While-Revalidate for default routing page navigations
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        const fetchPromise = fetch(event.request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              const responseToCache = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(event.request, responseToCache);
+              });
+            }
+            return networkResponse;
+          })
+          .catch(() => {
+            if (event.request.mode === "navigate") {
+              return caches.match("/").then(res => res || new Response("Offline", { status: 503 }));
+            }
+            return caches.match(event.request).then(res => res || new Response("Offline", { status: 503 }));
+          });
 
-    if (isStaticAsset) {
-      event.respondWith(
-        caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-
-          return fetch(event.request)
-            .then((networkResponse) => {
-              if (networkResponse && networkResponse.status === 200) {
-                const responseToCache = networkResponse.clone();
-                caches.open(CACHE_NAME).then((cache) => {
-                  cache.put(event.request, responseToCache);
-                });
-              }
-              return networkResponse;
-            })
-            .catch(() => caches.match("/"));
-        })
-      );
-    } else {
-      // Default: Stale-While-Revalidate for default routing page navigations
-      event.respondWith(
-        caches.match(event.request).then((cachedResponse) => {
-          const fetchPromise = fetch(event.request)
-            .then((networkResponse) => {
-              if (networkResponse && networkResponse.status === 200) {
-                const responseToCache = networkResponse.clone();
-                caches.open(CACHE_NAME).then((cache) => {
-                  cache.put(event.request, responseToCache);
-                });
-              }
-              return networkResponse;
-            })
-            .catch(() => caches.match("/"));
-
-          return cachedResponse || fetchPromise;
-        })
-      );
-    }
+        return cachedResponse || fetchPromise;
+      })
+    );
   }
 });

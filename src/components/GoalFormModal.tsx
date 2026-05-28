@@ -25,6 +25,7 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const draggedIndexRef = useRef<number | null>(null);
   
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -58,7 +59,7 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
       return;
     }
 
-    setSubtasks([...subtasks, { title: trimmed, is_complete: false }]);
+    setSubtasks([...subtasks, { id: crypto.randomUUID(), title: trimmed, is_complete: false }]);
     setNewSubtaskTitle("");
     setError("");
   };
@@ -75,23 +76,62 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
 
   // --- DRAG AND DROP REORDER HANDLERS ---
   const handleDragStart = (idx: number) => {
+    draggedIndexRef.current = idx;
     setDraggedIndex(idx);
   };
 
   const handleDragEnter = (targetIdx: number) => {
-    if (draggedIndex === null || draggedIndex === targetIdx) return;
-
-    setSubtasks((prev) => {
-      const updated = [...prev];
-      const [draggedItem] = updated.splice(draggedIndex, 1);
-      updated.splice(targetIdx, 0, draggedItem);
-      return updated;
-    });
-
-    setDraggedIndex(targetIdx);
+    const currentDrag = draggedIndexRef.current;
+    if (currentDrag !== null && currentDrag !== targetIdx) {
+      setSubtasks((prev) => {
+        const updated = [...prev];
+        const [draggedItem] = updated.splice(currentDrag, 1);
+        updated.splice(targetIdx, 0, draggedItem);
+        return updated;
+      });
+      draggedIndexRef.current = targetIdx;
+      setDraggedIndex(targetIdx);
+    }
   };
 
   const handleDragEnd = () => {
+    draggedIndexRef.current = null;
+    setDraggedIndex(null);
+  };
+
+  // --- TOUCH REORDER HANDLERS FOR MOBILE ACCESS ---
+  const handleTouchStart = (idx: number) => {
+    draggedIndexRef.current = idx;
+    setDraggedIndex(idx);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const currentDrag = draggedIndexRef.current;
+    if (currentDrag === null) return;
+    const touch = e.touches[0];
+    const elements = document.elementsFromPoint(touch.clientX, touch.clientY);
+    
+    for (const element of elements) {
+      const targetRow = element.closest("[data-subtask-index]");
+      if (targetRow) {
+        const targetIdx = parseInt(targetRow.getAttribute("data-subtask-index") || "", 10);
+        if (!isNaN(targetIdx) && targetIdx !== currentDrag) {
+          setSubtasks((prev) => {
+            const updated = [...prev];
+            const [draggedItem] = updated.splice(currentDrag, 1);
+            updated.splice(targetIdx, 0, draggedItem);
+            return updated;
+          });
+          draggedIndexRef.current = targetIdx;
+          setDraggedIndex(targetIdx);
+          break;
+        }
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    draggedIndexRef.current = null;
     setDraggedIndex(null);
   };
 
@@ -128,11 +168,15 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
       .map((s) => ({ ...s, title: s.title.trim() }))
       .filter((s) => s.title.length > 0);
 
-    // Process tags
-    const processedTags = tagsInput
-      .split(",")
-      .map((t) => t.trim().toLowerCase())
-      .filter((t) => t.length > 0);
+    // Process and deduplicate tags
+    const processedTags = Array.from(
+      new Set(
+        tagsInput
+          .split(",")
+          .map((t) => t.trim().toLowerCase())
+          .filter((t) => t.length > 0)
+      )
+    );
 
     setIsSubmitting(true);
     try {
@@ -149,7 +193,6 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
       }
       onClose();
     } catch (err: unknown) {
-      console.error(err);
       const errMsg = err instanceof Error ? err.message : String(err);
       setError(errMsg || "Failed to save goal.");
     } finally {
@@ -182,7 +225,7 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
         className="flex-1 overflow-y-auto px-6 py-8 space-y-6"
       >
         {error && (
-          <div className="p-3.5 border border-red-900 bg-red-950/40 rounded-xl text-xs text-red-400 leading-normal">
+          <div className="p-3.5 border border-red-900 bg-red-950/40 rounded-md text-xs text-red-400 leading-normal">
             {error}
           </div>
         )}
@@ -198,7 +241,7 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g., Code Visualizer Project"
-            className="w-full px-4 py-3 bg-neutral-950 border border-neutral-800 rounded-xl text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
+            className="w-full px-4 py-3 bg-neutral-950 border border-neutral-800 rounded-md text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
           />
         </div>
 
@@ -212,15 +255,18 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
             value={tagsInput}
             onChange={(e) => setTagsInput(e.target.value)}
             placeholder="e.g., dev, front-end, structure"
-            className="w-full px-4 py-3 bg-neutral-950 border border-neutral-800 rounded-xl text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
+            className="w-full px-4 py-3 bg-neutral-950 border border-neutral-800 rounded-md text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
           />
           {tagsInput.trim() && (
             <div className="flex flex-wrap gap-1 mt-1">
-              {tagsInput
-                .split(",")
-                .map((t) => t.trim().toLowerCase())
-                .filter((t) => t.length > 0)
-                .map((tag, idx) => (
+              {Array.from(
+                new Set(
+                  tagsInput
+                    .split(",")
+                    .map((t) => t.trim().toLowerCase())
+                    .filter((t) => t.length > 0)
+                )
+              ).map((tag, idx) => (
                   <span
                     key={idx}
                     className="px-2 py-0.5 text-[9px] uppercase tracking-wider font-mono text-neutral-400 border border-neutral-800 bg-neutral-950 rounded"
@@ -245,7 +291,7 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
               value={newSubtaskTitle}
               onChange={(e) => setNewSubtaskTitle(e.target.value)}
               placeholder="Add subtask title..."
-              className="flex-1 px-4 py-3 bg-neutral-950 border border-neutral-800 rounded-xl text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
+              className="flex-1 px-4 py-3 bg-neutral-950 border border-neutral-800 rounded-md text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
@@ -256,7 +302,8 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
             <button
               type="button"
               onClick={handleAddSubtask}
-              className="flex items-center justify-center p-3 border border-neutral-800 bg-neutral-950 text-white rounded-xl hover:border-neutral-600 transition-colors"
+              aria-label="Add Subtask"
+              className="flex items-center justify-center p-3 border border-neutral-800 bg-neutral-950 text-white rounded-md hover:border-neutral-600 transition-colors"
             >
               <Plus size={16} />
             </button>
@@ -271,18 +318,24 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
             ) : (
               subtasks.map((task, idx) => (
                 <div
-                  key={idx}
-                  draggable
-                  onDragStart={() => handleDragStart(idx)}
+                  key={task.id}
+                  data-subtask-index={idx}
                   onDragEnter={() => handleDragEnter(idx)}
-                  onDragEnd={handleDragEnd}
                   onDragOver={handleDragOver}
-                  className={`flex items-center justify-between gap-3 p-3.5 border border-neutral-900 bg-neutral-950/40 rounded-xl focus-within:border-neutral-700 transition-all duration-250 select-none ${
-                    draggedIndex === idx ? "scale-[0.98] border-dashed border-neutral-750 bg-neutral-900/60" : "opacity-100 scale-100"
+                  className={`flex items-center justify-between gap-3 p-3.5 border border-neutral-900 bg-neutral-950/40 rounded-md focus-within:border-neutral-700 transition-all duration-300 select-none ${
+                    draggedIndex === idx ? "scale-[0.98] border-dashed border-neutral-700 bg-neutral-900/60" : "opacity-100 scale-100"
                   }`}
                 >
-                  {/* Grip Handle Icon */}
-                  <div className="cursor-grab active:cursor-grabbing p-1 text-neutral-600 hover:text-neutral-400 transition-colors shrink-0">
+                  {/* Grip Handle Icon (Restricted Draggability Handle) */}
+                  <div
+                    draggable
+                    onDragStart={() => handleDragStart(idx)}
+                    onDragEnd={handleDragEnd}
+                    onTouchStart={() => handleTouchStart(idx)}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    className="cursor-grab active:cursor-grabbing p-1 text-neutral-600 hover:text-neutral-400 transition-colors shrink-0 touch-none"
+                  >
                     <GripVertical size={14} />
                   </div>
 
@@ -313,7 +366,7 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full py-3.5 px-4 bg-white text-black font-semibold text-xs tracking-wider uppercase rounded-xl hover:bg-neutral-200 disabled:opacity-50 transition-colors select-none"
+            className="w-full py-3.5 px-4 bg-white text-black font-semibold text-xs tracking-wider uppercase rounded-md hover:bg-neutral-200 disabled:opacity-50 transition-colors select-none"
           >
             {isSubmitting ? "Saving..." : editGoal ? "Update Goal" : "Create Goal"}
           </button>

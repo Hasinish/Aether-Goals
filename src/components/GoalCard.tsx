@@ -3,23 +3,33 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Goal } from "../lib/types";
 import { useGoalsStore } from "../lib/store";
-import { MoreHorizontal, ArrowUpRight, Edit2, Trash2 } from "lucide-react";
+import { MoreHorizontal, Edit2, Trash2, ChevronUp, ChevronDown, AlertTriangle } from "lucide-react";
+import SegmentedProgressBar from "./SegmentedProgressBar";
 
 interface GoalCardProps {
   goal: Goal;
   onTap: (goal: Goal) => void;
   onEditTap: (goal: Goal, e: React.MouseEvent) => void;
+  onMoveUp?: (e: React.MouseEvent) => void;
+  onMoveDown?: (e: React.MouseEvent) => void;
+  isFirst?: boolean;
+  isLast?: boolean;
 }
 
-export default function GoalCard({ goal, onTap, onEditTap }: GoalCardProps) {
-  const { pendingGoalId, deleteGoal } = useGoalsStore();
-  const isPending = pendingGoalId === goal.id;
+export default function GoalCard({ 
+  goal, 
+  onTap, 
+  onEditTap,
+  onMoveUp,
+  onMoveDown,
+  isFirst = false,
+  isLast = false
+}: GoalCardProps) {
+  const { deleteGoal, pendingGoalIds } = useGoalsStore();
+  const isPending = pendingGoalIds.has(goal.id);
   const [showMenu, setShowMenu] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  // Configurable number of segments in the progress bar (e.g. 30 segments)
-  const totalSegments = 30;
-  const activeSegments = Math.round(((goal.progressPercent || 0) / 100) * totalSegments);
 
   // Close the dropdown when clicking outside of it
   useEffect(() => {
@@ -48,29 +58,102 @@ export default function GoalCard({ goal, onTap, onEditTap }: GoalCardProps) {
     onEditTap(goal, e);
   };
 
-  const handleDeleteClick = async (e: React.MouseEvent) => {
+  const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowMenu(false);
-    if (confirm(`Are you sure you want to permanently delete the goal "${goal.title}"?`)) {
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowDeleteConfirm(false);
+    try {
       await deleteGoal(goal.id);
+    } catch (err) {
+      console.error("Failed to delete goal", err);
     }
+  };
+
+  const handleCancelDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowDeleteConfirm(false);
   };
   
   return (
     <div
-      onClick={() => !isPending && onTap(goal)}
-      onMouseLeave={() => setShowMenu(false)} // Auto-close when cursor exits card (sleek usability)
-      className={`group relative flex flex-col justify-between w-full min-h-[320px] p-6 bg-black border border-neutral-800 rounded-2xl cursor-pointer hover:border-neutral-700 select-none overflow-visible transition-all duration-300 ${
-        isPending ? "opacity-50 pointer-events-none" : "opacity-100"
+      onClick={() => !isPending && !showDeleteConfirm && onTap(goal)}
+      onMouseLeave={() => setShowMenu(false)}
+      className={`group relative flex flex-col justify-between w-full min-h-[160px] p-4 bg-black border border-neutral-800 rounded-lg cursor-pointer select-none overflow-visible transition-all duration-300 ${
+        isPending ? "opacity-50 pointer-events-none" : "hover:border-neutral-700 hover:shadow-[0_4px_20px_rgba(255,255,255,0.01)]"
       }`}
     >
+      {/* Inline delete confirmation overlay */}
+      {showDeleteConfirm && (
+        <div
+          className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-lg bg-black/95 border border-red-900/50 p-5 animate-fade-in"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <AlertTriangle size={18} className="text-red-400" />
+          <p className="text-[11px] font-mono text-neutral-300 text-center leading-relaxed">
+            Delete <span className="text-white font-semibold">&ldquo;{goal.title}&rdquo;</span>?<br />
+            <span className="text-neutral-500">This cannot be undone.</span>
+          </p>
+          <div className="flex items-center gap-2 w-full">
+            <button
+              onClick={handleCancelDelete}
+              className="flex-1 py-2 text-[10px] font-mono uppercase tracking-widest text-neutral-400 border border-neutral-800 bg-neutral-950 rounded-md hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirmDelete}
+              className="flex-1 py-2 text-[10px] font-mono uppercase tracking-widest text-white bg-red-700 hover:bg-red-600 rounded-md transition-colors"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Top Header Row: Tags and Options/Pending spinner */}
-      <div className="flex items-center justify-between gap-4 mb-5 relative">
-        <div className="flex flex-wrap gap-1.5 max-w-[80%]">
-          {goal.tags.map((tag) => (
+      <div className="flex items-center justify-between gap-4 mb-3.5 relative">
+        <div className="flex flex-wrap items-center gap-1.5 max-w-[80%]">
+          {/* Up / Down chevrons for reordering */}
+          {(onMoveUp || onMoveDown) && (
+            <div className="flex items-center bg-neutral-950 border border-neutral-900 rounded-lg p-1 shrink-0 mr-1.5 select-none" onClick={(e) => e.stopPropagation()}>
+              <button
+                disabled={isFirst}
+                onClick={onMoveUp}
+                aria-label="Move Goal Up"
+                className={`p-1.5 rounded-md transition-all ${
+                  isFirst
+                    ? "text-neutral-700 opacity-30 pointer-events-none"
+                    : "text-neutral-500 hover:text-white hover:bg-neutral-900"
+                }`}
+                title="Move Goal Up"
+              >
+                <ChevronUp size={14} />
+              </button>
+              <div className="w-[1px] h-3 bg-neutral-900 mx-0.5" />
+              <button
+                disabled={isLast}
+                onClick={onMoveDown}
+                aria-label="Move Goal Down"
+                className={`p-1.5 rounded-md transition-all ${
+                  isLast
+                    ? "text-neutral-700 opacity-30 pointer-events-none"
+                    : "text-neutral-500 hover:text-white hover:bg-neutral-900"
+                }`}
+                title="Move Goal Down"
+              >
+                <ChevronDown size={14} />
+              </button>
+            </div>
+          )}
+          {goal.tags.slice(0, 2).map((tag) => (
             <span
               key={tag}
-              className="px-2.5 py-0.5 text-[10px] uppercase tracking-widest font-mono text-neutral-400 border border-neutral-800 bg-neutral-950 rounded-md"
+              className="px-2 py-0.5 text-[9px] uppercase tracking-widest font-mono text-neutral-400 border border-neutral-800 bg-neutral-950/60 rounded-md"
             >
               {tag}
             </span>
@@ -78,7 +161,7 @@ export default function GoalCard({ goal, onTap, onEditTap }: GoalCardProps) {
         </div>
         
         {isPending ? (
-          <div className="w-5 h-5 border-2 border-neutral-800 border-t-white rounded-full animate-spin shrink-0" />
+          <div className="w-4 h-4 border-2 border-neutral-800 border-t-white rounded-full animate-spin shrink-0" />
         ) : (
           <div className="relative" ref={menuRef}>
             <button
@@ -88,25 +171,25 @@ export default function GoalCard({ goal, onTap, onEditTap }: GoalCardProps) {
               }`}
               aria-label="Goal Options"
             >
-              <MoreHorizontal size={18} />
+              <MoreHorizontal size={15} />
             </button>
 
             {/* Dropdown Options Popup Menu */}
             {showMenu && (
-              <div className="absolute right-0 top-8 z-30 w-40 p-1.5 bg-neutral-950 border border-neutral-850 border-neutral-800 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.8)] animate-fade-in select-none">
+              <div className="absolute right-0 top-6 z-30 w-36 p-1 bg-neutral-950 border border-neutral-800 rounded-lg shadow-[0_8px_30px_rgb(0,0,0,0.8)] animate-fade-in select-none">
                 <button
                   onClick={handleEditClick}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-[11px] uppercase tracking-wider font-mono text-neutral-400 hover:text-white hover:bg-neutral-900 rounded-lg transition-colors text-left"
+                  className="w-full flex items-center gap-2 px-2 py-1.5 text-[10px] uppercase tracking-wider font-mono text-neutral-400 hover:text-white hover:bg-neutral-900 rounded-md transition-colors text-left"
                 >
-                  <Edit2 size={12} />
+                  <Edit2 size={10} />
                   <span>Edit Goal</span>
                 </button>
                 <div className="w-full h-[1px] bg-neutral-900 my-1" />
                 <button
                   onClick={handleDeleteClick}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-[11px] uppercase tracking-wider font-mono text-neutral-500 hover:text-red-400 hover:bg-red-950/20 rounded-lg transition-colors text-left"
+                  className="w-full flex items-center gap-2 px-2 py-1.5 text-[10px] uppercase tracking-wider font-mono text-neutral-500 hover:text-red-400 hover:bg-red-950/20 rounded-md transition-colors text-left"
                 >
-                  <Trash2 size={12} />
+                  <Trash2 size={10} />
                   <span>Delete</span>
                 </button>
               </div>
@@ -115,17 +198,14 @@ export default function GoalCard({ goal, onTap, onEditTap }: GoalCardProps) {
         )}
       </div>
 
-      {/* Goal Title */}
+      {/* Goal Title & Status */}
       <div className="flex-1 flex flex-col justify-start">
-        <h2 className="text-3xl font-bold tracking-tight text-white line-clamp-2 leading-none mb-4">
+        <h2 className="text-lg font-bold tracking-tight text-white line-clamp-1 leading-none mb-1.5">
           {goal.title}
         </h2>
         
-        {/* Divider line matching the uploaded design */}
-        <div className="w-full h-[1px] bg-neutral-800 mb-4" />
-        
         {/* Status Message */}
-        <p className="text-xs text-neutral-400 font-normal leading-relaxed mb-6">
+        <p className="text-[11px] text-neutral-500 font-normal leading-normal line-clamp-1 mb-3">
           {goal.statusMessage || "On track to reach your goals."}
         </p>
       </div>
@@ -133,36 +213,25 @@ export default function GoalCard({ goal, onTap, onEditTap }: GoalCardProps) {
       {/* Stats and Segmented Progress Bar */}
       <div>
         {/* Stats Row */}
-        <div className="flex items-baseline gap-4 mb-4 select-none">
-          <span className="text-5xl font-extrabold tracking-tighter text-white">
+        <div className="flex items-center justify-between gap-4 mb-2 select-none">
+          <span className="text-white font-mono text-[10px] tracking-wider font-bold">
             {goal.progressPercent || 0}%
           </span>
-          <div className="flex items-center gap-1.5">
-            <div className="flex items-center gap-0.5 px-2 py-0.5 text-[11px] font-mono font-medium text-white border border-neutral-800 bg-neutral-950 rounded-md">
-              <ArrowUpRight size={12} className="text-white" />
-              <span>+{goal.deltaPercent || 12}%</span>
-            </div>
-            <span className="text-[10px] text-neutral-500 font-mono">since you last checked</span>
-          </div>
         </div>
 
-        {/* Custom Segmented Progress Bar matching original screenshot */}
-        <div className="flex items-center gap-[3px] w-full h-8 mt-2">
-          {Array.from({ length: totalSegments }).map((_, idx) => {
-            const isActive = idx < activeSegments;
-            return (
-              <div
-                key={idx}
-                className={`flex-1 h-full rounded-[2px] transition-all duration-500 ${
-                  isActive
-                    ? "bg-neutral-200 opacity-100 shadow-[0_0_8px_rgba(255,255,255,0.1)]"
-                    : "bg-neutral-800 opacity-40"
-                }`}
-              />
-            );
-          })}
+        {/* Custom Segmented Progress Bar */}
+        <div className="mt-1">
+          <SegmentedProgressBar
+            progressPercent={goal.progressPercent || 0}
+            totalSegments={20}
+            heightClass="h-3"
+            gapClass="gap-[2px]"
+            segmentIdPrefix={`segment-${goal.id}`}
+          />
         </div>
       </div>
+
+
     </div>
   );
 }
