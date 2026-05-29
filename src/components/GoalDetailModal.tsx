@@ -168,8 +168,8 @@ export default function GoalDetailModal({ goalId, onClose, onEditTap }: GoalDeta
                     <div
                       className={`flex items-center justify-center w-5 h-5 rounded-md border transition-all duration-200 ${
                         task.is_complete
-                          ? "bg-white border-white text-black"
-                          : "border-neutral-700 bg-transparent text-transparent"
+                          ? "bg-white border-white text-black animate-checkbox-spring"
+                          : "border-neutral-700 bg-transparent text-transparent hover:border-neutral-500"
                       }`}
                     >
                       <Check size={12} strokeWidth={3} />
@@ -177,7 +177,7 @@ export default function GoalDetailModal({ goalId, onClose, onEditTap }: GoalDeta
 
                     <span
                       className={`text-xs leading-normal transition-all duration-300 ${
-                        task.is_complete ? "text-neutral-500 line-through" : "text-white"
+                        task.is_complete ? "text-neutral-500 animate-strike-sweep" : "text-white"
                       }`}
                     >
                       {task.title}
