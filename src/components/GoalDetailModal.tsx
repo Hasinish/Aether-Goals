@@ -108,40 +108,40 @@ export default function GoalDetailModal({
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
-          className="flex items-center justify-center pt-3.5 pb-3 cursor-grab active:cursor-grabbing select-none touch-none"
+          className="flex items-center justify-center pt-2.5 pb-2 cursor-grab active:cursor-grabbing select-none touch-none"
         >
-          <div className="w-12 h-1.5 rounded-full bg-neutral-800 hover:bg-neutral-700 transition-colors" />
+          <div className="w-12 h-1 rounded-full bg-neutral-800 hover:bg-neutral-700 transition-colors" />
         </div>
 
         {/* Header bar */}
-        <div className="flex items-center justify-between px-6 py-3 border-b border-neutral-900 select-none">
-          <h3 className="font-mono text-xs uppercase tracking-widest text-neutral-300">
+        <div className="flex items-center justify-between px-6 py-2 border-b border-neutral-900 select-none">
+          <h3 className="font-mono text-[10px] uppercase tracking-widest text-neutral-300">
             Goal Overview
           </h3>
           <div className="flex gap-2">
             <button
               onClick={() => onEditTap(goal)}
-              className="p-2 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-900 transition-colors"
+              className="p-1.5 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-900 transition-colors"
               aria-label="Edit Goal"
             >
-              <Edit2 size={16} />
+              <Edit2 size={15} />
             </button>
             <button
               onClick={() => setIsConfirmingDelete(true)}
-              className={`p-2 rounded-lg hover:bg-neutral-900 transition-colors ${
+              className={`p-1.5 rounded-lg hover:bg-neutral-900 transition-colors ${
                 isConfirmingDelete
                   ? "text-red-500 bg-red-950/20"
                   : "text-neutral-400 hover:text-red-500"
               }`}
               aria-label="Delete Goal"
             >
-              <Trash2 size={16} />
+              <Trash2 size={15} />
             </button>
           </div>
         </div>
 
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto overscroll-contain px-6 py-6 pb-12 space-y-8">
+        <div className="flex-1 overflow-y-auto overscroll-contain px-6 py-4 pb-8 space-y-5">
           {/* Delete confirmation */}
           {isConfirmingDelete && (
             <div className="p-4 border border-red-900 bg-red-950/20 rounded-lg flex flex-col gap-3 select-none animate-fade-in">
@@ -155,7 +155,7 @@ export default function GoalDetailModal({
                 <button
                   type="button"
                   onClick={() => setIsConfirmingDelete(false)}
-                  className="flex-1 py-2.5 text-[10px] font-mono uppercase tracking-widest text-neutral-400 border border-neutral-800 bg-neutral-950 rounded-md hover:text-white transition-colors"
+                  className="flex-1 py-2 text-[10px] font-mono uppercase tracking-widest text-neutral-400 border border-neutral-800 bg-neutral-950 rounded-md hover:text-white transition-colors"
                 >
                   Cancel
                 </button>
@@ -169,7 +169,7 @@ export default function GoalDetailModal({
                       // handled globally
                     }
                   }}
-                  className="flex-1 py-2.5 text-[10px] font-mono uppercase tracking-widest text-white bg-red-700 hover:bg-red-800 rounded-md transition-colors"
+                  className="flex-1 py-2 text-[10px] font-mono uppercase tracking-widest text-white bg-red-700 hover:bg-red-800 rounded-md transition-colors"
                 >
                   Yes, Delete
                 </button>
@@ -178,33 +178,33 @@ export default function GoalDetailModal({
           )}
 
           {/* Goal hero */}
-          <div className="space-y-4">
-            <div className="flex flex-wrap gap-1.5">
+          <div className="space-y-2.5">
+            <div className="flex flex-wrap gap-1">
               {goal.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="px-2.5 py-0.5 text-[9px] uppercase tracking-widest font-mono text-neutral-200 border border-neutral-850 bg-neutral-950 rounded-md"
+                  className="px-2 py-0.5 text-[8px] uppercase tracking-widest font-mono text-neutral-200 border border-neutral-850 bg-neutral-950 rounded"
                 >
                   {tag}
                 </span>
               ))}
             </div>
 
-            <h1 className="text-3xl font-extrabold tracking-tight text-white leading-tight">
+            <h1 className="text-2xl font-extrabold tracking-tight text-white leading-tight">
               {goal.title}
             </h1>
 
-            <div className="w-full h-px bg-neutral-800" />
+            <div className="w-full h-px bg-neutral-900" />
 
-            <p className="text-xs text-neutral-200 leading-relaxed font-light">
+            <p className="text-[11px] text-neutral-300 leading-relaxed font-light">
               {goal.statusMessage || "On track to reach your goals."}
             </p>
           </div>
 
           {/* Progress stats */}
-          <div className="p-5 rounded-lg border-sweep-card-auto">
-            <div className="flex items-baseline gap-4 mb-4 select-none">
-              <span className="text-5xl font-extrabold tracking-tighter text-white">
+          <div className="p-3.5 rounded-lg border-sweep-card-auto">
+            <div className="flex items-baseline gap-2 mb-2 select-none">
+              <span className="text-4xl font-extrabold tracking-tighter text-white">
                 {goal.progressPercent || 0}%
               </span>
             </div>
@@ -212,12 +212,12 @@ export default function GoalDetailModal({
             <SegmentedProgressBar
               progressPercent={goal.progressPercent || 0}
               totalSegments={30}
-              heightClass="h-7"
+              heightClass="h-4"
               gapClass="gap-[3px]"
               segmentIdPrefix={`detail-segment-${goal.id}`}
             />
 
-            <div className="flex justify-between items-center mt-4 text-[10px] font-mono text-neutral-300">
+            <div className="flex justify-between items-center mt-2.5 text-[9px] font-mono text-neutral-300">
               <span>Progress Details</span>
               <span>
                 {completedCount} of {totalCount} Subtasks Complete
@@ -226,8 +226,8 @@ export default function GoalDetailModal({
           </div>
 
           {/* Subtasks checklist */}
-          <div className="space-y-4">
-            <h2 className="text-sm uppercase tracking-widest font-mono text-neutral-300">
+          <div className="space-y-3">
+            <h2 className="text-xs uppercase tracking-widest font-mono text-neutral-300">
               Subtasks Checklist
             </h2>
 
@@ -252,7 +252,7 @@ export default function GoalDetailModal({
                       aria-checked={task.is_complete}
                       aria-label={`Toggle subtask: ${task.title}`}
                       onClick={() => toggleSubtask(task.id)}
-                      className="w-full text-left flex items-center gap-4 p-4 border border-neutral-900 bg-neutral-950/60 rounded-md cursor-pointer hover:border-neutral-800 hover:bg-neutral-950/90 select-none transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-700"
+                      className="w-full text-left flex items-center gap-3 p-3 border border-neutral-900 bg-neutral-950/60 rounded-md cursor-pointer hover:border-neutral-800 hover:bg-neutral-950/90 select-none transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-700"
                     >
                       <div
                         className={`flex items-center justify-center w-5 h-5 rounded-md border transition-all duration-200 ${
