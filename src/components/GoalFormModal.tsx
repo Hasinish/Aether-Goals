@@ -8,6 +8,7 @@ import { X, Plus, Trash2, GripVertical } from "lucide-react";
 interface GoalFormModalProps {
   editGoal: Goal | null; // Null means creating a new goal
   onClose: () => void;
+  initialTags?: string[];
 }
 
 interface FormSubtask {
@@ -16,7 +17,7 @@ interface FormSubtask {
   is_complete?: boolean;
 }
 
-export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps) {
+export default function GoalFormModal({ editGoal, onClose, initialTags }: GoalFormModalProps) {
   const { addGoal, updateGoal } = useGoalsStore();
   const [title, setTitle] = useState("");
   const [tagsInput, setTagsInput] = useState("");
@@ -139,11 +140,11 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
       );
     } else {
       setTitle("");
-      setTagsInput("");
+      setTagsInput(initialTags ? initialTags.join(", ") : "");
       setSubtasks([]);
     }
     setError("");
-  }, [editGoal]);
+  }, [editGoal, initialTags]);
 
   const handleAddSubtask = (e: React.FormEvent) => {
     e.preventDefault();

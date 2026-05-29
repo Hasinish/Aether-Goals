@@ -4,24 +4,90 @@ import React, { useState } from "react";
 
 const useIsomorphicLayoutEffect = typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect;
 import { useGoalsStore } from "@/lib/store";
-import { Goal } from "@/lib/types";
+import { Goal, Habit, Deadline } from "@/lib/types";
 import AuthScreen from "@/components/AuthScreen";
 import GoalCard from "@/components/GoalCard";
+import HabitCard from "@/components/HabitCard";
+import DeadlineCard from "@/components/DeadlineCard";
 import GoalDetailModal from "@/components/GoalDetailModal";
 import GoalFormModal from "@/components/GoalFormModal";
+import HabitFormModal from "@/components/HabitFormModal";
+import DeadlineFormModal from "@/components/DeadlineFormModal";
+import HabitAnalyticsModal from "@/components/HabitAnalyticsModal";
 import AetherLogo from "@/components/AetherLogo";
-import { LogOut, Plus, Search, Sparkles } from "lucide-react";
+import { HabitStoreProvider, useHabitsStore } from "@/lib/habitStore";
+import { DeadlineStoreProvider, useDeadlinesStore } from "@/lib/deadlineStore";
+import { LogOut, Plus, Search, Sliders } from "lucide-react";
 import ConstellationBackground from "@/components/ConstellationBackground";
 
 export default function Home() {
-  const { goals, loading, user, logout, reorderGoals, syncError, clearSyncError } = useGoalsStore();
+  const { user } = useGoalsStore();
+
+  // Authenticate Gate
+  if (!user) {
+    return <AuthScreen />;
+  }
+
+  return (
+    <HabitStoreProvider user={user}>
+      <DeadlineStoreProvider user={user}>
+        <HomeContent />
+      </DeadlineStoreProvider>
+    </HabitStoreProvider>
+  );
+}
+
+function HomeContent() {
+  const { goals, loading, user: rawUser, logout, reorderGoals, syncError: goalsSyncError, clearSyncError: clearGoalsSyncError } = useGoalsStore();
+  const { habits, loading: habitsLoading, syncError: habitsSyncError, clearSyncError: clearHabitsSyncError } = useHabitsStore();
+  const { deadlines, loading: deadlinesLoading, syncError: deadlinesSyncError, clearSyncError: clearDeadlinesSyncError } = useDeadlinesStore();
+  
+  const user = rawUser!;
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
+  const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
+  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
+  const [editingDeadline, setEditingDeadline] = useState<Deadline | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [isHeaderCompressed, setIsHeaderCompressed] = useState(false);
+  const [activeTab, setActiveTab] = useState<"deadlines" | "goals" | "habits">("goals");
+  const [prevTab, setPrevTab] = useState<"deadlines" | "goals" | "habits">("goals");
+  const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null);
+
+  const handleDragStart = (clientX: number, clientY: number) => {
+    setDragStartPos({ x: clientX, y: clientY });
+  };
+
+  const handleDragEnd = (clientX: number, clientY: number) => {
+    if (!dragStartPos) return;
+    const diffX = dragStartPos.x - clientX;
+    const diffY = dragStartPos.y - clientY;
+
+    // Horizontal swipe threshold: 50px difference horizontally, and mostly horizontal path
+    if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY) * 1.5) {
+      if (diffX > 0) {
+        if (activeTab === "deadlines") {
+          setPrevTab("deadlines");
+          setActiveTab("goals");
+        } else if (activeTab === "goals") {
+          setPrevTab("goals");
+          setActiveTab("habits");
+        }
+      } else {
+        if (activeTab === "habits") {
+          setPrevTab("habits");
+          setActiveTab("goals");
+        } else if (activeTab === "goals") {
+          setPrevTab("goals");
+          setActiveTab("deadlines");
+        }
+      }
+    }
+    setDragStartPos(null);
+  };
 
   const cardRectsRef = React.useRef<Record<string, DOMRect>>({});
   const prevGoalsRef = React.useRef<Goal[]>([]);
@@ -37,6 +103,19 @@ export default function Home() {
     ).filter(Boolean);
   }, [goals]);
 
+  const allHabitTags = React.useMemo(() => {
+    return Array.from(
+      new Set(habits.flatMap((h) => h.tags || []))
+    ).filter(Boolean);
+  }, [habits]);
+
+  const tagsToDisplay = activeTab === "habits" ? allHabitTags : allTags;
+
+  // Clear selected tag when tab changes to avoid tag leakage
+  React.useEffect(() => {
+    setSelectedTag(null);
+  }, [activeTab]);
+
   // Filtering (Memoized at top to avoid Temporal Dead Zone reference errors during AuthScreen early return)
   const filteredGoals = React.useMemo(() => {
     return goals.filter((g) => {
@@ -45,9 +124,20 @@ export default function Home() {
       
       const matchesTag = !selectedTag || g.tags.includes(selectedTag);
 
-      return matchesSearch && matchesTag;
+      let matchesTab = true;
+      if (activeTab === "deadlines") {
+        matchesTab = g.tags.some(t => t.toLowerCase() === "deadline") || g.title.toLowerCase().includes("deadline");
+      } else if (activeTab === "habits") {
+        matchesTab = false; // Now handled by habits store
+      } else if (activeTab === "goals") {
+        matchesTab = !g.tags.some(t => t.toLowerCase() === "habit") && 
+                     !g.tags.some(t => t.toLowerCase() === "deadline") && 
+                     !g.title.toLowerCase().includes("deadline");
+      }
+
+      return matchesSearch && matchesTag && matchesTab;
     });
-  }, [goals, searchQuery, selectedTag]);
+  }, [goals, searchQuery, selectedTag, activeTab]);
 
   const measureCards = () => {
     const elements = document.querySelectorAll("[data-drag-id]");
@@ -105,7 +195,11 @@ export default function Home() {
   // Mark all currently-visible card IDs as introduced after each render
   React.useEffect(() => {
     if (!user) return;
-    filteredGoals.forEach((g) => introducedIdsRef.current.add(g.id));
+    if (activeTab === "habits") {
+      habits.forEach((h) => introducedIdsRef.current.add(h.id));
+    } else {
+      filteredGoals.forEach((g) => introducedIdsRef.current.add(g.id));
+    }
   });
 
   useIsomorphicLayoutEffect(() => {
@@ -186,11 +280,6 @@ export default function Home() {
     };
   }, [goals]);
 
-  // Authenticate Gate
-  if (!user) {
-    return <AuthScreen />;
-  }
-
   // Handle Actions
   const handleCardTap = (goal: Goal) => {
     setSelectedGoalId(goal.id);
@@ -202,8 +291,20 @@ export default function Home() {
     setIsFormOpen(true);
   };
 
+  const handleEditHabitTap = (habit: Habit) => {
+    setEditingHabit(habit);
+    setIsFormOpen(true);
+  };
+
+  const handleEditDeadlineTap = (deadline: Deadline) => {
+    setEditingDeadline(deadline);
+    setIsFormOpen(true);
+  };
+
   const handleAddTap = () => {
     setEditingGoal(null);
+    setEditingHabit(null);
+    setEditingDeadline(null);
     setIsFormOpen(true);
   };
 
@@ -212,9 +313,6 @@ export default function Home() {
     setEditingGoal(goal);
     setIsFormOpen(true);
   };
-
-  // --- GOAL REORDER CONTROLS ---
-  const canReorder = !searchQuery && !selectedTag;
 
   const handleMoveUp = (idx: number) => {
     if (idx <= 0) return;
@@ -230,12 +328,203 @@ export default function Home() {
     reorderGoals(idx, idx + 1);
   };
 
+  const renderPageContent = (type: "deadlines" | "goals" | "habits") => {
+    if (type === "habits") {
+      const pageHabits = habits.filter((h) => {
+        const matchesSearch = h.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (h.tags || []).some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
+        
+        const matchesTag = !selectedTag || (h.tags || []).some(t => t.toLowerCase() === selectedTag.toLowerCase());
 
+        return matchesSearch && matchesTag;
+      });
 
-  // (Filtered goals memoized at top to avoid TDZ reference errors)
+      if (habitsLoading) {
+        return (
+          <div className="flex flex-col items-center justify-center py-20 space-y-4">
+            <div className="w-8 h-8 border-2 border-neutral-800 border-t-white rounded-full animate-spin" />
+            <span className="text-[10px] font-mono tracking-widest text-neutral-300 uppercase animate-pulse">
+              Syncing Ledger
+            </span>
+          </div>
+        );
+      }
+
+      if (pageHabits.length === 0) {
+        return (
+          <div className="text-center py-20 px-4 border border-dashed border-neutral-900 rounded-lg select-none space-y-3">
+            <p className="text-xs text-neutral-300 font-light">
+              No recurring habits tracked in this node.
+            </p>
+            <button
+              onClick={handleAddTap}
+              className="px-4 py-2 border border-neutral-850 hover:border-neutral-600 bg-neutral-950 text-[10px] uppercase font-mono tracking-widest text-neutral-300 hover:text-white rounded-md transition-all"
+            >
+              Initialize Habit
+            </button>
+          </div>
+        );
+      }
+
+      return (
+        <div className="grid grid-cols-1 gap-3.5">
+          {pageHabits.map((habit, idx) => {
+            const isNew = !introducedIdsRef.current.has(habit.id);
+            return (
+              <div
+                key={habit.id}
+                data-drag-id={habit.id}
+                className={isNew ? "animate-card-entrance" : undefined}
+                style={isNew ? { animationDelay: `${idx * 60}ms` } : undefined}
+              >
+                <HabitCard
+                  habit={habit}
+                  onTap={(h) => setSelectedHabitId(h.id)}
+                  onEditTap={handleEditHabitTap}
+                  entranceDelay={idx * 70}
+                />
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    if (type === "deadlines") {
+      const pageDeadlines = deadlines.filter((d) => {
+        const matchesSearch = d.title.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesSearch;
+      });
+
+      if (deadlinesLoading) {
+        return (
+          <div className="flex flex-col items-center justify-center py-20 space-y-4">
+            <div className="w-8 h-8 border-2 border-neutral-800 border-t-white rounded-full animate-spin" />
+            <span className="text-[10px] font-mono tracking-widest text-neutral-300 uppercase animate-pulse">
+              Syncing Ledger
+            </span>
+          </div>
+        );
+      }
+
+      if (pageDeadlines.length === 0) {
+        return (
+          <div className="text-center py-20 px-4 border border-dashed border-neutral-900 rounded-lg select-none space-y-3">
+            <p className="text-xs text-neutral-300 font-light">
+              No active deadlines found in this timeline.
+            </p>
+            <button
+              onClick={handleAddTap}
+              className="px-4 py-2 border border-neutral-850 hover:border-neutral-600 bg-neutral-950 text-[10px] uppercase font-mono tracking-widest text-neutral-300 hover:text-white rounded-md transition-all"
+            >
+              Initialize Deadline
+            </button>
+          </div>
+        );
+      }
+
+      return (
+        <div className="grid grid-cols-1 gap-3.5">
+          {pageDeadlines.map((deadline) => (
+            <DeadlineCard
+              key={deadline.id}
+              deadline={deadline}
+              onEditTap={handleEditDeadlineTap}
+            />
+          ))}
+        </div>
+      );
+    }
+
+    // Filter goals for this specific page (Goals and Deadlines tabs)
+    const pageGoals = goals.filter((g) => {
+      // 1. Search Query filter
+      const matchesSearch = g.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        g.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      // 2. Horizontal Tag filter
+      const matchesTag = !selectedTag || g.tags.includes(selectedTag);
+
+      // 3. Tab filter
+      let matchesTab = true;
+      if (type === "goals") {
+        matchesTab = !g.tags.some(t => t.toLowerCase() === "habit") && 
+                     !g.tags.some(t => t.toLowerCase() === "deadline") && 
+                     !g.title.toLowerCase().includes("deadline");
+      }
+
+      return matchesSearch && matchesTag && matchesTab;
+    });
+
+    if (loading) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20 space-y-4">
+          <div className="w-8 h-8 border-2 border-neutral-800 border-t-white rounded-full animate-spin" />
+          <span className="text-[10px] font-mono tracking-widest text-neutral-300 uppercase animate-pulse">
+            Syncing Ledger
+          </span>
+        </div>
+      );
+    }
+
+    if (pageGoals.length === 0) {
+      return (
+        <div className="text-center py-20 px-4 border border-dashed border-neutral-900 rounded-lg select-none space-y-3">
+          <p className="text-xs text-neutral-300 font-light">
+            No matching records found in this universe.
+          </p>
+          <button
+            onClick={handleAddTap}
+            className="px-4 py-2 border border-neutral-850 hover:border-neutral-600 bg-neutral-950 text-[10px] uppercase font-mono tracking-widest text-neutral-300 hover:text-white rounded-md transition-all"
+          >
+            Initialize Goal
+          </button>
+        </div>
+      );
+    }
+
+    // Disable reordering on filtered views to prevent index misalignment with global store
+    const canReorder = type === "goals" && !searchQuery && !selectedTag;
+
+    return (
+      <div className="grid grid-cols-1 gap-3.5">
+        {pageGoals.map((goal, idx) => {
+          const isNew = !introducedIdsRef.current.has(goal.id);
+          return (
+            <div
+              key={goal.id}
+              data-drag-id={goal.id}
+              className={isNew ? "animate-card-entrance" : undefined}
+              style={isNew ? { animationDelay: `${idx * 60}ms` } : undefined}
+            >
+              <GoalCard
+                goal={goal}
+                onTap={handleCardTap}
+                onEditTap={handleEditTap}
+                onMoveUp={canReorder ? (e) => { e.stopPropagation(); handleMoveUp(idx); } : undefined}
+                onMoveDown={canReorder ? (e) => { e.stopPropagation(); handleMoveDown(idx); } : undefined}
+                isFirst={idx === 0}
+                isLast={idx === pageGoals.length - 1}
+              />
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const syncError = goalsSyncError || habitsSyncError;
+  const handleClearSyncError = () => {
+    if (goalsSyncError) clearGoalsSyncError();
+    if (habitsSyncError) clearHabitsSyncError();
+  };
 
   return (
-    <div className="min-h-screen bg-black text-white md:max-w-md md:mx-auto md:shadow-2xl md:border-x md:border-neutral-900 pb-28 relative flex flex-col overflow-hidden">
+    <div 
+      className="min-h-screen bg-black text-white md:max-w-md md:mx-auto md:shadow-2xl md:border-x md:border-neutral-900 pb-28 relative flex flex-col overflow-hidden"
+      onTouchStart={(e) => handleDragStart(e.touches[0].clientX, e.touches[0].clientY)}
+      onTouchEnd={(e) => handleDragEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY)}
+    >
       <ConstellationBackground opacity={0.45} particleCount={200} />
       
       {/* Dynamic Header */}
@@ -273,6 +562,14 @@ export default function Home() {
           >
             <Search size={16} />
           </button>
+          <a
+            href="/navbar-sandbox"
+            className="p-2 text-neutral-500 hover:text-white hover:bg-neutral-900 rounded-lg transition-all"
+            aria-label="Navigation Lab"
+            title="Navigation Lab"
+          >
+            <Sliders size={16} />
+          </a>
           <button
             onClick={() => logout()}
             className="p-2 text-neutral-500 hover:text-white hover:bg-neutral-900 rounded-lg transition-all"
@@ -285,12 +582,57 @@ export default function Home() {
 
       {/* Main Container */}
       <main className="flex-1 px-6 pt-24 pb-6 space-y-6">
-        {/* Decorative Quote Panel */}
-        <div className="flex items-center gap-3 p-4 border border-neutral-900 bg-neutral-950/40 rounded-lg select-none">
-          <Sparkles size={16} className="text-neutral-250 shrink-0" />
-          <p className="text-[10px] font-mono text-neutral-200 tracking-wide leading-relaxed">
-            &quot;The secret of getting ahead is getting started.&quot; Use ↑↓ buttons on cards to reorder.
-          </p>
+        {/* Navigation Tabs (Deadlines, Goals, Habits) with Morphing Pill Switcher */}
+        <div className="relative flex w-full bg-neutral-950 border border-neutral-900 rounded-xl p-1 select-none shrink-0 overflow-hidden">
+          {/* Sliding Indicator Background */}
+          {(() => {
+            const tabIndices = { deadlines: 0, goals: 1, habits: 2 };
+            const currentIndex = tabIndices[activeTab];
+            const prevIndex = tabIndices[prevTab];
+            return (
+              <div 
+                className="absolute inset-y-0"
+                style={{
+                  left: `${currentIndex * 33.333}%`,
+                  right: `${(2 - currentIndex) * 33.333}%`,
+                  transition: 
+                    currentIndex > prevIndex
+                      ? "right 320ms cubic-bezier(0.34, 1.8, 0.45, 1), left 380ms cubic-bezier(0.4, 0, 0.2, 1) 40ms"
+                      : currentIndex < prevIndex
+                        ? "left 320ms cubic-bezier(0.34, 1.8, 0.45, 1), right 380ms cubic-bezier(0.4, 0, 0.2, 1) 40ms"
+                        : "left 300ms ease-out, right 300ms ease-out"
+                }}
+              >
+                <div className="w-full h-full p-1">
+                  <div className="w-full h-full bg-white rounded-lg shadow-md" />
+                </div>
+              </div>
+            );
+          })()}
+
+          {[
+            { id: "deadlines" as const, label: "Deadlines" },
+            { id: "goals" as const, label: "Goals" },
+            { id: "habits" as const, label: "Habits" }
+          ].map((item) => {
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setPrevTab(activeTab);
+                  setActiveTab(item.id);
+                }}
+                className={`flex-1 py-2 text-[10px] font-mono font-bold uppercase tracking-widest rounded-lg transition-colors duration-300 relative z-10 ${
+                  isActive 
+                    ? "text-black font-extrabold" 
+                    : "text-neutral-500 hover:text-neutral-300"
+                }`}
+              >
+                {item.label}
+              </button>
+            );
+          })}
         </div>
 
         {/* Search Bar (Toggled) */}
@@ -309,7 +651,7 @@ export default function Home() {
         )}
 
         {/* Tag Filters Row */}
-        {allTags.length > 0 && (
+        {tagsToDisplay.length > 0 && (
           <div 
             ref={tagsRef}
             className="flex items-center gap-1.5 overflow-x-auto pb-2.5 -mx-6 px-6 touch-pan-x flex-nowrap shrink-0 pointer-events-auto select-none cursor-grab active:cursor-grabbing"
@@ -322,9 +664,9 @@ export default function Home() {
                   : "bg-transparent text-neutral-300 border-neutral-900 hover:text-neutral-200"
               }`}
             >
-              All Goals
+              {activeTab === "habits" ? "All Habits" : activeTab === "deadlines" ? "All Deadlines" : "All Goals"}
             </button>
-            {allTags.map((tag) => (
+            {tagsToDisplay.map((tag) => (
               <button
                 key={tag}
                 onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
@@ -340,51 +682,35 @@ export default function Home() {
           </div>
         )}
 
-        {/* Content Loading or Display */}
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 space-y-4">
-            <div className="w-8 h-8 border-2 border-neutral-800 border-t-white rounded-full animate-spin" />
-            <span className="text-[10px] font-mono tracking-widest text-neutral-300 uppercase animate-pulse">
-              Syncing Ledger
-            </span>
+        {/* Viewport Slider Track */}
+        <div className="w-full overflow-hidden py-2 -my-2">
+          <div 
+            className="flex w-[300%] transition-transform duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+            style={{
+              transform: 
+                activeTab === "deadlines"
+                  ? "translateX(0%)"
+                  : activeTab === "goals"
+                    ? "translateX(-33.333%)"
+                    : "translateX(-66.666%)"
+            }}
+          >
+            {/* Page 1: Deadlines */}
+            <div className="w-1/3 shrink-0">
+              {renderPageContent("deadlines")}
+            </div>
+
+            {/* Page 2: Goals */}
+            <div className="w-1/3 shrink-0">
+              {renderPageContent("goals")}
+            </div>
+
+            {/* Page 3: Habits */}
+            <div className="w-1/3 shrink-0">
+              {renderPageContent("habits")}
+            </div>
           </div>
-        ) : filteredGoals.length === 0 ? (
-          <div className="text-center py-20 px-4 border border-dashed border-neutral-900 rounded-lg select-none space-y-3">
-            <p className="text-xs text-neutral-300 font-light">
-              No matching records found in this universe.
-            </p>
-            <button
-              onClick={handleAddTap}
-              className="px-4 py-2 border border-neutral-800 hover:border-neutral-600 bg-neutral-950 text-[10px] uppercase font-mono tracking-widest text-neutral-300 hover:text-white rounded-md transition-all"
-            >
-              Initialize Goal
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-3.5">
-            {filteredGoals.map((goal, idx) => {
-              const isNew = !introducedIdsRef.current.has(goal.id);
-              return (
-                <div
-                  key={goal.id}
-                  data-drag-id={goal.id}
-                  className={isNew ? "animate-card-entrance" : undefined}
-                  style={isNew ? { animationDelay: `${idx * 60}ms` } : undefined}
-                >
-                  <GoalCard
-                    goal={goal}
-                    onTap={handleCardTap}
-                    onEditTap={handleEditTap}
-                    onMoveUp={canReorder ? (e) => { e.stopPropagation(); handleMoveUp(idx); } : undefined}
-                    onMoveDown={canReorder ? (e) => { e.stopPropagation(); handleMoveDown(idx); } : undefined}
-                    isFirst={idx === 0}
-                    isLast={idx === filteredGoals.length - 1}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        )}
+        </div>
       </main>
 
       {/* Global Sync Error Banner */}
@@ -395,7 +721,7 @@ export default function Home() {
               {syncError}
             </span>
             <button
-              onClick={clearSyncError}
+              onClick={handleClearSyncError}
               className="ml-4 p-1 text-red-400 hover:text-white transition-colors"
               aria-label="Dismiss Error"
             >
@@ -413,10 +739,16 @@ export default function Home() {
         <button
           onClick={handleAddTap}
           className="pointer-events-auto relative flex items-center justify-center gap-2 px-6 py-4 bg-white text-black text-xs font-bold uppercase tracking-widest rounded-md shadow-[0_4px_24px_rgba(255,255,255,0.2)] hover:bg-neutral-200 transition-all duration-300 hover:scale-105 active:scale-95 pulse-halo"
-          aria-label="Add New Goal"
+          aria-label={activeTab === "deadlines" ? "Add New Deadline" : activeTab === "habits" ? "Add New Habit" : "Add New Goal"}
         >
           <Plus size={16} strokeWidth={3} />
-          <span>New Goal</span>
+          <span>
+            {activeTab === "deadlines"
+              ? "New Deadline"
+              : activeTab === "habits"
+              ? "New Habit"
+              : "New Goal"}
+          </span>
         </button>
       </div>
 
@@ -429,14 +761,52 @@ export default function Home() {
         />
       )}
 
+      {selectedHabitId && (() => {
+        const habit = habits.find((h) => h.id === selectedHabitId);
+        return habit ? (
+          <HabitAnalyticsModal
+            habit={habit}
+            onClose={() => setSelectedHabitId(null)}
+          />
+        ) : null;
+      })()}
+
       {isFormOpen && (
-        <GoalFormModal
-          editGoal={editingGoal}
-          onClose={() => {
-            setIsFormOpen(false);
-            setEditingGoal(null);
-          }}
-        />
+        (() => {
+          if (activeTab === "habits" || editingHabit) {
+            return (
+              <HabitFormModal
+                editHabit={editingHabit}
+                onClose={() => {
+                  setIsFormOpen(false);
+                  setEditingHabit(null);
+                }}
+              />
+            );
+          }
+
+          if (activeTab === "deadlines" || editingDeadline) {
+            return (
+              <DeadlineFormModal
+                editDeadline={editingDeadline}
+                onClose={() => {
+                  setIsFormOpen(false);
+                  setEditingDeadline(null);
+                }}
+              />
+            );
+          }
+
+          return (
+            <GoalFormModal
+              editGoal={editingGoal}
+              onClose={() => {
+                setIsFormOpen(false);
+                setEditingGoal(null);
+              }}
+            />
+          );
+        })()
       )}
     </div>
   );
