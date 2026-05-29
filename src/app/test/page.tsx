@@ -17,7 +17,7 @@ import HabitAnalyticsModal from "@/components/HabitAnalyticsModal";
 import AetherLogo from "@/components/AetherLogo";
 import { HabitStoreProvider, useHabitsStore } from "@/lib/habitStore";
 import { DeadlineStoreProvider, useDeadlinesStore } from "@/lib/deadlineStore";
-import { LogOut, Plus, Search, Sliders } from "lucide-react";
+import { LogOut, Plus, Search } from "lucide-react";
 import ConstellationBackground from "@/components/ConstellationBackground";
 
 export default function Home() {
@@ -562,14 +562,7 @@ function HomeContent() {
           >
             <Search size={16} />
           </button>
-          <a
-            href="/navbar-sandbox"
-            className="p-2 text-neutral-500 hover:text-white hover:bg-neutral-900 rounded-lg transition-all"
-            aria-label="Navigation Lab"
-            title="Navigation Lab"
-          >
-            <Sliders size={16} />
-          </a>
+
           <button
             onClick={() => logout()}
             className="p-2 text-neutral-500 hover:text-white hover:bg-neutral-900 rounded-lg transition-all"
