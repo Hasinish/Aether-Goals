@@ -33,8 +33,32 @@ export default function AuthScreen() {
   useEffect(() => {
     setMounted(true);
 
+    // 1. Instantly pull prompt if captured globally by layout.tsx before mount
+    const earlyPrompt = ("deferredPrompt" in window) 
+      ? (window as Window & { deferredPrompt?: BeforeInstallPromptEvent | null }).deferredPrompt 
+      : null;
+    
+    if (earlyPrompt) {
+      setDeferredPrompt(earlyPrompt);
+      setIsInstallable(true);
+    }
+
+    // 2. Custom event listener to capture prompts flowing post-mount
+    const handleCustomPromptCaptured = () => {
+      const captured = ("deferredPrompt" in window)
+        ? (window as Window & { deferredPrompt?: BeforeInstallPromptEvent | null }).deferredPrompt
+        : null;
+      
+      if (captured) {
+        setDeferredPrompt(captured);
+        setIsInstallable(true);
+      }
+    };
+
+    window.addEventListener("pwa-prompt-captured", handleCustomPromptCaptured);
+
+    // 3. Fallback standard browser beforeinstallprompt listener
     const handleBeforeInstallPrompt = (e: Event) => {
-      // Prevent browser default infobar prompts
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       setIsInstallable(true);
@@ -56,6 +80,7 @@ export default function AuthScreen() {
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("pwa-prompt-captured", handleCustomPromptCaptured);
       window.removeEventListener("appinstalled", handleAppInstalled);
     };
   }, []);
@@ -162,7 +187,8 @@ export default function AuthScreen() {
         >
           <div className={`w-2 h-2 rounded-full transition-colors duration-300 ${isInstallable ? "bg-emerald-400 animate-pulse" : "bg-neutral-500"}`} />
           <span className="text-[10px] font-mono tracking-widest text-neutral-400 flex items-center">
-            AETHER <span className="text-[8px] text-neutral-500 font-bold ml-1.5 opacity-80">V1.0</span>
+            AETHER
+            <span className="text-[8px] text-neutral-500 font-sans font-bold ml-1.5 opacity-80 tracking-normal normal-case">v1.0</span>
           </span>
         </button>
       </div>

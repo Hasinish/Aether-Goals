@@ -43,6 +43,19 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-black text-white font-sans`}
       >
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.deferredPrompt = null;
+              window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                window.deferredPrompt = e;
+                // Dispatch a custom event to notify mounted components instantly
+                window.dispatchEvent(new CustomEvent('pwa-prompt-captured'));
+              });
+            `,
+          }}
+        />
         <StoreProvider>
           {children}
           <ServiceWorkerRegister />
