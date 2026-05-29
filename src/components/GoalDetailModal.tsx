@@ -101,7 +101,7 @@ export default function GoalDetailModal({
       {/* Spring Drawer Sheet */}
       <div
         style={{ transform: sheetTransform, transition: sheetTransition }}
-        className="fixed bottom-0 left-0 right-0 z-[51] flex flex-col max-h-[90vh] bg-neutral-950 text-white rounded-t-3xl border-t border-white/50 shadow-[0_-16px_48px_rgba(0,0,0,0.7)] md:max-w-md md:mx-auto"
+        className="fixed bottom-0 left-0 right-0 z-[51] flex flex-col max-h-[90vh] bg-[#0d0d0d] text-white rounded-t-3xl border-t border-white/50 shadow-[0_-16px_48px_rgba(0,0,0,0.7)] md:max-w-md md:mx-auto"
       >
         {/* Drag handle */}
         <div
@@ -202,7 +202,7 @@ export default function GoalDetailModal({
           </div>
 
           {/* Progress stats */}
-          <div className="p-5 border border-white/50 bg-neutral-950 rounded-lg">
+          <div className="p-5 rounded-lg border-sweep-card-auto">
             <div className="flex items-baseline gap-4 mb-4 select-none">
               <span className="text-5xl font-extrabold tracking-tighter text-white">
                 {goal.progressPercent || 0}%
@@ -237,37 +237,50 @@ export default function GoalDetailModal({
               </p>
             ) : (
               <div className="space-y-2.5">
-                {subtasks.map((task) => (
-                  <button
-                    key={task.id}
-                    type="button"
-                    role="checkbox"
-                    aria-checked={task.is_complete}
-                    aria-label={`Toggle subtask: ${task.title}`}
-                    onClick={() => toggleSubtask(task.id)}
-                    className="w-full text-left flex items-center gap-4 p-4 border border-neutral-900 bg-neutral-950/60 rounded-md cursor-pointer hover:border-neutral-800 hover:bg-neutral-950/90 select-none transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-700"
-                  >
-                    <div
-                      className={`flex items-center justify-center w-5 h-5 rounded-md border transition-all duration-200 ${
-                        task.is_complete
-                          ? "bg-white border-white text-black animate-checkbox-spring"
-                          : "border-neutral-700 bg-transparent text-transparent hover:border-neutral-500"
-                      }`}
-                    >
-                      <Check size={12} strokeWidth={3} />
-                    </div>
+                {subtasks.map((task, idx) => {
+                  const pct = subtasks.length > 1 ? idx / (subtasks.length - 1) : 0;
+                  const r = Math.round(6 + (16 - 6) * pct);
+                  const g = Math.round(182 + (185 - 182) * pct);
+                  const b = Math.round(212 + (129 - 212) * pct);
+                  const checkboxColor = `rgb(${r}, ${g}, ${b})`;
 
-                    <span
-                      className={`text-xs leading-normal transition-all duration-300 ${
-                        task.is_complete
-                          ? "text-neutral-400 animate-strike-sweep"
-                          : "text-white"
-                      }`}
+                  return (
+                    <button
+                      key={task.id}
+                      type="button"
+                      role="checkbox"
+                      aria-checked={task.is_complete}
+                      aria-label={`Toggle subtask: ${task.title}`}
+                      onClick={() => toggleSubtask(task.id)}
+                      className="w-full text-left flex items-center gap-4 p-4 border border-neutral-900 bg-neutral-950/60 rounded-md cursor-pointer hover:border-neutral-800 hover:bg-neutral-950/90 select-none transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-700"
                     >
-                      {task.title}
-                    </span>
-                  </button>
-                ))}
+                      <div
+                        className={`flex items-center justify-center w-5 h-5 rounded-md border transition-all duration-200 ${
+                          task.is_complete
+                            ? "text-black animate-checkbox-spring"
+                            : "border-neutral-700 bg-transparent text-transparent hover:border-neutral-500"
+                        }`}
+                        style={
+                          task.is_complete
+                            ? { backgroundColor: checkboxColor, borderColor: checkboxColor }
+                            : undefined
+                        }
+                      >
+                        <Check size={12} strokeWidth={3} />
+                      </div>
+
+                      <span
+                        className={`text-xs leading-normal transition-all duration-300 ${
+                          task.is_complete
+                            ? "text-neutral-400 animate-strike-sweep"
+                            : "text-white"
+                        }`}
+                      >
+                        {task.title}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>

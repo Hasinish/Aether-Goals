@@ -185,7 +185,7 @@ export default function AuthScreen() {
           className="flex items-center gap-2 px-3.5 py-1.5 bg-neutral-900 border border-neutral-800 rounded-full cursor-pointer hover:bg-neutral-800 hover:border-neutral-700 active:scale-[0.97] transition-all duration-200 select-none outline-none focus-visible:ring-1 focus-visible:ring-neutral-700"
           aria-label="Install Aether PWA App"
         >
-          <div className={`w-2 h-2 rounded-full transition-colors duration-300 bg-emerald-400 ${isInstallable ? "animate-pulse" : ""}`} />
+          <div className="w-2 h-2 rounded-full animate-breath-cyan-green" />
           <span className="text-[10px] font-mono tracking-widest text-neutral-400 flex items-center">
             AETHER
             <span className="text-[8px] text-neutral-350 font-sans font-bold ml-1.5 opacity-80 tracking-normal normal-case">v1.0</span>

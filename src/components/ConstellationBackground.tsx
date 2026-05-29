@@ -39,20 +39,30 @@ export default function ConstellationBackground({
     });
     resizeObserver.observe(parent);
 
-    // Initialize float nodes
+    // Initialize float nodes with cyan and emerald colors
+    const colors = [
+      "6, 182, 212",  // Cyan
+      "16, 185, 129"  // Emerald
+    ];
+
     const particles: Array<{
       x: number;
       y: number;
       vx: number;
       vy: number;
       radius: number;
-    }> = Array.from({ length: particleCount }, () => ({
-      x: Math.random() * width,
-      y: Math.random() * height,
-      vx: (Math.random() - 0.5) * 0.28,
-      vy: (Math.random() - 0.5) * 0.28,
-      radius: Math.random() * 2.2 + 1.2
-    }));
+      color: string;
+    }> = Array.from({ length: particleCount }, () => {
+      const randomColor = colors[Math.floor(Math.random() * colors.length)];
+      return {
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - 0.5) * 0.28,
+        vy: (Math.random() - 0.5) * 0.28,
+        radius: Math.random() * 2.2 + 1.2,
+        color: randomColor
+      };
+    });
 
     const mouse = { x: -1000, y: -1000 };
 
@@ -103,7 +113,7 @@ export default function ConstellationBackground({
         // Draw individual dot node
         ctx.beginPath();
         ctx.arc(p1.x, p1.y, p1.radius, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
+        ctx.fillStyle = `rgba(${p1.color}, 0.85)`;
         ctx.fill();
 
         // Connect nearby nodes
@@ -114,7 +124,7 @@ export default function ConstellationBackground({
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
             ctx.lineTo(p2.x, p2.y);
-            ctx.strokeStyle = `rgba(255, 255, 255, ${0.75 * (1 - dist / 80)})`;
+            ctx.strokeStyle = `rgba(${p1.color}, ${0.75 * (1 - dist / 80)})`;
             ctx.lineWidth = 0.9;
             ctx.stroke();
           }
@@ -126,7 +136,7 @@ export default function ConstellationBackground({
           ctx.beginPath();
           ctx.moveTo(p1.x, p1.y);
           ctx.lineTo(mouse.x, mouse.y);
-          ctx.strokeStyle = `rgba(255, 255, 255, ${0.95 * (1 - mouseDist / 120)})`;
+          ctx.strokeStyle = `rgba(${p1.color}, ${0.85 * (1 - mouseDist / 120)})`;
           ctx.lineWidth = 1.3;
           ctx.stroke();
         }

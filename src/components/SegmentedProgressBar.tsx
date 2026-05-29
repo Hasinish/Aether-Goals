@@ -22,6 +22,15 @@ export default function SegmentedProgressBar({
   const cleanupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeSegments = Math.round((progressPercent / 100) * totalSegments);
 
+  const getSegmentColor = (index: number) => {
+    const pct = totalSegments > 1 ? index / (totalSegments - 1) : 0;
+    // Premium electric gradient: cyan rgb(6, 182, 212) to emerald green rgb(16, 185, 129)
+    const r = Math.round(6 + (16 - 6) * pct);
+    const g = Math.round(182 + (185 - 182) * pct);
+    const b = Math.round(212 + (129 - 212) * pct);
+    return `rgb(${r}, ${g}, ${b})`;
+  };
+
   // Imperative DOM animation — runs before first paint via useLayoutEffect.
   // Completely bypasses React's style reconciliation so DOM moves during
   // card swaps can never replay the boot-up transition.
@@ -61,7 +70,7 @@ export default function SegmentedProgressBar({
         segments.forEach((seg, i) => {
           if (i < activeSegments) {
             seg.style.transition = `background-color 0.1s ease-out ${i * 50}ms`;
-            seg.style.backgroundColor = "#ffffff";
+            seg.style.backgroundColor = getSegmentColor(i);
           }
         });
 
@@ -94,7 +103,7 @@ export default function SegmentedProgressBar({
           for (let i = prevActive; i < activeSegments; i++) {
             if (segments[i]) {
               segments[i].style.transition = `background-color 0.25s ease-out ${delayCount * 50}ms`;
-              segments[i].style.backgroundColor = "#ffffff";
+              segments[i].style.backgroundColor = getSegmentColor(i);
               delayCount++;
             }
           }
@@ -154,7 +163,7 @@ export default function SegmentedProgressBar({
             key={`${segmentIdPrefix}-${idx}`}
             className="flex-1 h-full rounded-[1px]"
             style={{
-              backgroundColor: isActive ? "#ffffff" : "rgba(255, 255, 255, 0.06)",
+              backgroundColor: isActive ? getSegmentColor(idx) : "rgba(255, 255, 255, 0.06)",
             }}
           />
         );

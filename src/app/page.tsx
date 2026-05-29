@@ -247,7 +247,7 @@ export default function Home() {
         <div className={`flex items-center gap-2 select-none transition-transform duration-300 ease-out origin-left ${
           isHeaderCompressed ? "scale-[0.91]" : "scale-100"
         }`}>
-          <div className="w-2.5 h-2.5 bg-white rounded-lg animate-pulse" />
+          <div className="w-2 h-2 rounded-full animate-breath-cyan-green" />
           <AetherLogo />
         </div>
 
@@ -412,7 +412,7 @@ export default function Home() {
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-black via-black to-transparent py-6 flex justify-center pointer-events-none">
         <button
           onClick={handleAddTap}
-          className="pointer-events-auto flex items-center justify-center gap-2 px-6 py-4 bg-white text-black text-xs font-bold uppercase tracking-widest rounded-md shadow-[0_4px_24px_rgba(255,255,255,0.2)] hover:bg-neutral-200 transition-all duration-300 hover:scale-105 active:scale-95"
+          className="pointer-events-auto relative flex items-center justify-center gap-2 px-6 py-4 bg-white text-black text-xs font-bold uppercase tracking-widest rounded-md shadow-[0_4px_24px_rgba(255,255,255,0.2)] hover:bg-neutral-200 transition-all duration-300 hover:scale-105 active:scale-95 pulse-halo"
           aria-label="Add New Goal"
         >
           <Plus size={16} strokeWidth={3} />

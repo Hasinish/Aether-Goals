@@ -331,7 +331,7 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
       {/* Spring Drawer Sheet */}
       <div
         style={{ transform: sheetTransform, transition: sheetTransition }}
-        className="fixed bottom-0 left-0 right-0 z-[51] flex flex-col max-h-[90vh] bg-neutral-950 text-white rounded-t-3xl border-t border-white/50 shadow-[0_-16px_48px_rgba(0,0,0,0.7)] md:max-w-md md:mx-auto"
+        className="fixed bottom-0 left-0 right-0 z-[51] flex flex-col max-h-[90vh] bg-[#0d0d0d] text-white rounded-t-3xl border-t border-white/50 shadow-[0_-16px_48px_rgba(0,0,0,0.7)] md:max-w-md md:mx-auto"
       >
         {/* Drag handle */}
         <div
