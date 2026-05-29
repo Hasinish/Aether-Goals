@@ -952,10 +952,10 @@ export default function MotionSandbox() {
           </button>
           <div>
             <h1 className="text-sm font-bold tracking-tight text-white font-mono uppercase">Aether Motion Sandbox</h1>
-            <p className="text-[10px] text-neutral-500 font-mono">Interactive Motion UI playground</p>
+            <p className="text-[10px] text-neutral-350 font-mono">Interactive Motion UI playground</p>
           </div>
         </div>
-        <div className="flex items-center gap-1 bg-neutral-900/60 border border-neutral-800 px-2 py-1 rounded text-[9px] font-mono text-neutral-400 select-none">
+        <div className="flex items-center gap-1 bg-neutral-900/60 border border-neutral-800 px-2 py-1 rounded text-[9px] font-mono text-neutral-250 select-none">
           <Sparkles size={10} className="text-white animate-pulse" />
           <span>V1.2</span>
         </div>
@@ -963,8 +963,8 @@ export default function MotionSandbox() {
 
       {/* Intro info box */}
       <div className="m-6 p-4 border border-neutral-900 bg-neutral-950/40 rounded-lg flex items-start gap-3 select-none">
-        <Info size={16} className="text-neutral-400 shrink-0 mt-0.5 animate-pulse" />
-        <p className="text-[10px] font-mono text-neutral-400 tracking-wide leading-relaxed">
+        <Info size={16} className="text-neutral-250 shrink-0 mt-0.5 animate-pulse" />
+        <p className="text-[10px] font-mono text-neutral-200 tracking-wide leading-relaxed">
           Welcome to the visual engine! Play with the <strong>Theme picker widget</strong> below to dynamically repaint all 20 of our state-of-the-art interactive micro-animations and motion widgets.
         </p>
       </div>
@@ -975,15 +975,15 @@ export default function MotionSandbox() {
       <div className="mx-6 mb-8 p-4 border border-neutral-800 bg-neutral-950/70 backdrop-blur-md rounded-xl space-y-3 shadow-2xl relative select-none z-30 transition-all duration-300"
            style={{ borderColor: `rgba(${theme.rgbPrimary}, 0.2)` }}>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-[10px] uppercase font-mono tracking-widest text-neutral-400 font-bold">
+          <div className="flex items-center gap-2 text-[10px] uppercase font-mono tracking-widest text-neutral-250 font-bold">
             <Palette size={12} className="text-white animate-pulse" />
             <span>Active Accent Theme Engine</span>
           </div>
-          <span className="text-[8px] font-mono bg-neutral-900 text-neutral-400 px-2 py-0.5 rounded border border-neutral-800">
+          <span className="text-[8px] font-mono bg-neutral-900 text-neutral-250 px-2 py-0.5 rounded border border-neutral-800">
             UPGRADE #19
           </span>
         </div>
-        <p className="text-[9px] font-mono text-neutral-500 leading-relaxed">
+        <p className="text-[9px] font-mono text-neutral-300 leading-relaxed">
           Select an dynamic accent palette. All responsive vectors, coordinate meshes, tab pills, canvas streams, sound curves, and glowing check overlays repaint instantly.
         </p>
         <div className="flex flex-wrap gap-2 pt-1">
@@ -996,7 +996,7 @@ export default function MotionSandbox() {
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[9px] font-mono font-bold uppercase tracking-wider transition-all duration-300 ${
                   isSelected 
                     ? "bg-white text-black border-white shadow-xl scale-[1.03]" 
-                    : "bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-neutral-200 hover:border-neutral-700"
+                    : "bg-neutral-900 border-neutral-800 text-neutral-250 hover:text-white hover:border-neutral-600"
                 }`}
               >
                 <span className="w-2.5 h-2.5 rounded-full animate-pulse animate-duration-1000" style={{ backgroundColor: themeOption.primary }} />
@@ -1026,7 +1026,7 @@ export default function MotionSandbox() {
               <Cpu size={12} className="animate-pulse" />
               <span>Abstract Retro-Tech Systems</span>
             </h2>
-            <p className="text-[10px] text-neutral-600 font-mono">Dynamic matrix coordinates, vector nodes, and concentric dials</p>
+            <p className="text-[10px] text-neutral-350 font-mono">Dynamic matrix coordinates, vector nodes, and concentric dials</p>
             <CRTScreen matrixMode={matrixMode} theme={theme} />
           </div>
 
@@ -1034,7 +1034,7 @@ export default function MotionSandbox() {
 
             {/* 1. Cosmic Grainy Gradient Title */}
             <div className="p-5 border border-neutral-900 bg-neutral-950/80 rounded-lg space-y-3 relative overflow-hidden select-none">
-              <div className="flex justify-between items-center text-[8px] uppercase tracking-widest font-mono text-neutral-500">
+              <div className="flex justify-between items-center text-[8px] uppercase tracking-widest font-mono text-neutral-300">
                 <span>A. Shimmering Liquid Chrome Mask</span>
                 <span>UPGRADE #1</span>
               </div>
@@ -1043,14 +1043,14 @@ export default function MotionSandbox() {
                     Aether goals
                   </h3>
                 </div>
-              <p className="text-[9px] font-mono text-neutral-500 leading-relaxed text-center">
+              <p className="text-[9px] font-mono text-neutral-300 leading-relaxed text-center">
                 Uses high-frequency digital paper grain layered over an animated flowing gradient shifting colors under the static grain.
               </p>
             </div>
 
             {/* 2. Cyber-Matrix Glitch Scrambler */}
             <div className="p-5 border border-neutral-900 bg-neutral-950/80 rounded-lg space-y-4 select-none cursor-pointer glitch-hover relative overflow-hidden transition-all duration-300 hover:border-neutral-800">
-              <div className="flex justify-between items-center text-[8px] uppercase tracking-widest font-mono text-neutral-500">
+              <div className="flex justify-between items-center text-[8px] uppercase tracking-widest font-mono text-neutral-300">
                 <span>B. Hover Glitch & Decrypt Text Card</span>
                 <span>UPGRADE #2</span>
               </div>
@@ -1071,7 +1071,7 @@ export default function MotionSandbox() {
                 </span>
               </div>
 
-              <p className="text-[9px] font-mono text-neutral-500 leading-relaxed">
+              <p className="text-[9px] font-mono text-neutral-300 leading-relaxed">
                 Hover card to scramble individual characters at 40Hz and trigger chromatic offset coordinate glitch layers.
               </p>
             </div>
@@ -1088,7 +1088,7 @@ export default function MotionSandbox() {
 
             {/* 5. Glassmorphic Morph-Pill Tabs */}
             <div className="space-y-1.5">
-              <div className="flex justify-between items-center text-[8px] uppercase tracking-widest font-mono text-neutral-500 px-1">
+              <div className="flex justify-between items-center text-[8px] uppercase tracking-widest font-mono text-neutral-300 px-1">
                 <span>E. Morphing Pill Tab Switcher</span>
                 <span>UPGRADE #5</span>
               </div>
@@ -1121,21 +1121,21 @@ export default function MotionSandbox() {
               <Sliders size={12} className="animate-pulse" />
               <span>1. Interactive Goal Cards</span>
             </h2>
-            <p className="text-[10px] text-neutral-600 font-mono">Frosted glassmorphism, 3D springs, and masked sweeps</p>
+            <p className="text-[10px] text-neutral-350 font-mono">Frosted glassmorphism, 3D springs, and masked sweeps</p>
           </div>
 
           <div className="grid grid-cols-1 gap-4">
             
             {/* 9. Transparent Minimal Crystalline Card */}
             <div className="space-y-1.5">
-              <div className="flex justify-between items-center text-[9px] uppercase tracking-wider font-mono text-neutral-400">
+              <div className="flex justify-between items-center text-[9px] uppercase tracking-wider font-mono text-neutral-250">
                 <span>Option A: Transparent Minimal (Crystalline Border)</span>
                 <span>UPGRADE #9</span>
               </div>
               <div className="p-4 bg-white/[0.02] border border-white/[0.05] backdrop-blur-[12px] rounded-lg transition-all duration-300 hover:border-white/20 hover:shadow-[0_4px_32px_rgba(255,255,255,0.04)] cursor-pointer">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="px-2 py-0.5 text-[9px] uppercase tracking-widest font-mono text-neutral-400 border border-neutral-900 bg-neutral-950/80 backdrop-blur-sm rounded-md">Option A</span>
-                  <MoreHorizontal size={14} className="text-neutral-500" />
+                  <span className="px-2 py-0.5 text-[9px] uppercase tracking-widest font-mono text-neutral-200 border border-neutral-900 bg-neutral-950/80 backdrop-blur-sm rounded-md">Option A</span>
+                  <MoreHorizontal size={14} className="text-neutral-350" />
                 </div>
                 <h3 className="text-sm font-bold text-white mb-2">Sleek Flat Glass Border</h3>
                 <div className="h-2 bg-neutral-900 rounded-full overflow-hidden">
@@ -1146,7 +1146,7 @@ export default function MotionSandbox() {
 
             {/* 10. Tactile Glass Spring Card */}
             <div className="space-y-1.5">
-              <div className="flex justify-between items-center text-[9px] uppercase tracking-wider font-mono text-neutral-400">
+              <div className="flex justify-between items-center text-[9px] uppercase tracking-wider font-mono text-neutral-250">
                 <span>Option B: Glass Spring & Dynamic Accent Shadow</span>
                 <span>UPGRADE #10</span>
               </div>
@@ -1157,7 +1157,7 @@ export default function MotionSandbox() {
                 }}
               >
                 <div className="flex justify-between items-center mb-2">
-                  <span className="px-2 py-0.5 text-[9px] uppercase tracking-widest font-mono text-neutral-400 border border-neutral-900 bg-neutral-950/80 backdrop-blur-sm rounded-md">Tactile</span>
+                  <span className="px-2 py-0.5 text-[9px] uppercase tracking-widest font-mono text-neutral-200 border border-neutral-900 bg-neutral-950/80 backdrop-blur-sm rounded-md">Tactile</span>
                   <MoreHorizontal size={14} className="text-neutral-500 animate-pulse" />
                 </div>
                 <h3 className="text-sm font-bold text-white mb-2">Hover to elevate. Tap/Hold to depress physically.</h3>
@@ -1169,13 +1169,13 @@ export default function MotionSandbox() {
 
             {/* 11. Prism masked Border Sweep Card */}
             <div className="space-y-1.5">
-              <div className="flex justify-between items-center text-[9px] uppercase tracking-wider font-mono text-neutral-400">
+              <div className="flex justify-between items-center text-[9px] uppercase tracking-wider font-mono text-neutral-250">
                 <span>Option C: Accent-Masked Border Sweep</span>
                 <span>UPGRADE #11</span>
               </div>
               <div className="p-4 border-sweep-container cursor-pointer select-none rounded-lg">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="px-2 py-0.5 text-[9px] uppercase tracking-widest font-mono text-neutral-400 border border-neutral-900 bg-neutral-950/80 backdrop-blur-sm rounded-md">Prism Mask</span>
+                  <span className="px-2 py-0.5 text-[9px] uppercase tracking-widest font-mono text-neutral-200 border border-neutral-900 bg-neutral-950/80 backdrop-blur-sm rounded-md">Prism Mask</span>
                   <MoreHorizontal size={14} className="text-neutral-500" />
                 </div>
                 <h3 className="text-sm font-bold text-white mb-2">Frosted glass & sliding accent sweep on hover</h3>
@@ -1196,7 +1196,7 @@ export default function MotionSandbox() {
               <Volume2 size={12} className="animate-pulse" />
               <span>2. Segmented Fills & Neural Equalizers</span>
             </h2>
-            <p className="text-[10px] text-neutral-600 font-mono">Staggered cascades vs. dynamic audio waveforms</p>
+            <p className="text-[10px] text-neutral-350 font-mono">Staggered cascades vs. dynamic audio waveforms</p>
           </div>
 
           <div className="space-y-6">
@@ -1204,9 +1204,9 @@ export default function MotionSandbox() {
             {/* 12. Cascade Progress Bar (Boot-up) */}
             <div className="p-4 border border-neutral-850 bg-neutral-950 rounded-lg space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-[9px] uppercase tracking-widest font-mono text-neutral-400">Style A: Staggered Fill Cascade</span>
+                <span className="text-[9px] uppercase tracking-widest font-mono text-neutral-250">Style A: Staggered Fill Cascade</span>
                 <div className="flex items-center gap-2">
-                  <span className="text-[8px] font-mono text-neutral-500">UPGRADE #12</span>
+                  <span className="text-[8px] font-mono text-neutral-350">UPGRADE #12</span>
                   <button
                     onClick={() => setCascadeTrigger1(prev => prev + 1)}
                     className="px-2 py-1 bg-white text-black text-[9px] font-mono font-bold uppercase rounded flex items-center gap-1 hover:bg-neutral-200 active:scale-95 transition-all shadow-md"
@@ -1241,8 +1241,8 @@ export default function MotionSandbox() {
             {/* 13. Breathing Engine Progress Bar */}
             <div className="p-4 border border-neutral-850 bg-neutral-950 rounded-lg space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-[9px] uppercase tracking-widest font-mono text-neutral-400">Style B: Breathing Engine Glow</span>
-                <span className="text-[8px] uppercase tracking-widest font-mono text-neutral-500 font-mono">UPGRADE #13 -- Autonomous</span>
+                <span className="text-[9px] uppercase tracking-widest font-mono text-neutral-250">Style B: Breathing Engine Glow</span>
+                <span className="text-[8px] uppercase tracking-widest font-mono text-neutral-350 font-mono">UPGRADE #13 -- Autonomous</span>
               </div>
 
               {/* Segmented display */}
@@ -1279,7 +1279,7 @@ export default function MotionSandbox() {
               <Check size={12} className="animate-pulse" />
               <span>3. Subtask Checklist Micro-Animations</span>
             </h2>
-            <p className="text-[10px] text-neutral-600 font-mono">Elastic spring checkpoints and dynamic strike sweeps</p>
+            <p className="text-[10px] text-neutral-350 font-mono">Elastic spring checkpoints and dynamic strike sweeps</p>
           </div>
 
           <div className="grid grid-cols-1 gap-4">
@@ -1306,13 +1306,13 @@ export default function MotionSandbox() {
                 <span
                   className={`text-xs font-mono transition-all duration-300 ${
                     subtaskChecked1 
-                      ? "text-neutral-500 animate-strike-sweep font-mono" 
+                      ? "text-neutral-450 animate-strike-sweep font-mono" 
                       : "text-white font-mono"
                   }`}
                 >
                   Task Style A: Elastic checkpoint & sweep strike-through
                 </span>
-                <span className="text-[7px] font-mono text-neutral-600 uppercase">UPGRADE #15</span>
+                <span className="text-[7px] font-mono text-neutral-300 uppercase">UPGRADE #15</span>
               </div>
             </div>
 
@@ -1338,13 +1338,13 @@ export default function MotionSandbox() {
                 <span
                   className={`text-xs font-mono transition-all duration-300 ${
                     subtaskChecked2 
-                      ? "text-neutral-600 blur-[0.4px] opacity-40 line-through" 
+                      ? "text-neutral-450 blur-[0.4px] opacity-40 line-through" 
                       : "text-white"
                   }`}
                 >
                   Task Style B: Circular loader dial & text blur decay
                 </span>
-                <span className="text-[7px] font-mono text-neutral-600 uppercase">UPGRADE #16</span>
+                <span className="text-[7px] font-mono text-neutral-300 uppercase">UPGRADE #16</span>
               </div>
             </div>
 
@@ -1359,14 +1359,14 @@ export default function MotionSandbox() {
               <Compass size={12} className="animate-pulse" />
               <span>4. Scroll-Driven Mockup Adaptations</span>
             </h2>
-            <p className="text-[10px] text-neutral-600 font-mono">Scroll the simulator to see dynamic header padding adapt</p>
+            <p className="text-[10px] text-neutral-350 font-mono">Scroll the simulator to see dynamic header padding adapt</p>
           </div>
 
           {/* 17. Device frame mockup */}
           <div className="border border-neutral-850 bg-black rounded-xl overflow-hidden shadow-2xl relative max-w-sm mx-auto select-none">
             {/* Absolute Device Notch status pill */}
             <div className="absolute top-2 left-1/2 -translate-x-1/2 w-20 h-4 bg-neutral-900 rounded-full z-50 flex items-center justify-center border border-neutral-800/40">
-              <span className="text-[5px] text-neutral-500 font-mono tracking-widest uppercase flex items-center gap-1">
+              <span className="text-[5px] text-neutral-300 font-mono tracking-widest uppercase flex items-center gap-1">
                 <span className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse" />
                 <span>Aether OS</span>
               </span>
@@ -1401,7 +1401,7 @@ export default function MotionSandbox() {
                 <div className="w-2.5 h-2.5 rounded-full animate-pulse" style={{ backgroundColor: theme.primary }} />
                 <span className={`font-black tracking-tight transition-all uppercase ${scrollY > 20 ? "text-xs" : "text-sm"}`}>Aether</span>
               </div>
-              <span className="text-[7px] font-mono text-neutral-500 uppercase tracking-widest flex items-center gap-1.5">
+              <span className="text-[7px] font-mono text-neutral-300 uppercase tracking-widest flex items-center gap-1.5">
                 <span>UPGRADE #17</span>
                 <span className="text-white bg-neutral-900 px-1 py-0.5 rounded border border-neutral-850">
                   {scrollY > 20 ? "COMPRESSED" : "LARGE"}
@@ -1410,7 +1410,7 @@ export default function MotionSandbox() {
             </div>
 
             {/* Overlay description */}
-            <div className="p-2 bg-neutral-950 border-t border-neutral-900 flex justify-between items-center text-[7px] font-mono text-neutral-500">
+            <div className="p-2 bg-neutral-950 border-t border-neutral-900 flex justify-between items-center text-[7px] font-mono text-neutral-300">
               <span>Scroll Y: {scrollY}px</span>
               <span>Mock state: {scrollY > 20 ? "Condensed (85% frosted)" : "Expanded"}</span>
             </div>
@@ -1426,14 +1426,14 @@ export default function MotionSandbox() {
               <Plus size={12} className="animate-pulse" />
               <span>5. Action Button Pulsing Halos</span>
             </h2>
-            <p className="text-[10px] text-neutral-600 font-mono">Attract user visual focus dynamically in dark themes</p>
+            <p className="text-[10px] text-neutral-350 font-mono">Attract user visual focus dynamically in dark themes</p>
           </div>
 
           <div className="flex flex-wrap justify-around items-center gap-6 p-6 border border-neutral-900 bg-neutral-950 rounded-lg">
             
             {/* 18. Pulsing Action button halo */}
             <div className="flex flex-col items-center gap-2">
-              <div className="flex items-center gap-1.5 text-[8px] uppercase tracking-widest font-mono text-neutral-500">
+              <div className="flex items-center gap-1.5 text-[8px] uppercase tracking-widest font-mono text-neutral-300">
                 <span>Style A: Heartbeat Ring</span>
                 <span>UPGRADE #18</span>
               </div>
@@ -1447,7 +1447,7 @@ export default function MotionSandbox() {
 
             {/* 19. Pulsing action button aura */}
             <div className="flex flex-col items-center gap-2">
-              <div className="flex items-center gap-1.5 text-[8px] uppercase tracking-widest font-mono text-neutral-500">
+              <div className="flex items-center gap-1.5 text-[8px] uppercase tracking-widest font-mono text-neutral-300">
                 <span>Style B: Double Aura Glow</span>
                 <span>UPGRADE #19</span>
               </div>
@@ -1468,7 +1468,7 @@ export default function MotionSandbox() {
               <Sliders size={12} className="animate-pulse" />
               <span>6. iOS-Style Spring-Overshoot Sheet Modal</span>
             </h2>
-            <p className="text-[10px] text-neutral-600 font-mono">Tactile sheets sliding with programmatic elastic rebounds</p>
+            <p className="text-[10px] text-neutral-350 font-mono">Tactile sheets sliding with programmatic elastic rebounds</p>
           </div>
 
           <div className="p-4 border border-neutral-900 bg-neutral-950 rounded-lg flex flex-col items-center justify-center gap-3">
@@ -1479,11 +1479,11 @@ export default function MotionSandbox() {
               >
                 Open Spring Drawer
               </button>
-              <span className="text-[8px] font-mono bg-neutral-900 border border-neutral-850 px-2 py-1 rounded text-neutral-500">
+              <span className="text-[8px] font-mono bg-neutral-900 border border-neutral-850 px-2 py-1 rounded text-neutral-300">
                 UPGRADE #20
               </span>
             </div>
-            <span className="text-[8px] font-mono text-neutral-600">Includes backdrop blur + mechanical spring slide overshoot</span>
+            <span className="text-[8px] font-mono text-neutral-350">Includes backdrop blur + mechanical spring slide overshoot</span>
           </div>
         </section>
 
@@ -1507,30 +1507,30 @@ export default function MotionSandbox() {
                   <span className="w-1.5 h-1.5 rounded-full animate-ping" style={{ backgroundColor: theme.primary }} />
                   <span>Simulation: Spring Drawer</span>
                 </h3>
-                <p className="text-[9px] text-neutral-500 font-mono">Feels snappy, responsive, and physically real</p>
+                <p className="text-[9px] text-neutral-300 font-mono">Feels snappy, responsive, and physically real</p>
               </div>
               <button 
                 onClick={() => setIsModalOpen(false)}
-                className="px-2.5 py-1 border border-neutral-800 hover:border-neutral-600 bg-black text-[9px] font-mono uppercase tracking-widest text-neutral-400 hover:text-white rounded"
+                className="px-2.5 py-1 border border-neutral-800 hover:border-neutral-600 bg-black text-[9px] font-mono uppercase tracking-widest text-neutral-250 hover:text-white rounded"
               >
                 Close
               </button>
             </div>
 
-            <p className="text-xs text-neutral-400 leading-relaxed font-light">
+            <p className="text-xs text-neutral-200 leading-relaxed font-light">
               Observe how this drawer slides up. Instead of a linear sliding motion, it slightly overshoots the target resting place and then settles down dynamically. This micro-rebound mimics mechanical physics.
             </p>
 
             <div className="space-y-2.5">
-              <div className="p-3 bg-black border border-neutral-900 rounded-lg flex items-center justify-between text-[10px] font-mono text-neutral-400">
+              <div className="p-3 bg-black border border-neutral-900 rounded-lg flex items-center justify-between text-[10px] font-mono text-neutral-200">
                 <span>Bezier Curve</span>
                 <span>cubic-bezier(0.25, 1, 0.5, 1)</span>
               </div>
-              <div className="p-3 bg-black border border-neutral-900 rounded-lg flex items-center justify-between text-[10px] font-mono text-neutral-400">
+              <div className="p-3 bg-black border border-neutral-900 rounded-lg flex items-center justify-between text-[10px] font-mono text-neutral-200">
                 <span>Transition Duration</span>
                 <span className="flex items-center gap-1.5">
                   <span style={{ color: theme.primary }}>480ms with 10px overshoot</span>
-                  <span className="text-[8px] bg-neutral-900 px-1.5 py-0.5 rounded border border-neutral-800 text-neutral-500 font-bold uppercase font-mono">UPGRADE #20</span>
+                  <span className="text-[8px] bg-neutral-900 px-1.5 py-0.5 rounded border border-neutral-800 text-neutral-350 font-bold uppercase font-mono">UPGRADE #20</span>
                 </span>
               </div>
             </div>

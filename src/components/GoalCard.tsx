@@ -158,7 +158,7 @@ export default function GoalCard({
           {goal.tags.slice(0, 2).map((tag) => (
             <span
               key={tag}
-              className="px-2 py-0.5 text-[9px] uppercase tracking-widest font-mono text-neutral-400 border border-neutral-800 bg-neutral-950/60 rounded-md"
+              className="px-2 py-0.5 text-[9px] uppercase tracking-widest font-mono text-neutral-200 border border-neutral-850 bg-neutral-950/60 rounded-md"
             >
               {tag}
             </span>
@@ -184,7 +184,7 @@ export default function GoalCard({
               <div className="absolute right-0 top-6 z-30 w-36 p-1 bg-neutral-950 border border-neutral-800 rounded-lg shadow-[0_8px_30px_rgb(0,0,0,0.8)] animate-fade-in select-none">
                 <button
                   onClick={handleEditClick}
-                  className="w-full flex items-center gap-2 px-2 py-1.5 text-[10px] uppercase tracking-wider font-mono text-neutral-400 hover:text-white hover:bg-neutral-900 rounded-md transition-colors text-left"
+                  className="w-full flex items-center gap-2 px-2 py-1.5 text-[10px] uppercase tracking-wider font-mono text-neutral-200 hover:text-white hover:bg-neutral-900 rounded-md transition-colors text-left"
                 >
                   <Edit2 size={10} />
                   <span>Edit Goal</span>

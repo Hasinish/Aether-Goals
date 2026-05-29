@@ -115,7 +115,7 @@ export default function GoalDetailModal({
 
         {/* Header bar */}
         <div className="flex items-center justify-between px-6 py-3 border-b border-neutral-900 select-none">
-          <h3 className="font-mono text-xs uppercase tracking-widest text-neutral-500">
+          <h3 className="font-mono text-xs uppercase tracking-widest text-neutral-300">
             Goal Overview
           </h3>
           <div className="flex gap-2">
@@ -148,7 +148,7 @@ export default function GoalDetailModal({
               <div className="text-xs text-red-400 font-bold tracking-wide uppercase">
                 Permanently Delete Goal?
               </div>
-              <p className="text-[11px] text-neutral-400 leading-relaxed">
+              <p className="text-[11px] text-neutral-200 leading-relaxed">
                 Are you absolutely sure? This process is irreversible.
               </p>
               <div className="flex gap-2 mt-1">
@@ -183,7 +183,7 @@ export default function GoalDetailModal({
               {goal.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="px-2.5 py-0.5 text-[9px] uppercase tracking-widest font-mono text-neutral-400 border border-neutral-800 bg-neutral-950 rounded-md"
+                  className="px-2.5 py-0.5 text-[9px] uppercase tracking-widest font-mono text-neutral-200 border border-neutral-850 bg-neutral-950 rounded-md"
                 >
                   {tag}
                 </span>
@@ -196,7 +196,7 @@ export default function GoalDetailModal({
 
             <div className="w-full h-px bg-neutral-800" />
 
-            <p className="text-xs text-neutral-400 leading-relaxed font-light">
+            <p className="text-xs text-neutral-200 leading-relaxed font-light">
               {goal.statusMessage || "On track to reach your goals."}
             </p>
           </div>
@@ -217,7 +217,7 @@ export default function GoalDetailModal({
               segmentIdPrefix={`detail-segment-${goal.id}`}
             />
 
-            <div className="flex justify-between items-center mt-4 text-[10px] font-mono text-neutral-500">
+            <div className="flex justify-between items-center mt-4 text-[10px] font-mono text-neutral-300">
               <span>Progress Details</span>
               <span>
                 {completedCount} of {totalCount} Subtasks Complete
@@ -227,12 +227,12 @@ export default function GoalDetailModal({
 
           {/* Subtasks checklist */}
           <div className="space-y-4">
-            <h2 className="text-sm uppercase tracking-widest font-mono text-neutral-500">
+            <h2 className="text-sm uppercase tracking-widest font-mono text-neutral-300">
               Subtasks Checklist
             </h2>
 
             {subtasks.length === 0 ? (
-              <p className="text-xs text-neutral-500 italic">
+              <p className="text-xs text-neutral-300 italic">
                 No subtasks defined. Tap Edit to add some.
               </p>
             ) : (
@@ -260,7 +260,7 @@ export default function GoalDetailModal({
                     <span
                       className={`text-xs leading-normal transition-all duration-300 ${
                         task.is_complete
-                          ? "text-neutral-500 animate-strike-sweep"
+                          ? "text-neutral-400 animate-strike-sweep"
                           : "text-white"
                       }`}
                     >

@@ -254,7 +254,7 @@ export default function Home() {
         <div className={`flex items-center gap-2.5 transition-transform duration-300 ease-out origin-right ${
           isHeaderCompressed ? "scale-[0.91]" : "scale-100"
         }`}>
-          <span className="text-[10px] uppercase font-mono tracking-widest text-neutral-500 hidden sm:inline-block mr-1.5">
+          <span className="text-[10px] uppercase font-mono tracking-widest text-neutral-300 hidden sm:inline-block mr-1.5">
             {user === "guest" ? "Guest Sandbox" : user.email?.split("@")[0]}
           </span>
           <button
@@ -287,8 +287,8 @@ export default function Home() {
       <main className="flex-1 px-6 pt-24 pb-6 space-y-6">
         {/* Decorative Quote Panel */}
         <div className="flex items-center gap-3 p-4 border border-neutral-900 bg-neutral-950/40 rounded-lg select-none">
-          <Sparkles size={16} className="text-neutral-400 shrink-0" />
-          <p className="text-[10px] font-mono text-neutral-400 tracking-wide leading-relaxed">
+          <Sparkles size={16} className="text-neutral-250 shrink-0" />
+          <p className="text-[10px] font-mono text-neutral-200 tracking-wide leading-relaxed">
             &quot;The secret of getting ahead is getting started.&quot; Use ↑↓ buttons on cards to reorder.
           </p>
         </div>
@@ -319,7 +319,7 @@ export default function Home() {
               className={`px-3 py-1 text-[9px] uppercase tracking-wider font-mono rounded-lg border transition-all ${
                 !selectedTag
                   ? "bg-white text-black border-white"
-                  : "bg-transparent text-neutral-500 border-neutral-900 hover:text-neutral-300"
+                  : "bg-transparent text-neutral-300 border-neutral-900 hover:text-neutral-200"
               }`}
             >
               All Goals
@@ -331,7 +331,7 @@ export default function Home() {
                 className={`px-3 py-1 text-[9px] uppercase tracking-wider font-mono rounded-lg border transition-all shrink-0 ${
                   selectedTag === tag
                     ? "bg-white text-black border-white"
-                    : "bg-transparent text-neutral-500 border-neutral-900 hover:text-neutral-300"
+                    : "bg-transparent text-neutral-300 border-neutral-900 hover:text-neutral-200"
                 }`}
               >
                 #{tag}
@@ -344,13 +344,13 @@ export default function Home() {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 space-y-4">
             <div className="w-8 h-8 border-2 border-neutral-800 border-t-white rounded-full animate-spin" />
-            <span className="text-[10px] font-mono tracking-widest text-neutral-500 uppercase animate-pulse">
+            <span className="text-[10px] font-mono tracking-widest text-neutral-300 uppercase animate-pulse">
               Syncing Ledger
             </span>
           </div>
         ) : filteredGoals.length === 0 ? (
           <div className="text-center py-20 px-4 border border-dashed border-neutral-900 rounded-lg select-none space-y-3">
-            <p className="text-xs text-neutral-500 font-light">
+            <p className="text-xs text-neutral-300 font-light">
               No matching records found in this universe.
             </p>
             <button

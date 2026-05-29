@@ -188,7 +188,7 @@ export default function AuthScreen() {
           <div className={`w-2 h-2 rounded-full transition-colors duration-300 bg-emerald-400 ${isInstallable ? "animate-pulse" : ""}`} />
           <span className="text-[10px] font-mono tracking-widest text-neutral-400 flex items-center">
             AETHER
-            <span className="text-[8px] text-neutral-500 font-sans font-bold ml-1.5 opacity-80 tracking-normal normal-case">v1.0</span>
+            <span className="text-[8px] text-neutral-350 font-sans font-bold ml-1.5 opacity-80 tracking-normal normal-case">v1.0</span>
           </span>
           <Download size={10} className="text-emerald-400 shrink-0" />
         </button>
@@ -199,7 +199,7 @@ export default function AuthScreen() {
         <h1 className="text-6xl font-black tracking-tighter uppercase aether-logo-metallic-auto select-none">
           AETHER
         </h1>
-        <p className="text-xs text-neutral-400 font-light max-w-[260px] mx-auto leading-relaxed">
+        <p className="text-xs text-neutral-200 font-light max-w-[260px] mx-auto leading-relaxed">
           Premium, high-fidelity dark-mode goal tracker. Build discipline, measure milestones.
         </p>
       </div>
@@ -223,7 +223,7 @@ export default function AuthScreen() {
             <form onSubmit={handleAuthSubmit} className="space-y-4">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="block text-[10px] uppercase font-mono tracking-widest text-neutral-500">
+                  <label className="block text-[10px] uppercase font-mono tracking-widest text-neutral-300">
                     Email Address
                   </label>
                   <input
@@ -239,7 +239,7 @@ export default function AuthScreen() {
 
                 {isPasswordMode && (
                   <div className="space-y-2 animate-fade-in">
-                    <label className="block text-[10px] uppercase font-mono tracking-widest text-neutral-500">
+                    <label className="block text-[10px] uppercase font-mono tracking-widest text-neutral-300">
                       Password
                     </label>
                     <input
@@ -282,7 +282,7 @@ export default function AuthScreen() {
                   setError("");
                   setMessage("");
                 }}
-                className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-mono text-neutral-500 hover:text-neutral-300 transition-colors"
+                className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-mono text-neutral-300 hover:text-neutral-100 transition-colors"
               >
                 {isPasswordMode ? (
                   <>
@@ -305,7 +305,7 @@ export default function AuthScreen() {
                     setError("");
                     setMessage("");
                   }}
-                  className="text-[9px] font-mono text-neutral-600 hover:text-neutral-400 underline transition-colors"
+                  className="text-[9px] font-mono text-neutral-400 hover:text-neutral-200 underline transition-colors"
                 >
                   {isSignUp
                     ? "Already have an account? Sign In"
@@ -316,11 +316,11 @@ export default function AuthScreen() {
           </div>
         ) : (
           <div className="p-4 border border-neutral-900 bg-neutral-950/50 rounded-lg space-y-2">
-            <div className="flex items-center gap-2 text-neutral-400">
-              <ShieldAlert size={14} className="text-neutral-500" />
+            <div className="flex items-center gap-2 text-neutral-200">
+              <ShieldAlert size={14} className="text-neutral-350" />
               <span className="text-[10px] uppercase font-mono tracking-wider font-semibold">Offline Sandbox Mode</span>
             </div>
-            <p className="text-[11px] text-neutral-500 leading-normal font-light">
+            <p className="text-[11px] text-neutral-300 leading-normal font-light">
               Supabase connection is not initialized yet. Your goals will be saved locally on your device using browser LocalStorage. Syncing and backup will be disabled.
             </p>
           </div>
@@ -331,7 +331,7 @@ export default function AuthScreen() {
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-neutral-900"></div>
           </div>
-          <span className="relative px-3 text-[9px] uppercase font-mono tracking-widest text-neutral-600 bg-black">
+          <span className="relative px-3 text-[9px] uppercase font-mono tracking-widest text-neutral-455 bg-black">
             or
           </span>
         </div>
@@ -347,7 +347,7 @@ export default function AuthScreen() {
       </div>
 
       {/* Footer Branding */}
-      <div className="mt-8 text-[9px] font-mono text-neutral-600">
+      <div className="mt-8 text-[9px] font-mono text-neutral-400">
         Designed for absolute focus.
       </div>
     </div>
