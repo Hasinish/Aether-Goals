@@ -783,7 +783,7 @@ export default function MotionSandbox() {
       {matrixMode ? (
         <MatrixBackground density={80} />
       ) : (
-        <ConstellationBackground opacity={0.45} particleCount={100} />
+        <ConstellationBackground opacity={0.45} particleCount={200} />
       )}
       
       {/* Dynamic Ambient Background Glow */}
