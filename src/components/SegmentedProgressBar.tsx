@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useRef, useEffect } from "react";
+
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? React.useLayoutEffect : useEffect;
 
 interface SegmentedProgressBarProps {
   progressPercent: number;
@@ -15,38 +17,78 @@ export default function SegmentedProgressBar({
   gapClass = "gap-[2px]",
   segmentIdPrefix,
 }: SegmentedProgressBarProps) {
-  const [shouldAnimate, setShouldAnimate] = useState(false);
-  const [isBooted, setIsBooted] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const prevActiveRef = useRef<number | null>(null);
+  const cleanupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeSegments = Math.round((progressPercent / 100) * totalSegments);
 
-  useEffect(() => {
-    // Reset states to force animation re-trigger
-    setShouldAnimate(false);
-    setIsBooted(false);
-    
-    // Tiny delay to ensure browser paints the un-animated base clipped state
-    const timer1 = setTimeout(() => {
-      setShouldAnimate(true);
-    }, 50);
+  // Imperative DOM animation — runs before first paint via useLayoutEffect.
+  // Completely bypasses React's style reconciliation so DOM moves during
+  // card swaps can never replay the boot-up transition.
+  useIsomorphicLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
 
-    // After the staggered animation finishes (max delay: 30 segments * 50ms = 1500ms + 100ms transition = 1600ms),
-    // set isBooted to true to disable active transitions. This prevents the browser from re-running
-    // transitions on DOM insertion/insertBefore moves during card reordering.
-    const timer2 = setTimeout(() => {
-      setIsBooted(true);
-    }, 1800);
+    // Guard: skip animation when activeSegments hasn't changed (card swap).
+    // Only animate on first mount or when progress actually changes.
+    if (prevActiveRef.current !== null && prevActiveRef.current === activeSegments) return;
+    prevActiveRef.current = activeSegments;
+
+    // Cancel any pending cleanup from a previous animation run
+    if (cleanupTimerRef.current !== null) {
+      clearTimeout(cleanupTimerRef.current);
+      cleanupTimerRef.current = null;
+    }
+
+    const segments = Array.from(container.children) as HTMLElement[];
+
+    // INVERT: override React's bright render — set active segments to dim, no transition
+    segments.forEach((seg, i) => {
+      seg.style.transition = "none";
+      if (i < activeSegments) {
+        seg.style.backgroundColor = "rgba(255, 255, 255, 0.06)";
+      }
+    });
+
+    // Force layout flush so the browser commits the dim state
+    void container.offsetHeight;
+
+    // PLAY: stagger-transition each active segment from dim → bright
+    requestAnimationFrame(() => {
+      segments.forEach((seg, i) => {
+        if (i < activeSegments) {
+          seg.style.transition = `background-color 0.1s ease-out ${i * 50}ms`;
+          seg.style.backgroundColor = "#ffffff";
+        }
+      });
+
+      // CLEANUP: strip inline transitions after the last segment finishes.
+      // backgroundColor is left alone — it already matches React's rendered "#ffffff".
+      // Without an active transition property, the browser cannot replay anything
+      // when React repositions the DOM node via insertBefore during a card swap.
+      const maxDelay = Math.max(activeSegments, 1) * 50 + 200;
+      cleanupTimerRef.current = setTimeout(() => {
+        segments.forEach((seg) => {
+          seg.style.transition = "";
+        });
+        cleanupTimerRef.current = null;
+      }, maxDelay);
+    });
 
     return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
+      if (cleanupTimerRef.current !== null) {
+        clearTimeout(cleanupTimerRef.current);
+        cleanupTimerRef.current = null;
+      }
     };
-  }, [progressPercent]);
+  }, [activeSegments]);
 
   return (
-    <div 
-      role="progressbar" 
-      aria-valuenow={progressPercent} 
-      aria-valuemin={0} 
+    <div
+      ref={containerRef}
+      role="progressbar"
+      aria-valuenow={progressPercent}
+      aria-valuemin={0}
       aria-valuemax={100}
       className={`flex items-center w-full ${gapClass} ${heightClass}`}
     >
@@ -56,18 +98,9 @@ export default function SegmentedProgressBar({
           <div
             key={`${segmentIdPrefix}-${idx}`}
             className="flex-1 h-full rounded-[1px]"
-            style={
-              isActive
-                ? {
-                    backgroundColor: shouldAnimate ? "#ffffff" : "rgba(255, 255, 255, 0.06)",
-                    transition: (shouldAnimate && !isBooted)
-                      ? `background-color 0.1s ease-out ${idx * 50}ms`
-                      : "none",
-                  }
-                : {
-                    backgroundColor: "rgba(255, 255, 255, 0.06)",
-                  }
-            }
+            style={{
+              backgroundColor: isActive ? "#ffffff" : "rgba(255, 255, 255, 0.06)",
+            }}
           />
         );
       })}
