@@ -108,35 +108,55 @@ body {
   will-change: background-position-x;
 }
 
-/* Premium Dynamic Interactive Goal Cards (Combined Options B and C) */
-@keyframes borderSweep {
-  0% { background-position: center, 150% center; }
-  100% { background-position: center, -50% center; }
+/* Premium Dynamic Interactive Goal Cards (Masked Border Sweep & Ultra-Glassmorphism) */
+@keyframes borderSweepSingle {
+  0% { background-position: 150% center; }
+  100% { background-position: -50% center; }
 }
 
 .border-sweep-card {
   position: relative;
-  border: 1px solid transparent;
-  background: linear-gradient(rgba(10, 10, 10, 0.55), rgba(10, 10, 10, 0.55)) padding-box,
-              linear-gradient(rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.09)) border-box;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+  background: rgba(10, 10, 10, 0.35); /* Highly glasslike/transparent backdrop */
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08); /* Clean subtle border when not hovered */
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+/* Pseudo-element gradient border sweep, masked completely out of the card interior */
+.border-sweep-card::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: transparent;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  z-index: 10;
 }
 
 .border-sweep-card:hover {
-  background: linear-gradient(rgba(10, 10, 10, 0.55), rgba(10, 10, 10, 0.55)) padding-box,
-              linear-gradient(90deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.09) 40%, rgba(255, 255, 255, 0.7) 50%, rgba(255, 255, 255, 0.09) 60%, rgba(255, 255, 255, 0.09) 100%) border-box;
-  background-size: auto, 200% auto;
-  background-position: center, 150% center;
-  animation: borderSweep 2.2s linear infinite;
   transform: translateY(-2.5px);
-  box-shadow: 0 12px 36px rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 36px rgba(255, 255, 255, 0.08);
+  border-color: transparent; /* Seamless handoff to the custom masked gradient border */
+}
+
+.border-sweep-card:hover::before {
+  opacity: 1;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.09) 40%, #ffffff 50%, rgba(255, 255, 255, 0.09) 60%, rgba(255, 255, 255, 0.09) 100%);
+  background-size: 200% auto;
+  animation: borderSweepSingle 2.2s linear infinite;
 }
 
 .border-sweep-card:active {
   transform: translateY(0.5px) scale(0.975);
-  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.03);
 }
 
 
