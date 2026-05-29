@@ -49,34 +49,48 @@ export default function Home() {
 
   const animateCards = () => {
     const elements = document.querySelectorAll("[data-drag-id]") as NodeListOf<HTMLElement>;
+    const movedElements: Array<{ el: HTMLElement; deltaX: number; deltaY: number }> = [];
+
+    // Step 1: Invert
     elements.forEach((el) => {
       const id = el.getAttribute("data-drag-id");
       if (!id) return;
       const firstRect = cardRectsRef.current[id];
       if (!firstRect) return;
-      const lastRect = el.getBoundingClientRect();
-      const deltaY = firstRect.top - lastRect.top;
-      const deltaX = firstRect.left - lastRect.left;
 
-      if (deltaY !== 0 || deltaX !== 0) {
-        // Invert
+      const lastRect = el.getBoundingClientRect();
+      const deltaX = firstRect.left - lastRect.left;
+      const deltaY = firstRect.top - lastRect.top;
+
+      if (deltaX !== 0 || deltaY !== 0) {
+        // Disable transitions and snap to the starting position immediately
         el.style.transition = "none";
         el.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
-        
-        // Play
-        requestAnimationFrame(() => {
-          elements.forEach((el) => {
-            el.style.transition = "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)";
-            el.style.transform = "";
-          });
-          setTimeout(() => {
-            elements.forEach((el) => {
-              el.style.transition = "";
-            });
-          }, 300);
-        });
+        movedElements.push({ el, deltaX, deltaY });
       }
     });
+
+    // Step 2: Play (Force single layout reflow & animate back to native coordinates)
+    if (movedElements.length > 0) {
+      // Accessing offsetHeight on the first moved element triggers a forced layout reflow
+      void movedElements[0].el.offsetHeight;
+
+      requestAnimationFrame(() => {
+        movedElements.forEach(({ el }) => {
+          // Luxurious, spring-like cubic-bezier transition for smooth tactile swapping
+          el.style.transition = "transform 380ms cubic-bezier(0.16, 1, 0.3, 1)";
+          el.style.transform = "translate(0px, 0px)";
+        });
+
+        // Step 3: Cleanup inline transition styles once animation ends
+        setTimeout(() => {
+          movedElements.forEach(({ el }) => {
+            el.style.transition = "";
+            el.style.transform = "";
+          });
+        }, 380);
+      });
+    }
   };
 
   useIsomorphicLayoutEffect(() => {
