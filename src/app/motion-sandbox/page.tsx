@@ -386,23 +386,30 @@ function InteractiveVectorFlowField() {
           const dyToMouse = mouse.y - y;
           const distToMouse = Math.hypot(dxToMouse, dyToMouse);
 
-          let opacity = 0.18; // Clean resting slate opacity
+          let opacity = 0.15; // Sleeker resting opacity for higher contrast
+          let scaleMultiplier = 1.0;
 
           if (mouse.x !== -1000 && mouse.y !== -1000) {
-            const influenceRadius = 65;
+            const influenceRadius = 120; // Expanded active canvas sweep
             if (distToMouse < influenceRadius) {
               const influence = 1 - distToMouse / influenceRadius;
               const smoothInfluence = influence * influence * (3 - 2 * influence);
               
-              // Swirl around mouse
-              const mouseSwirl = Math.atan2(dyToMouse, dxToMouse) + Math.PI / 2 + Math.PI / 6;
-              angle = (1 - smoothInfluence) * baseAngle + smoothInfluence * mouseSwirl;
+              // Hybrid dynamic physics: Points directly at pointer when close, swirls when further
+              const directAngle = Math.atan2(dyToMouse, dxToMouse); 
+              const swirlAngle = Math.atan2(dyToMouse, dxToMouse) + Math.PI / 2;
               
-              opacity = 0.18 + smoothInfluence * 0.65;
+              const blendRatio = Math.min(1, distToMouse / 60); // 0 = close (attract), 1 = far (swirl)
+              const mouseAngle = (1 - blendRatio) * directAngle + blendRatio * swirlAngle;
+              
+              angle = (1 - smoothInfluence) * baseAngle + smoothInfluence * mouseAngle;
+              
+              opacity = 0.15 + smoothInfluence * 0.72;
+              scaleMultiplier = 1.0 + smoothInfluence * 0.65; // Dynamic length physical warp
             }
           }
 
-          const halfL = lineLength / 2;
+          const halfL = (lineLength / 2) * scaleMultiplier;
           const lx = Math.cos(angle) * halfL;
           const ly = Math.sin(angle) * halfL;
 

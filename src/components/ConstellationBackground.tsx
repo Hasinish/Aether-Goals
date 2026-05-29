@@ -4,12 +4,12 @@ import React, { useEffect, useRef } from "react";
 
 interface ConstellationBackgroundProps {
   opacity?: number;
-  particleCount?: number;
+  particleCount?: number; // Kept for compatibility
 }
 
 export default function ConstellationBackground({
   opacity = 0.45,
-  particleCount = 100
+  particleCount = 100 // Kept for compatibility
 }: ConstellationBackgroundProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -32,27 +32,12 @@ export default function ConstellationBackground({
       width = canvas.width = parent.clientWidth || window.innerWidth;
       height = canvas.height = parent.clientHeight || window.innerHeight;
     };
-
+    
     // ResizeObserver tracks actual parent element dimension changes
     const resizeObserver = new ResizeObserver(() => {
       handleResize();
     });
     resizeObserver.observe(parent);
-
-    // Initialize float nodes
-    const particles: Array<{
-      x: number;
-      y: number;
-      vx: number;
-      vy: number;
-      radius: number;
-    }> = Array.from({ length: particleCount }, () => ({
-      x: Math.random() * width,
-      y: Math.random() * height,
-      vx: (Math.random() - 0.5) * 0.28,
-      vy: (Math.random() - 0.5) * 0.28,
-      radius: Math.random() * 2.2 + 1.2
-    }));
 
     const mouse = { x: -1000, y: -1000 };
 
@@ -86,48 +71,82 @@ export default function ConstellationBackground({
     parent.addEventListener("touchmove", handleTouchMove, { passive: true });
     parent.addEventListener("touchend", handleTouchEnd, { passive: true });
 
+    let time = 0;
+
     const draw = () => {
       ctx.clearRect(0, 0, width, height);
+      time += 0.5;
 
-      // Render vector constellations
-      for (let i = 0; i < particles.length; i++) {
-        const p1 = particles[i];
+      const spacing = 38; // Evenly-spaced vector grid size (px)
+      const lineLength = 12; // Length of individual lines
+      const cols = Math.ceil(width / spacing) + 1;
+      const rows = Math.ceil(height / spacing) + 1;
 
-        p1.x += p1.vx;
-        p1.y += p1.vy;
+      // Render flowing grid of vectors
+      for (let c = 0; c < cols; c++) {
+        for (let r = 0; r < rows; r++) {
+          const x = c * spacing;
+          const y = r * spacing;
 
-        // Bounce screen bounds
-        if (p1.x < 0 || p1.x > width) p1.vx *= -1;
-        if (p1.y < 0 || p1.y > height) p1.vy *= -1;
+          // Center of the canvas (creates global vortex origin)
+          const centerX = width / 2;
+          const centerY = height / 2;
 
-        // Draw individual dot node
-        ctx.beginPath();
-        ctx.arc(p1.x, p1.y, p1.radius, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
-        ctx.fill();
+          const dxToCenter = x - centerX;
+          const dyToCenter = y - centerY;
+          const distToCenter = Math.hypot(dxToCenter, dyToCenter) || 1;
 
-        // Connect nearby nodes
-        for (let j = i + 1; j < particles.length; j++) {
-          const p2 = particles[j];
-          const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
-          if (dist < 80) {
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.strokeStyle = `rgba(255, 255, 255, ${0.75 * (1 - dist / 80)})`;
-            ctx.lineWidth = 0.9;
-            ctx.stroke();
+          // Ambient spiral math (Vortex Flow Field)
+          const spiralAngle = Math.atan2(dyToCenter, dxToCenter) + Math.PI / 2;
+          // Breathing wave displacement over time
+          const waveOffset = Math.sin(time * 0.007 + distToCenter * 0.0028) * 0.4;
+          const baseAngle = spiralAngle + waveOffset;
+
+          let angle = baseAngle;
+          const dxToMouse = mouse.x - x;
+          const dyToMouse = mouse.y - y;
+          const distToMouse = Math.hypot(dxToMouse, dyToMouse);
+
+          let intensity = 0.22; // Idle ambient opacity
+          let scaleMultiplier = 1.0;
+
+          // Interactive mouse integration
+          if (mouse.x !== -1000 && mouse.y !== -1000) {
+            const influenceRadius = 240;
+            if (distToMouse < influenceRadius) {
+              const influence = 1 - distToMouse / influenceRadius;
+              
+              // Smooth cubic easing for fluid blending
+              const smoothInfluence = influence * influence * (3 - 2 * influence);
+              
+              // Local Swirl (spiral around mouse pointer) + direct attraction hybrid
+              const directAngle = Math.atan2(dyToMouse, dxToMouse);
+              const swirlAngle = Math.atan2(dyToMouse, dxToMouse) + Math.PI / 2;
+              
+              const blendRatio = Math.min(1, distToMouse / 100); // 0 = close (attract), 1 = far (swirl)
+              const mouseAngle = (1 - blendRatio) * directAngle + blendRatio * swirlAngle;
+              
+              // Fluidly interpolate between global center swirl and local mouse swirl
+              angle = (1 - smoothInfluence) * baseAngle + smoothInfluence * mouseAngle;
+              
+              // Glow brighter and scale slightly near pointer
+              intensity = 0.22 + smoothInfluence * 0.65;
+              scaleMultiplier = 1.0 + smoothInfluence * 0.55;
+            }
           }
-        }
 
-        // Draw connections to user pointer
-        const mouseDist = Math.hypot(p1.x - mouse.x, p1.y - mouse.y);
-        if (mouseDist < 120) {
+          // Generate vector line endpoints
+          const halfL = (lineLength / 2) * scaleMultiplier;
+          const lx = Math.cos(angle) * halfL;
+          const ly = Math.sin(angle) * halfL;
+
+          // Draw the vector segment
           ctx.beginPath();
-          ctx.moveTo(p1.x, p1.y);
-          ctx.lineTo(mouse.x, mouse.y);
-          ctx.strokeStyle = `rgba(255, 255, 255, ${0.95 * (1 - mouseDist / 120)})`;
-          ctx.lineWidth = 1.3;
+          ctx.moveTo(x - lx, y - ly);
+          ctx.lineTo(x + lx, y + ly);
+
+          ctx.strokeStyle = `rgba(255, 255, 255, ${intensity})`;
+          ctx.lineWidth = intensity > 0.3 ? 1.35 : 0.85;
           ctx.stroke();
         }
       }
