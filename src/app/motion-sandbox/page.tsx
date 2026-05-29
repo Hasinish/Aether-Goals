@@ -23,6 +23,7 @@ import { MatrixPanel } from "@/components/MatrixPanel";
 import GlyphIcon from "@/components/GlyphIcon";
 import CRTScreen from "@/components/CRTScreen";
 import MatrixSpinner from "@/components/MatrixSpinner";
+import RadialNavBar from "@/components/RadialNavBar";
 
 interface Theme {
   id: string;
@@ -1484,6 +1485,22 @@ export default function MotionSandbox() {
               </span>
             </div>
             <span className="text-[8px] font-mono text-neutral-350">Includes backdrop blur + mechanical spring slide overshoot</span>
+          </div>
+        </section>
+
+        {/* SECTION 7: BOTTOM RADIAL NAVIGATION DIAL */}
+        <section className="space-y-4">
+          <div className="flex flex-col">
+            <h2 className="text-xs uppercase tracking-widest font-mono flex items-center gap-1.5 font-bold"
+                style={{ color: theme.primary }}>
+              <Compass size={12} className="animate-pulse" />
+              <span>7. Swipeable Bottom Radial Navigation Dial</span>
+            </h2>
+            <p className="text-[10px] text-neutral-350 font-mono">Mechanical rotating arc wheel menu for fluid views transition</p>
+          </div>
+
+          <div className="p-4 border border-neutral-900 bg-neutral-950 rounded-lg flex flex-col items-center justify-center">
+            <RadialNavBar theme={theme} />
           </div>
         </section>
 
