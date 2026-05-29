@@ -6,6 +6,15 @@ import { getSupabaseClient, isSupabaseConfigured } from "../lib/supabase";
 import { ArrowRight, KeyRound, Mail, ShieldAlert } from "lucide-react";
 import ConstellationBackground from "./ConstellationBackground";
 
+interface BeforeInstallPromptEvent extends Event {
+  readonly platforms: string[];
+  readonly userChoice: Promise<{
+    outcome: "accepted" | "dismissed";
+    platform: string;
+  }>;
+  prompt(): Promise<void>;
+}
+
 export default function AuthScreen() {
   const { loginAsGuest } = useGoalsStore();
   const [mounted, setMounted] = useState(false);
@@ -18,9 +27,68 @@ export default function AuthScreen() {
   const [error, setError] = useState("");
   const isDbReady = isSupabaseConfigured();
 
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+
   useEffect(() => {
     setMounted(true);
+
+    const handleBeforeInstallPrompt = (e: Event) => {
+      // Prevent browser default infobar prompts
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      setIsInstallable(true);
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+
+    const handleAppInstalled = () => {
+      setDeferredPrompt(null);
+      setIsInstallable(false);
+      setMessage("Aether Goals has been successfully installed as an app!");
+    };
+
+    window.addEventListener("appinstalled", handleAppInstalled);
+
+    if (window.matchMedia("(display-mode: standalone)").matches) {
+      setIsInstallable(false);
+    }
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", handleAppInstalled);
+    };
   }, []);
+
+  const handlePwaInstallClick = async () => {
+    if (deferredPrompt) {
+      try {
+        await deferredPrompt.prompt();
+        const choiceResult = await deferredPrompt.userChoice;
+        if (choiceResult.outcome === "accepted") {
+          setMessage("Initiated installation for Aether Goals...");
+        }
+        setDeferredPrompt(null);
+        setIsInstallable(false);
+      } catch (err) {
+        console.error("PWA install prompt failed:", err);
+      }
+    } else {
+      const isStandalone = window.matchMedia("(display-mode: standalone)").matches || 
+        ("standalone" in window.navigator && (window.navigator as Navigator & { standalone?: boolean }).standalone === true);
+      
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
+        !("MSStream" in window);
+
+      if (isStandalone) {
+        setMessage("Aether is already running as a standalone PWA.");
+      } else if (isIOS) {
+        setMessage("To install Aether on iOS: Tap 'Share' in Safari, then select 'Add to Home Screen'.");
+      } else {
+        setMessage("Aether is PWA ready! To install, check your browser's options menu (e.g., three dots -> Install App).");
+      }
+    }
+  };
 
   if (!mounted) {
     return <div className="min-h-screen bg-black" />;
@@ -84,17 +152,24 @@ export default function AuthScreen() {
     <div className="flex flex-col items-center justify-between min-h-screen bg-black text-white px-6 py-12 md:max-w-md md:mx-auto md:shadow-2xl md:border-x md:border-neutral-900 select-none animate-fade-in relative overflow-hidden">
       <ConstellationBackground opacity={0.3} particleCount={60} />
       
-      {/* Decorative Top Accent */}
+      {/* Decorative Top Accent / Clickable PWA Installer */}
       <div className="w-full flex justify-center mt-8">
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-neutral-900 border border-neutral-800 rounded-full">
-          <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
-          <span className="text-[10px] font-mono tracking-widest text-neutral-400">AETHER</span>
-        </div>
+        <button
+          type="button"
+          onClick={handlePwaInstallClick}
+          className="flex items-center gap-2 px-3.5 py-1.5 bg-neutral-900 border border-neutral-800 rounded-full cursor-pointer hover:bg-neutral-800 hover:border-neutral-700 active:scale-[0.97] transition-all duration-200 select-none outline-none focus-visible:ring-1 focus-visible:ring-neutral-700"
+          aria-label="Install Aether PWA App"
+        >
+          <div className={`w-2 h-2 rounded-full transition-colors duration-300 ${isInstallable ? "bg-emerald-400 animate-pulse" : "bg-neutral-500"}`} />
+          <span className="text-[10px] font-mono tracking-widest text-neutral-400 flex items-center">
+            AETHER <span className="text-[8px] text-neutral-500 font-bold ml-1.5 opacity-80">V1.0</span>
+          </span>
+        </button>
       </div>
 
       {/* Main Title Area */}
       <div className="text-center space-y-4 my-auto">
-        <h1 className="text-6xl font-extrabold tracking-tighter text-white">
+        <h1 className="text-6xl font-black tracking-tighter uppercase aether-logo-metallic-auto select-none">
           AETHER
         </h1>
         <p className="text-xs text-neutral-400 font-light max-w-[260px] mx-auto leading-relaxed">

@@ -26,67 +26,23 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
   const [error, setError] = useState("");
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const draggedIndexRef = useRef<number | null>(null);
-  
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const hoveredIndexRef = useRef<number | null>(null);
+  const [draggedOffset, setDraggedOffset] = useState<number>(0);
+  const [isGliding, setIsGliding] = useState<boolean>(false);
+
   const formRef = useRef<HTMLFormElement>(null);
-  const subtaskRectsRef = useRef<Record<string, DOMRect>>({});
-  const isSubtaskReorderingRef = useRef(false);
-  const useIsomorphicLayoutEffect = typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect;
+  const dragStartYRef = useRef<number>(0);
+  const dragStartScrollTopRef = useRef<number>(0);
+  const rowHeightRef = useRef<number>(56);
+  const dragTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const measureSubtaskRows = () => {
-    const elements = document.querySelectorAll("[data-subtask-id]");
-    const rects: Record<string, DOMRect> = {};
-    elements.forEach((el) => {
-      const id = el.getAttribute("data-subtask-id");
-      if (id) {
-        rects[id] = el.getBoundingClientRect();
-      }
-    });
-    subtaskRectsRef.current = rects;
-  };
-
-  useIsomorphicLayoutEffect(() => {
-    if (!isSubtaskReorderingRef.current) return;
-    isSubtaskReorderingRef.current = false;
-
-    const elements = document.querySelectorAll("[data-subtask-id]") as NodeListOf<HTMLElement>;
-    const movedElements: Array<{ el: HTMLElement }> = [];
-
-    elements.forEach((el) => {
-      const id = el.getAttribute("data-subtask-id");
-      if (!id) return;
-      const firstRect = subtaskRectsRef.current[id];
-      if (!firstRect) return;
-
-      const lastRect = el.getBoundingClientRect();
-      const deltaY = firstRect.top - lastRect.top;
-      const deltaX = firstRect.left - lastRect.left;
-
-      if (deltaX !== 0 || deltaY !== 0) {
-        el.style.transition = "none";
-        el.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
-        movedElements.push({ el });
-      }
-    });
-
-    if (movedElements.length === 0) return;
-
-    // Force browser layout flush so the inverted transforms are committed before the next paint
-    void document.body.offsetHeight;
-
-    requestAnimationFrame(() => {
-      movedElements.forEach(({ el }) => {
-        el.style.transition = "transform 280ms cubic-bezier(0.16, 1, 0.3, 1)";
-        el.style.transform = "translate(0px, 0px)";
-      });
-
-      setTimeout(() => {
-        movedElements.forEach(({ el }) => {
-          el.style.transition = "";
-          el.style.transform = "";
-        });
-      }, 280);
-    });
-  }, [subtasks]);
+  // Clear dragging timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (dragTimeoutRef.current) clearTimeout(dragTimeoutRef.current);
+    };
+  }, []);
 
   // Pre-populate if editing
   useEffect(() => {
@@ -133,87 +89,102 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
     );
   };
 
-  // --- DRAG AND DROP REORDER HANDLERS ---
-  const handleDragStart = (idx: number) => {
+  // --- POINTER EVENT DRAG SORTING HANDLERS ---
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>, idx: number) => {
+    // Only drag with left mouse button / primary touch pointer
+    if (e.button !== 0) return;
+
+    const rowEl = e.currentTarget.closest("[data-subtask-id]") as HTMLElement;
+    if (!rowEl) return;
+
+    // Capture the pointer to trace moves even outside the grip handle/modal boundaries
+    e.currentTarget.setPointerCapture(e.pointerId);
+
+    const rect = rowEl.getBoundingClientRect();
+    rowHeightRef.current = rect.height + 10; // 10px spacing (from space-y-2.5)
+
+    dragStartYRef.current = e.clientY;
+    dragStartScrollTopRef.current = formRef.current ? formRef.current.scrollTop : 0;
+
     draggedIndexRef.current = idx;
+    hoveredIndexRef.current = idx;
+
     setDraggedIndex(idx);
+    setHoveredIndex(idx);
+    setDraggedOffset(0);
+    setIsGliding(false);
   };
 
-  const handleDragEnter = (targetIdx: number) => {
-    const currentDrag = draggedIndexRef.current;
-    if (currentDrag !== null && currentDrag !== targetIdx) {
-      measureSubtaskRows();
-      isSubtaskReorderingRef.current = true;
-      setSubtasks((prev) => {
-        const updated = [...prev];
-        const [draggedItem] = updated.splice(currentDrag, 1);
-        updated.splice(targetIdx, 0, draggedItem);
-        return updated;
-      });
-      draggedIndexRef.current = targetIdx;
-      setDraggedIndex(targetIdx);
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const from = draggedIndexRef.current;
+    if (from === null || isGliding) return;
+
+    const currentY = e.clientY;
+    const currentScrollTop = formRef.current ? formRef.current.scrollTop : 0;
+    const scrollDelta = currentScrollTop - dragStartScrollTopRef.current;
+    const deltaY = currentY - dragStartYRef.current + scrollDelta;
+
+    setDraggedOffset(deltaY);
+
+    const rowHeight = rowHeightRef.current;
+    const slotDelta = Math.round(deltaY / rowHeight);
+    let targetIdx = from + slotDelta;
+    targetIdx = Math.max(0, Math.min(subtasks.length - 1, targetIdx));
+
+    if (targetIdx !== hoveredIndexRef.current) {
+      hoveredIndexRef.current = targetIdx;
+      setHoveredIndex(targetIdx);
     }
-  };
 
-  const handleDragEnd = () => {
-    draggedIndexRef.current = null;
-    setDraggedIndex(null);
-  };
+    // Auto-scroll the form modal when dragging near boundaries
+    if (formRef.current) {
+      const containerRect = formRef.current.getBoundingClientRect();
+      const threshold = 60;
+      const relativeY = currentY - containerRect.top;
 
-  // --- TOUCH REORDER HANDLERS FOR MOBILE ACCESS ---
-  const handleTouchStart = (idx: number) => {
-    draggedIndexRef.current = idx;
-    setDraggedIndex(idx);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    const currentDrag = draggedIndexRef.current;
-    if (currentDrag === null) return;
-    const touch = e.touches[0];
-    const elements = document.elementsFromPoint(touch.clientX, touch.clientY);
-    
-    for (const element of elements) {
-      const targetRow = element.closest("[data-subtask-index]");
-      if (targetRow) {
-        const targetIdx = parseInt(targetRow.getAttribute("data-subtask-index") || "", 10);
-        if (!isNaN(targetIdx) && targetIdx !== currentDrag) {
-          measureSubtaskRows();
-          isSubtaskReorderingRef.current = true;
-          setSubtasks((prev) => {
-            const updated = [...prev];
-            const [draggedItem] = updated.splice(currentDrag, 1);
-            updated.splice(targetIdx, 0, draggedItem);
-            return updated;
-          });
-          draggedIndexRef.current = targetIdx;
-          setDraggedIndex(targetIdx);
-          break;
-        }
+      if (relativeY < threshold) {
+        formRef.current.scrollBy(0, -6);
+      } else if (relativeY > containerRect.height - threshold) {
+        formRef.current.scrollBy(0, 6);
       }
     }
   };
 
-  const handleTouchEnd = () => {
-    draggedIndexRef.current = null;
-    setDraggedIndex(null);
-  };
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const from = draggedIndexRef.current;
+    const to = hoveredIndexRef.current;
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    if (!formRef.current) return;
+    if (from === null || to === null) return;
 
-    // Auto-scroll the modal form when dragging subtasks near the top/bottom boundaries
-    const rect = formRef.current.getBoundingClientRect();
-    const threshold = 80; // px threshold from boundaries
-    const clientY = e.clientY;
+    e.currentTarget.releasePointerCapture(e.pointerId);
 
-    const relativeY = clientY - rect.top;
+    const rowHeight = rowHeightRef.current;
+    const targetOffset = (to - from) * rowHeight;
 
-    if (relativeY < threshold) {
-      formRef.current.scrollBy(0, -8);
-    } else if (relativeY > rect.height - threshold) {
-      formRef.current.scrollBy(0, 8);
-    }
+    // Transition to the target resting slot
+    setIsGliding(true);
+    setDraggedOffset(targetOffset);
+
+    // Commit state changes after transition finishes (280ms)
+    if (dragTimeoutRef.current) clearTimeout(dragTimeoutRef.current);
+    dragTimeoutRef.current = setTimeout(() => {
+      if (from !== to) {
+        setSubtasks((prev) => {
+          const updated = [...prev];
+          const [draggedItem] = updated.splice(from, 1);
+          updated.splice(to, 0, draggedItem);
+          return updated;
+        });
+      }
+
+      // Reset all drag related state
+      draggedIndexRef.current = null;
+      hoveredIndexRef.current = null;
+      setDraggedIndex(null);
+      setHoveredIndex(null);
+      setDraggedOffset(0);
+      setIsGliding(false);
+    }, 280);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -379,48 +350,85 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
                 No subtasks added yet. Define some checkpoints above to calculate progress.
               </p>
             ) : (
-              subtasks.map((task, idx) => (
-                <div
-                  key={task.id}
-                  data-subtask-index={idx}
-                  data-subtask-id={task.id}
-                  onDragEnter={() => handleDragEnter(idx)}
-                  onDragOver={handleDragOver}
-                  className={`flex items-center justify-between gap-3 p-3.5 border border-neutral-900 bg-neutral-950/40 rounded-md focus-within:border-neutral-700 transition-all duration-300 select-none ${
-                    draggedIndex === idx ? "scale-[0.98] border-dashed border-neutral-700 bg-neutral-900/60" : "opacity-100 scale-100"
-                  }`}
-                >
-                  {/* Grip Handle Icon (Restricted Draggability Handle) */}
-                  <div
-                    draggable
-                    onDragStart={() => handleDragStart(idx)}
-                    onDragEnd={handleDragEnd}
-                    onTouchStart={() => handleTouchStart(idx)}
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={handleTouchEnd}
-                    className="cursor-grab active:cursor-grabbing p-1 text-neutral-600 hover:text-neutral-400 transition-colors shrink-0 touch-none"
-                  >
-                    <GripVertical size={14} />
-                  </div>
+              subtasks.map((task, idx) => {
+                const isDraggingActive = draggedIndex !== null && hoveredIndex !== null;
+                const isCurrentDragged = draggedIndex === idx;
+                let translateY = 0;
 
-                  <input
-                    type="text"
-                    required
-                    value={task.title}
-                    onChange={(e) => handleEditSubtaskTitle(idx, e.target.value)}
-                    className="flex-1 bg-transparent border-none text-xs text-neutral-200 placeholder-neutral-600 focus:outline-none"
-                  />
-                  
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveSubtask(idx)}
-                    className="p-1 text-neutral-500 hover:text-red-400 transition-colors shrink-0"
-                    aria-label="Remove Subtask"
+                if (isDraggingActive) {
+                  if (isCurrentDragged) {
+                    translateY = draggedOffset;
+                  } else {
+                    const rowHeight = rowHeightRef.current;
+                    if (hoveredIndex > draggedIndex) {
+                      if (idx > draggedIndex && idx <= hoveredIndex) {
+                        translateY = -rowHeight;
+                      }
+                    } else if (hoveredIndex < draggedIndex) {
+                      if (idx >= hoveredIndex && idx < draggedIndex) {
+                        translateY = rowHeight;
+                      }
+                    }
+                  }
+                }
+
+                // Premium visual styling rules
+                let cardClassName = "relative z-0 bg-neutral-950/40 border-neutral-900 opacity-100 scale-100 text-neutral-200";
+                if (isDraggingActive) {
+                  if (isCurrentDragged) {
+                    cardClassName = "relative z-50 bg-neutral-900/95 border-neutral-600 backdrop-blur-md scale-[1.02] shadow-[0_12px_32px_rgba(0,0,0,0.85)] text-white";
+                  } else {
+                    cardClassName = "relative z-0 bg-neutral-950/30 border-neutral-950/60 opacity-50 scale-[0.98] text-neutral-400";
+                  }
+                }
+
+                const transitionStyle = isDraggingActive
+                  ? isCurrentDragged && !isGliding
+                    ? "box-shadow 0.28s, border-color 0.28s, background-color 0.28s, opacity 0.28s, transform 0s"
+                    : "transform 280ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 280ms, border-color 280ms, background-color 280ms, opacity 280ms"
+                  : "transform 280ms cubic-bezier(0.16, 1, 0.3, 1), opacity 280ms, border-color 280ms, background-color 280ms";
+
+                return (
+                  <div
+                    key={task.id}
+                    data-subtask-index={idx}
+                    data-subtask-id={task.id}
+                    className={`flex items-center justify-between gap-3 p-3.5 border rounded-md focus-within:border-neutral-700 select-none ${cardClassName}`}
+                    style={{
+                      transform: `translateY(${translateY}px)`,
+                      transition: transitionStyle,
+                    }}
                   >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              ))
+                    {/* Grip Handle Icon (Restricted Draggability Handle via PointerEvents) */}
+                    <div
+                      onPointerDown={(e) => handlePointerDown(e, idx)}
+                      onPointerMove={handlePointerMove}
+                      onPointerUp={handlePointerUp}
+                      onPointerCancel={handlePointerUp}
+                      className="cursor-grab active:cursor-grabbing p-1 text-neutral-600 hover:text-neutral-400 transition-colors shrink-0 touch-none"
+                    >
+                      <GripVertical size={14} />
+                    </div>
+
+                    <input
+                      type="text"
+                      required
+                      value={task.title}
+                      onChange={(e) => handleEditSubtaskTitle(idx, e.target.value)}
+                      className="flex-1 bg-transparent border-none text-xs text-neutral-200 placeholder-neutral-600 focus:outline-none"
+                    />
+                    
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveSubtask(idx)}
+                      className="p-1 text-neutral-500 hover:text-red-400 transition-colors shrink-0"
+                      aria-label="Remove Subtask"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>

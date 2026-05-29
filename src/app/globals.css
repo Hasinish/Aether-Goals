@@ -108,6 +108,41 @@ body {
   will-change: background-position-x;
 }
 
+/* Metallic automatic loop shimmer for Aether login logo */
+.aether-logo-metallic-auto {
+  background: linear-gradient(
+    110deg,
+    #666 0%,
+    #666 44.0%,
+    #ccc 47.0%,
+    #fff 50.0%,
+    #ccc 53.0%,
+    #666 56.0%,
+    #666 100%
+  );
+  background-size: 400% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: metallicShimmerAuto 5.5s linear infinite;
+  will-change: background-position;
+}
+
+@keyframes metallicShimmerAuto {
+  0% {
+    background-position: 75% center;
+    animation-timing-function: cubic-bezier(0.25, 0.6, 0.35, 1);
+  }
+  45.45% {
+    /* 2.5s active / 5.5s total = 45.45% */
+    background-position: 25% center;
+  }
+  100% {
+    background-position: 25% center;
+  }
+}
+
 /* Premium Dynamic Interactive Goal Cards (Masked Border Sweep & Ultra-Glassmorphism) */
 @keyframes borderSweepSingle {
   0% { background-position: 150% center; }
