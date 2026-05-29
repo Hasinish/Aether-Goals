@@ -581,7 +581,7 @@ export default function MotionSandbox() {
 
   return (
     <div className="min-h-screen bg-black text-white md:max-w-xl md:mx-auto md:shadow-2xl md:border-x md:border-neutral-900 pb-20 relative overflow-hidden">
-      <ConstellationBackground opacity={0.45} particleCount={70} />
+      <ConstellationBackground opacity={0.45} particleCount={100} />
       {/* Injecting CSS scope directly so it remains fully isolated and safe */}
       <style dangerouslySetInnerHTML={{ __html: `
         /* Core animation definitions for sandbox */
