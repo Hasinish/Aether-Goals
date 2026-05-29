@@ -88,7 +88,7 @@ export default function GoalCard({
       onMouseLeave={() => setShowMenu(false)}
       className={`group relative flex flex-col justify-between w-full min-h-[160px] p-4 rounded-lg cursor-pointer select-none overflow-visible ${
         isPending || showDeleteConfirm
-          ? "bg-neutral-950/55 border border-neutral-800/80 backdrop-blur-md" + (isPending ? " opacity-50 pointer-events-none" : "")
+          ? "bg-white/[0.03] border border-white/[0.06] backdrop-blur-[24px]" + (isPending ? " opacity-50 pointer-events-none" : "")
           : "border-sweep-card"
       }`}
     >
