@@ -40,6 +40,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark bg-black selection:bg-white selection:text-black">
+      <head>
+        {/* Explicitly in static HTML so Chrome PWA detection picks it up before JS runs */}
+        <link rel="manifest" href="/manifest.json" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-black text-white font-sans`}
       >

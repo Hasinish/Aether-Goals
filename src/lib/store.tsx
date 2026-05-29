@@ -16,6 +16,17 @@ const safeParseArray = <T,>(raw: string | null, fallback: T[] = []): T[] => {
   }
 };
 
+export const createId = (prefix = "id"): string => {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return crypto.randomUUID();
+  }
+
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+};
+
 interface StoreContextProps {
   goals: Goal[];
   loading: boolean;
@@ -78,7 +89,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       const goalIdMap: Record<string, string> = {};
       seedGoals.forEach((g) => {
-        goalIdMap[g.id] = crypto.randomUUID();
+        goalIdMap[g.id] = createId("goal");
       });
 
       const goalsToInsert = seedGoals.map((g, i) => ({
@@ -94,7 +105,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (goalsError) throw goalsError;
 
       const subtasksToInsert = seedSubtasks.map((s) => ({
-        id: crypto.randomUUID(),
+        id: createId("subtask"),
         goal_id: goalIdMap[s.goal_id],
         title: s.title,
         is_complete: s.is_complete,
@@ -178,7 +189,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (localGoalsRaw !== null && !goalsCorrupt) {
             if (parsedGoals.length > 0) {
               const goalIdMap: Record<string, string> = {};
-              parsedGoals.forEach(g => { goalIdMap[g.id] = crypto.randomUUID(); });
+              parsedGoals.forEach(g => { goalIdMap[g.id] = createId("goal"); });
               
               const goalsToInsert = parsedGoals.map(g => ({
                 id: goalIdMap[g.id],
@@ -196,9 +207,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               }
 
               const subtaskIdMap: Record<string, string> = {};
-              if (parsedSubtasks.length > 0) {
-                const subtasksToInsert = parsedSubtasks.map(s => {
-                  const newSubtaskId = crypto.randomUUID();
+              const validSubtasks = parsedSubtasks.filter((subtask) => goalIdMap[subtask.goal_id]);
+              if (validSubtasks.length > 0) {
+                const subtasksToInsert = validSubtasks.map(s => {
+                  const newSubtaskId = createId("subtask");
                   subtaskIdMap[s.id] = newSubtaskId;
                   return {
                     id: newSubtaskId,
@@ -385,7 +397,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addGoal = async (title: string, tags: string[], subtaskTitles: string[]) => {
-    const newGoalId = crypto.randomUUID();
+    const newGoalId = createId("goal");
     const minSortOrder = goals.length > 0 ? Math.min(...goals.map((g) => g.sort_order)) : 0;
     const newSortOrder = minSortOrder - 1;
     const newGoal: Goal = {
@@ -398,7 +410,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     const newSubtasks: Subtask[] = subtaskTitles.map((t, idx) => ({
-      id: crypto.randomUUID(),
+      id: createId("subtask"),
       goal_id: newGoalId,
       title: t,
       is_complete: false,
@@ -464,7 +476,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     subtasksInput: { id?: string; title: string; is_complete?: boolean; sort_order?: number }[]
   ) => {
     const updatedSubtasks: Subtask[] = subtasksInput.map((s, idx) => ({
-      id: s.id || crypto.randomUUID(),
+      id: s.id || createId("subtask"),
       goal_id: goalId,
       title: s.title,
       is_complete: s.is_complete || false,
