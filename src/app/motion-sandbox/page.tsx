@@ -1132,7 +1132,7 @@ export default function MotionSandbox() {
                 <span>Option A: Transparent Minimal (Crystalline Border)</span>
                 <span>UPGRADE #9</span>
               </div>
-              <div className="p-4 bg-white/[0.02] border border-white/[0.05] backdrop-blur-[12px] rounded-lg transition-all duration-300 hover:border-white/20 hover:shadow-[0_4px_32px_rgba(255,255,255,0.04)] cursor-pointer">
+              <div className="p-4 bg-white/[0.02] border border-white/50 backdrop-blur-[12px] rounded-lg transition-all duration-300 hover:border-white/20 hover:shadow-[0_4px_32px_rgba(255,255,255,0.04)] cursor-pointer">
                 <div className="flex justify-between items-center mb-2">
                   <span className="px-2 py-0.5 text-[9px] uppercase tracking-widest font-mono text-neutral-200 border border-neutral-900 bg-neutral-950/80 backdrop-blur-sm rounded-md">Option A</span>
                   <MoreHorizontal size={14} className="text-neutral-350" />
@@ -1151,7 +1151,7 @@ export default function MotionSandbox() {
                 <span>UPGRADE #10</span>
               </div>
               <div 
-                className="p-4 bg-white/[0.04] border border-white/[0.07] backdrop-blur-[16px] rounded-lg transition-all duration-300 hover:border-white/20 hover:-translate-y-1.5 active:scale-[0.97] active:translate-y-0.5 cursor-pointer select-none"
+                className="p-4 bg-white/[0.04] border border-white/50 backdrop-blur-[16px] rounded-lg transition-all duration-300 hover:border-white/20 hover:-translate-y-1.5 active:scale-[0.97] active:translate-y-0.5 cursor-pointer select-none"
                 style={{
                   boxShadow: `0 8px 30px rgba(${theme.rgbPrimary}, 0.03)`
                 }}
@@ -1451,7 +1451,7 @@ export default function MotionSandbox() {
                 <span>Style B: Double Aura Glow</span>
                 <span>UPGRADE #19</span>
               </div>
-              <button className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white text-black text-[10px] font-bold uppercase tracking-widest rounded-md aura-glow-button hover:bg-neutral-200 active:scale-95 transition-all border border-white/10">
+              <button className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white text-black text-[10px] font-bold uppercase tracking-widest rounded-md aura-glow-button hover:bg-neutral-200 active:scale-95 transition-all border border-white/50">
                 <Plus size={11} strokeWidth={3} />
                 <span>Add Goal</span>
               </button>

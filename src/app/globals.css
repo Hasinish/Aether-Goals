@@ -154,7 +154,7 @@ body {
   background: rgba(255, 255, 255, 0.05); /* Highly polished frosted glass at 5% opacity */
   backdrop-filter: blur(5px); /* Ultra-transparent crystalline blur to see background nodes sharply */
   -webkit-backdrop-filter: blur(5px);
-  border: 1px solid rgba(255, 255, 255, 0.1); /* Elegant crystalline border edge at 10% opacity */
+  border: 1px solid rgba(255, 255, 255, 0.5); /* Elegant crystalline border edge at 50% opacity */
   transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
 

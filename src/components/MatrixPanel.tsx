@@ -61,7 +61,7 @@ export const MatrixPanel: React.FC<MatrixPanelProps> = ({
   return (
     <div
       onClick={onClick}
-      className={`p-3 rounded-lg border bg-white/[0.02] border-white/[0.06] hover:border-white/20 transition-all ${
+      className={`p-3 rounded-lg border bg-white/[0.02] border-white/50 hover:border-white/20 transition-all ${
         onClick ? "cursor-pointer hover:scale-[1.02]" : ""
       }`}
       style={{

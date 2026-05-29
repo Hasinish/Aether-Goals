@@ -101,7 +101,7 @@ export default function GoalDetailModal({
       {/* Spring Drawer Sheet */}
       <div
         style={{ transform: sheetTransform, transition: sheetTransition }}
-        className="fixed bottom-0 left-0 right-0 z-[51] flex flex-col max-h-[90vh] bg-neutral-950 text-white rounded-t-3xl border-t border-neutral-800 shadow-[0_-16px_48px_rgba(0,0,0,0.7)] md:max-w-md md:mx-auto"
+        className="fixed bottom-0 left-0 right-0 z-[51] flex flex-col max-h-[90vh] bg-neutral-950 text-white rounded-t-3xl border-t border-white/50 shadow-[0_-16px_48px_rgba(0,0,0,0.7)] md:max-w-md md:mx-auto"
       >
         {/* Drag handle */}
         <div
@@ -202,7 +202,7 @@ export default function GoalDetailModal({
           </div>
 
           {/* Progress stats */}
-          <div className="p-5 border border-neutral-800 bg-neutral-950 rounded-lg">
+          <div className="p-5 border border-white/50 bg-neutral-950 rounded-lg">
             <div className="flex items-baseline gap-4 mb-4 select-none">
               <span className="text-5xl font-extrabold tracking-tighter text-white">
                 {goal.progressPercent || 0}%
