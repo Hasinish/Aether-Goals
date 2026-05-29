@@ -45,10 +45,12 @@ export default function SegmentedProgressBar({
             key={`${segmentIdPrefix}-${idx}`}
             className="flex-1 h-full rounded-[1px]"
             style={
-              isActive && shouldAnimate
+              isActive
                 ? {
-                    animation: `ledTurnOn 0.12s ease-out ${idx * 60}ms forwards`,
-                    backgroundColor: "rgba(255, 255, 255, 0.06)",
+                    backgroundColor: shouldAnimate ? "#ffffff" : "rgba(255, 255, 255, 0.06)",
+                    transition: shouldAnimate
+                      ? `background-color 0.1s ease-out ${idx * 50}ms`
+                      : "none",
                   }
                 : {
                     backgroundColor: "rgba(255, 255, 255, 0.06)",

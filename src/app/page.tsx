@@ -27,6 +27,8 @@ export default function Home() {
   const prevGoalsRef = React.useRef<Goal[]>([]);
   const isReorderingRef = React.useRef(false);
   const tagsRef = React.useRef<HTMLDivElement>(null);
+  // Track which card IDs have already played their entrance animation
+  const introducedIdsRef = React.useRef<Set<string>>(new Set());
 
   // Get all unique tags for the horizontal tag filters (Memoized at top to avoid conditional hook early returns)
   const allTags = React.useMemo(() => {
@@ -34,6 +36,18 @@ export default function Home() {
       new Set(goals.flatMap((g) => g.tags))
     ).filter(Boolean);
   }, [goals]);
+
+  // Filtering (Memoized at top to avoid Temporal Dead Zone reference errors during AuthScreen early return)
+  const filteredGoals = React.useMemo(() => {
+    return goals.filter((g) => {
+      const matchesSearch = g.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        g.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      const matchesTag = !selectedTag || g.tags.includes(selectedTag);
+
+      return matchesSearch && matchesTag;
+    });
+  }, [goals, searchQuery, selectedTag]);
 
   const measureCards = () => {
     const elements = document.querySelectorAll("[data-drag-id]");
@@ -49,9 +63,8 @@ export default function Home() {
 
   const animateCards = () => {
     const elements = document.querySelectorAll("[data-drag-id]") as NodeListOf<HTMLElement>;
-    const movedElements: Array<{ el: HTMLElement; deltaX: number; deltaY: number }> = [];
+    const movedElements: Array<{ el: HTMLElement }> = [];
 
-    // Step 1: Invert
     elements.forEach((el) => {
       const id = el.getAttribute("data-drag-id");
       if (!id) return;
@@ -63,35 +76,37 @@ export default function Home() {
       const deltaY = firstRect.top - lastRect.top;
 
       if (deltaX !== 0 || deltaY !== 0) {
-        // Disable transitions and snap to the starting position immediately
         el.style.transition = "none";
         el.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
-        movedElements.push({ el, deltaX, deltaY });
+        movedElements.push({ el });
       }
     });
 
-    // Step 2: Play (Force single layout reflow & animate back to native coordinates)
-    if (movedElements.length > 0) {
-      // Accessing offsetHeight on the first moved element triggers a forced layout reflow
-      void movedElements[0].el.offsetHeight;
+    if (movedElements.length === 0) return;
 
-      requestAnimationFrame(() => {
-        movedElements.forEach(({ el }) => {
-          // Luxurious, spring-like cubic-bezier transition for smooth tactile swapping
-          el.style.transition = "transform 380ms cubic-bezier(0.16, 1, 0.3, 1)";
-          el.style.transform = "translate(0px, 0px)";
-        });
+    // Force browser layout flush so the inverted transforms are committed before the next paint
+    void document.body.offsetHeight;
 
-        // Step 3: Cleanup inline transition styles once animation ends
-        setTimeout(() => {
-          movedElements.forEach(({ el }) => {
-            el.style.transition = "";
-            el.style.transform = "";
-          });
-        }, 380);
+    requestAnimationFrame(() => {
+      movedElements.forEach(({ el }) => {
+        el.style.transition = "transform 380ms cubic-bezier(0.16, 1, 0.3, 1)";
+        el.style.transform = "translate(0px, 0px)";
       });
-    }
+
+      setTimeout(() => {
+        movedElements.forEach(({ el }) => {
+          el.style.transition = "";
+          el.style.transform = "";
+        });
+      }, 380);
+    });
   };
+
+  // Mark all currently-visible card IDs as introduced after each render
+  React.useEffect(() => {
+    if (!user) return;
+    filteredGoals.forEach((g) => introducedIdsRef.current.add(g.id));
+  });
 
   useIsomorphicLayoutEffect(() => {
     if (isReorderingRef.current && prevGoalsRef.current.length > 0) {
@@ -217,15 +232,7 @@ export default function Home() {
 
 
 
-  // Filtering
-  const filteredGoals = goals.filter((g) => {
-    const matchesSearch = g.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      g.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
-    
-    const matchesTag = !selectedTag || g.tags.includes(selectedTag);
-
-    return matchesSearch && matchesTag;
-  });
+  // (Filtered goals memoized at top to avoid TDZ reference errors)
 
   return (
     <div className="min-h-screen bg-black text-white md:max-w-md md:mx-auto md:shadow-2xl md:border-x md:border-neutral-900 pb-28 relative flex flex-col overflow-hidden">
@@ -355,24 +362,27 @@ export default function Home() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3.5">
-            {filteredGoals.map((goal, idx) => (
-              <div
-                key={`${goal.id}-${selectedTag}`}
-                data-drag-id={goal.id}
-                className="animate-card-entrance"
-                style={{ animationDelay: `${idx * 60}ms` }}
-              >
-                <GoalCard
-                  goal={goal}
-                  onTap={handleCardTap}
-                  onEditTap={handleEditTap}
-                  onMoveUp={canReorder ? (e) => { e.stopPropagation(); handleMoveUp(idx); } : undefined}
-                  onMoveDown={canReorder ? (e) => { e.stopPropagation(); handleMoveDown(idx); } : undefined}
-                  isFirst={idx === 0}
-                  isLast={idx === filteredGoals.length - 1}
-                />
-              </div>
-            ))}
+            {filteredGoals.map((goal, idx) => {
+              const isNew = !introducedIdsRef.current.has(goal.id);
+              return (
+                <div
+                  key={goal.id}
+                  data-drag-id={goal.id}
+                  className={isNew ? "animate-card-entrance" : undefined}
+                  style={isNew ? { animationDelay: `${idx * 60}ms` } : undefined}
+                >
+                  <GoalCard
+                    goal={goal}
+                    onTap={handleCardTap}
+                    onEditTap={handleEditTap}
+                    onMoveUp={canReorder ? (e) => { e.stopPropagation(); handleMoveUp(idx); } : undefined}
+                    onMoveDown={canReorder ? (e) => { e.stopPropagation(); handleMoveDown(idx); } : undefined}
+                    isFirst={idx === 0}
+                    isLast={idx === filteredGoals.length - 1}
+                  />
+                </div>
+              );
+            })}
           </div>
         )}
       </main>

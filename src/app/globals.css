@@ -137,29 +137,4 @@ body {
   box-shadow: 0 4px 12px rgba(255, 255, 255, 0.03);
 }
 
-/* Staggered Boot-Up Cascade for Progress Segments */
-@keyframes segmentBoot {
-  from {
-    opacity: 0;
-    transform: scaleY(0.75);
-  }
-  to {
-    opacity: 1;
-    transform: scaleY(1);
-  }
-}
 
-.segment-boot-animate {
-  opacity: 0;
-  animation: segmentBoot 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-/* LED Segment Turn-On instant color transition keyframe */
-@keyframes ledTurnOn {
-  from {
-    background-color: rgba(255, 255, 255, 0.06);
-  }
-  to {
-    background-color: #ffffff;
-  }
-}
