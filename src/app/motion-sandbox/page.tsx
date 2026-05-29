@@ -14,6 +14,7 @@ import {
   Cpu
 } from "lucide-react";
 import Link from "next/link";
+import ConstellationBackground from "@/components/ConstellationBackground";
 
 // ==========================================
 // ABSTRACT HELPER COMPONENTS FOR THE SANDBOX
@@ -579,7 +580,8 @@ export default function MotionSandbox() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white md:max-w-xl md:mx-auto md:shadow-2xl md:border-x md:border-neutral-900 pb-20 relative">
+    <div className="min-h-screen bg-black text-white md:max-w-xl md:mx-auto md:shadow-2xl md:border-x md:border-neutral-900 pb-20 relative overflow-hidden">
+      <ConstellationBackground opacity={0.45} particleCount={70} />
       {/* Injecting CSS scope directly so it remains fully isolated and safe */}
       <style dangerouslySetInnerHTML={{ __html: `
         /* Core animation definitions for sandbox */
@@ -916,14 +918,14 @@ export default function MotionSandbox() {
             
             {/* Style A: Standard Hover */}
             <div className="space-y-1.5">
-              <span className="text-[9px] uppercase tracking-wider font-mono text-neutral-400">Option A: Current Minimal (Border Only)</span>
-              <div className="p-4 bg-neutral-950 border border-neutral-800 rounded-lg transition-all duration-300 hover:border-neutral-600 hover:shadow-[0_4px_32px_rgba(255,255,255,0.06)] cursor-pointer">
+              <span className="text-[9px] uppercase tracking-wider font-mono text-neutral-400">Option A: Transparent Minimal (Crystalline Border)</span>
+              <div className="p-4 bg-white/[0.02] border border-white/[0.05] backdrop-blur-[12px] rounded-lg transition-all duration-300 hover:border-white/20 hover:shadow-[0_4px_32px_rgba(255,255,255,0.04)] cursor-pointer">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="px-2 py-0.5 text-[9px] uppercase tracking-widest font-mono text-neutral-400 border border-neutral-900 bg-black rounded-md">Option A</span>
+                  <span className="px-2 py-0.5 text-[9px] uppercase tracking-widest font-mono text-neutral-400 border border-neutral-900 bg-neutral-950/80 backdrop-blur-sm rounded-md">Option A</span>
                   <MoreHorizontal size={14} className="text-neutral-500" />
                 </div>
-                <h3 className="text-sm font-bold text-white mb-2">Sleek Flat Border</h3>
-                <div className="h-2 bg-neutral-800 rounded-full overflow-hidden">
+                <h3 className="text-sm font-bold text-white mb-2">Sleek Flat Glass Border</h3>
+                <div className="h-2 bg-neutral-900 rounded-full overflow-hidden">
                   <div className="h-full bg-white w-1/3" />
                 </div>
               </div>
@@ -931,29 +933,29 @@ export default function MotionSandbox() {
 
             {/* Style B: Tactile Spring & Shadow Elevation */}
             <div className="space-y-1.5">
-              <span className="text-[9px] uppercase tracking-wider font-mono text-neutral-400">Option B: Tactile Spring & Diffused Glow (Recommended)</span>
-              <div className="p-4 bg-neutral-950 border border-neutral-800 rounded-lg transition-all duration-300 hover:border-neutral-600 hover:-translate-y-1 hover:shadow-[0_12px_36px_rgba(255,255,255,0.08)] active:scale-[0.97] active:translate-y-0.5 cursor-pointer select-none">
+              <span className="text-[9px] uppercase tracking-wider font-mono text-neutral-400">Option B: Tactile Glass Spring & Diffused Glow</span>
+              <div className="p-4 bg-white/[0.04] border border-white/[0.07] backdrop-blur-[16px] rounded-lg transition-all duration-300 hover:border-white/20 hover:-translate-y-1 hover:shadow-[0_12px_36px_rgba(255,255,255,0.06)] active:scale-[0.97] active:translate-y-0.5 cursor-pointer select-none">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="px-2 py-0.5 text-[9px] uppercase tracking-widest font-mono text-neutral-400 border border-neutral-900 bg-black rounded-md">Tactile</span>
+                  <span className="px-2 py-0.5 text-[9px] uppercase tracking-widest font-mono text-neutral-400 border border-neutral-900 bg-neutral-950/80 backdrop-blur-sm rounded-md">Tactile</span>
                   <MoreHorizontal size={14} className="text-neutral-500 animate-pulse" />
                 </div>
                 <h3 className="text-sm font-bold text-white mb-2">Hover to lift. Tap/Hold to depress.</h3>
-                <div className="h-2 bg-neutral-800 rounded-full overflow-hidden">
+                <div className="h-2 bg-neutral-900 rounded-full overflow-hidden">
                   <div className="h-full bg-white w-2/3" />
                 </div>
               </div>
             </div>
 
-            {/* Style C: Gradient Border Sweep */}
+            {/* Style C: Signature Ultra-Glassmorphic Border Sweep */}
             <div className="space-y-1.5">
-              <span className="text-[9px] uppercase tracking-wider font-mono text-neutral-400">Option C: Border Sweep Shimmer</span>
-              <div className="p-4 rounded-lg border-sweep-container cursor-pointer select-none">
+              <span className="text-[9px] uppercase tracking-wider font-mono text-neutral-400">Option C: Signature Crystalline Glass & Masked Sweep (Production Standard)</span>
+              <div className="p-4 border-sweep-card cursor-pointer select-none">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="px-2 py-0.5 text-[9px] uppercase tracking-widest font-mono text-neutral-400 border border-neutral-900 bg-black rounded-md">Sweep</span>
+                  <span className="px-2 py-0.5 text-[9px] uppercase tracking-widest font-mono text-neutral-400 border border-neutral-900 bg-neutral-950/80 backdrop-blur-sm rounded-md">Masked Sweep</span>
                   <MoreHorizontal size={14} className="text-neutral-500" />
                 </div>
-                <h3 className="text-sm font-bold text-white mb-2">Gradient rotates border on hover</h3>
-                <div className="h-2 bg-neutral-800 rounded-full overflow-hidden">
+                <h3 className="text-sm font-bold text-white mb-2">Frosted glass & masked gradient sweep</h3>
+                <div className="h-2 bg-neutral-900 rounded-full overflow-hidden">
                   <div className="h-full bg-white w-1/2" />
                 </div>
               </div>
