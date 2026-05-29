@@ -370,7 +370,7 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
         </div>
 
         {/* Top Header */}
-        <div className="flex items-center justify-between px-6 py-3 border-b border-neutral-900 bg-neutral-950 select-none">
+        <div className="flex items-center justify-between px-6 py-3 border-b border-neutral-900 select-none">
           <button
             type="button"
             onClick={triggerClose}
