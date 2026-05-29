@@ -34,6 +34,7 @@ export default function GoalCard({
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close the dropdown when clicking outside of it
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {

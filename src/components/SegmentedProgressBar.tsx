@@ -16,18 +16,30 @@ export default function SegmentedProgressBar({
   segmentIdPrefix,
 }: SegmentedProgressBarProps) {
   const [shouldAnimate, setShouldAnimate] = useState(false);
+  const [isBooted, setIsBooted] = useState(false);
   const activeSegments = Math.round((progressPercent / 100) * totalSegments);
 
   useEffect(() => {
-    // Reset state to force animation re-trigger
+    // Reset states to force animation re-trigger
     setShouldAnimate(false);
+    setIsBooted(false);
     
     // Tiny delay to ensure browser paints the un-animated base clipped state
-    const timer = setTimeout(() => {
+    const timer1 = setTimeout(() => {
       setShouldAnimate(true);
     }, 50);
 
-    return () => clearTimeout(timer);
+    // After the staggered animation finishes (max delay: 30 segments * 50ms = 1500ms + 100ms transition = 1600ms),
+    // set isBooted to true to disable active transitions. This prevents the browser from re-running
+    // transitions on DOM insertion/insertBefore moves during card reordering.
+    const timer2 = setTimeout(() => {
+      setIsBooted(true);
+    }, 1800);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
   }, [progressPercent]);
 
   return (
@@ -48,7 +60,7 @@ export default function SegmentedProgressBar({
               isActive
                 ? {
                     backgroundColor: shouldAnimate ? "#ffffff" : "rgba(255, 255, 255, 0.06)",
-                    transition: shouldAnimate
+                    transition: (shouldAnimate && !isBooted)
                       ? `background-color 0.1s ease-out ${idx * 50}ms`
                       : "none",
                   }
