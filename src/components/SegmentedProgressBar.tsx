@@ -32,6 +32,7 @@ export default function SegmentedProgressBar({
     // Guard: skip animation when activeSegments hasn't changed (card swap).
     // Only animate on first mount or when progress actually changes.
     if (prevActiveRef.current !== null && prevActiveRef.current === activeSegments) return;
+    const prevActive = prevActiveRef.current;
     prevActiveRef.current = activeSegments;
 
     // Cancel any pending cleanup from a previous animation run
@@ -42,38 +43,92 @@ export default function SegmentedProgressBar({
 
     const segments = Array.from(container.children) as HTMLElement[];
 
-    // INVERT: override React's bright render — set active segments to dim, no transition
-    segments.forEach((seg, i) => {
-      seg.style.transition = "none";
-      if (i < activeSegments) {
-        seg.style.backgroundColor = "rgba(255, 255, 255, 0.06)";
-      }
-    });
-
-    // Force layout flush so the browser commits the dim state
-    void container.offsetHeight;
-
-    // PLAY: stagger-transition each active segment from dim → bright
-    requestAnimationFrame(() => {
+    if (prevActive === null) {
+      // 1. INITIAL MOUNT STAGGER BOOT-UP
+      // INVERT: override React's bright render — set active segments to dim, no transition
       segments.forEach((seg, i) => {
+        seg.style.transition = "none";
         if (i < activeSegments) {
-          seg.style.transition = `background-color 0.1s ease-out ${i * 50}ms`;
-          seg.style.backgroundColor = "#ffffff";
+          seg.style.backgroundColor = "rgba(255, 255, 255, 0.06)";
         }
       });
 
-      // CLEANUP: strip inline transitions after the last segment finishes.
-      // backgroundColor is left alone — it already matches React's rendered "#ffffff".
-      // Without an active transition property, the browser cannot replay anything
-      // when React repositions the DOM node via insertBefore during a card swap.
-      const maxDelay = Math.max(activeSegments, 1) * 50 + 200;
-      cleanupTimerRef.current = setTimeout(() => {
-        segments.forEach((seg) => {
-          seg.style.transition = "";
+      // Force layout flush so the browser commits the dim state
+      void container.offsetHeight;
+
+      // PLAY: stagger-transition each active segment from dim → bright
+      requestAnimationFrame(() => {
+        segments.forEach((seg, i) => {
+          if (i < activeSegments) {
+            seg.style.transition = `background-color 0.1s ease-out ${i * 50}ms`;
+            seg.style.backgroundColor = "#ffffff";
+          }
         });
-        cleanupTimerRef.current = null;
-      }, maxDelay);
-    });
+
+        // CLEANUP: strip inline transitions after the last segment finishes.
+        const maxDelay = Math.max(activeSegments, 1) * 50 + 200;
+        cleanupTimerRef.current = setTimeout(() => {
+          segments.forEach((seg) => {
+            seg.style.transition = "";
+          });
+          cleanupTimerRef.current = null;
+        }, maxDelay);
+      });
+    } else {
+      // 2. INCREMENTAL PROGRESS UPDATE (Task checked/unchecked in goal details modal)
+      if (activeSegments > prevActive) {
+        // A. Progress Increased: animate newly activated segments from dim → bright
+        for (let i = prevActive; i < activeSegments; i++) {
+          if (segments[i]) {
+            segments[i].style.transition = "none";
+            segments[i].style.backgroundColor = "rgba(255, 255, 255, 0.06)";
+          }
+        }
+
+        // Force layout flush
+        void container.offsetHeight;
+
+        // Play stagger transition only for the newly added active segments
+        requestAnimationFrame(() => {
+          let delayCount = 0;
+          for (let i = prevActive; i < activeSegments; i++) {
+            if (segments[i]) {
+              segments[i].style.transition = `background-color 0.25s ease-out ${delayCount * 50}ms`;
+              segments[i].style.backgroundColor = "#ffffff";
+              delayCount++;
+            }
+          }
+
+          const maxDelay = Math.max(delayCount, 1) * 50 + 300;
+          cleanupTimerRef.current = setTimeout(() => {
+            segments.forEach((seg) => {
+              seg.style.transition = "";
+            });
+            cleanupTimerRef.current = null;
+          }, maxDelay);
+        });
+      } else {
+        // B. Progress Decreased: animate removed segments from bright → dim (right-to-left)
+        requestAnimationFrame(() => {
+          let delayCount = 0;
+          for (let i = prevActive - 1; i >= activeSegments; i--) {
+            if (segments[i]) {
+              segments[i].style.transition = `background-color 0.2s ease-out ${delayCount * 40}ms`;
+              segments[i].style.backgroundColor = "rgba(255, 255, 255, 0.06)";
+              delayCount++;
+            }
+          }
+
+          const maxDelay = Math.max(delayCount, 1) * 40 + 250;
+          cleanupTimerRef.current = setTimeout(() => {
+            segments.forEach((seg) => {
+              seg.style.transition = "";
+            });
+            cleanupTimerRef.current = null;
+          }, maxDelay);
+        });
+      }
+    }
 
     return () => {
       if (cleanupTimerRef.current !== null) {
