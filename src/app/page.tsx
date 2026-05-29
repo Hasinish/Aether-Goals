@@ -239,7 +239,7 @@ export default function Home() {
       <ConstellationBackground opacity={0.45} particleCount={100} />
       
       {/* Dynamic Header */}
-      <header className={`fixed top-0 left-0 right-0 mx-auto z-40 w-full md:max-w-md bg-black/80 backdrop-blur-md border-b transition-all duration-300 ease-out flex items-center justify-between ${
+      <header className={`fixed top-0 left-0 right-0 mx-auto z-40 w-full md:max-w-md bg-[#0d0d0d]/80 backdrop-blur-md border-b transition-all duration-300 ease-out flex items-center justify-between ${
         isHeaderCompressed
           ? "py-3 px-6 border-neutral-800 shadow-[0_4px_30px_rgba(0,0,0,0.85)]"
           : "py-5 px-6 border-neutral-900/60 shadow-none"
