@@ -27,6 +27,7 @@ export default function GoalDetailModal({
   const [isClosing, setIsClosing] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const startDragY = useRef(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const triggerClose = useCallback(() => {
     setIsClosing(true);
@@ -57,14 +58,41 @@ export default function GoalDetailModal({
   // ── Pointer gesture handlers ──────────────────────────────────────────────
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
+
+    const target = e.target as HTMLElement;
+
+    // Ignore drag inputs on interactive elements
+    const isInteractive = target.closest("button") || target.closest("input") || target.closest("textarea") || target.closest("a");
+    if (isInteractive) return;
+
+    // If clicking inside the scrollable container, check if we're at the top.
+    // If we're scrolled down, let standard scrolling work.
+    if (scrollRef.current && scrollRef.current.contains(target)) {
+      if (scrollRef.current.scrollTop > 0) {
+        return;
+      }
+    }
+
     setIsDragging(true);
     startDragY.current = e.clientY - dragY;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    e.currentTarget.setPointerCapture(e.pointerId);
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isDragging) return;
     const delta = e.clientY - startDragY.current;
+
+    // If dragging up inside the scrollable area, cancel sheet drag to allow native scroll down
+    if (delta < 0 && scrollRef.current) {
+      const target = e.target as HTMLElement;
+      if (scrollRef.current.contains(target)) {
+        setIsDragging(false);
+        e.currentTarget.releasePointerCapture(e.pointerId);
+        setDragY(0);
+        return;
+      }
+    }
+
     // Rubber-band resistance when dragging upward
     setDragY(delta < 0 ? delta * 0.2 : delta);
   };
@@ -72,7 +100,7 @@ export default function GoalDetailModal({
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isDragging) return;
     setIsDragging(false);
-    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    e.currentTarget.releasePointerCapture(e.pointerId);
     if (dragY > 90) {
       triggerClose();
     } else {
@@ -102,12 +130,12 @@ export default function GoalDetailModal({
       <div
         style={{ transform: sheetTransform, transition: sheetTransition }}
         className="fixed bottom-0 left-0 right-0 z-[51] flex flex-col max-h-[90vh] bg-[#0d0d0d] text-white rounded-t-3xl border-t border-white/50 shadow-[0_-16px_48px_rgba(0,0,0,0.7)] md:max-w-md md:mx-auto"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
       >
         {/* Drag handle */}
         <div
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
           className="flex items-center justify-center pt-2.5 pb-2 cursor-grab active:cursor-grabbing select-none touch-none"
         >
           <div className="w-12 h-1 rounded-full bg-neutral-800 hover:bg-neutral-700 transition-colors" />
@@ -141,7 +169,7 @@ export default function GoalDetailModal({
         </div>
 
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto overscroll-contain px-6 py-4 pb-8 space-y-5">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain px-6 py-4 pb-8 space-y-5">
           {/* Delete confirmation */}
           {isConfirmingDelete && (
             <div className="p-4 border border-red-900 bg-red-950/20 rounded-lg flex flex-col gap-3 select-none animate-fade-in">

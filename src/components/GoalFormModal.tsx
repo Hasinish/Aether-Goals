@@ -60,14 +60,40 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
   // ── Drawer Pointer gesture handlers ───────────────────────────────────────
   const handleDrawerPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
+
+    const target = e.target as HTMLElement;
+
+    // Ignore drag inputs on interactive elements
+    const isInteractive = target.closest("button") || target.closest("input") || target.closest("textarea") || target.closest("a");
+    if (isInteractive) return;
+
+    // If clicking inside the scrollable form container, check if we're at the top
+    if (formRef.current && formRef.current.contains(target)) {
+      if (formRef.current.scrollTop > 0) {
+        return;
+      }
+    }
+
     setIsDragging(true);
     startDragY.current = e.clientY - dragY;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    e.currentTarget.setPointerCapture(e.pointerId);
   };
 
   const handleDrawerPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isDragging) return;
     const delta = e.clientY - startDragY.current;
+
+    // If dragging up inside the scrollable form, cancel drag to let native scroll happen
+    if (delta < 0 && formRef.current) {
+      const target = e.target as HTMLElement;
+      if (formRef.current.contains(target)) {
+        setIsDragging(false);
+        e.currentTarget.releasePointerCapture(e.pointerId);
+        setDragY(0);
+        return;
+      }
+    }
+
     // Rubber-band resistance when dragging upward
     setDragY(delta < 0 ? delta * 0.2 : delta);
   };
@@ -75,7 +101,7 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
   const handleDrawerPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isDragging) return;
     setIsDragging(false);
-    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    e.currentTarget.releasePointerCapture(e.pointerId);
     if (dragY > 90) {
       triggerClose();
     } else {
@@ -332,15 +358,15 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
       <div
         style={{ transform: sheetTransform, transition: sheetTransition }}
         className="fixed bottom-0 left-0 right-0 z-[51] flex flex-col max-h-[90vh] bg-[#0d0d0d] text-white rounded-t-3xl border-t border-white/50 shadow-[0_-16px_48px_rgba(0,0,0,0.7)] md:max-w-md md:mx-auto"
+        onPointerDown={handleDrawerPointerDown}
+        onPointerMove={handleDrawerPointerMove}
+        onPointerUp={handleDrawerPointerUp}
       >
         {/* Drag handle */}
         <div
-          onPointerDown={handleDrawerPointerDown}
-          onPointerMove={handleDrawerPointerMove}
-          onPointerUp={handleDrawerPointerUp}
-          className="flex items-center justify-center pt-3.5 pb-3 cursor-grab active:cursor-grabbing select-none touch-none"
+          className="flex items-center justify-center pt-3 pb-2.5 cursor-grab active:cursor-grabbing select-none touch-none"
         >
-          <div className="w-12 h-1.5 rounded-full bg-neutral-800 hover:bg-neutral-700 transition-colors" />
+          <div className="w-12 h-1 rounded-full bg-neutral-800 hover:bg-neutral-700 transition-colors" />
         </div>
 
         {/* Top Header */}
