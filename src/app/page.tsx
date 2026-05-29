@@ -236,7 +236,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-black text-white md:max-w-md md:mx-auto md:shadow-2xl md:border-x md:border-neutral-900 pb-28 relative flex flex-col overflow-hidden">
-      <ConstellationBackground opacity={0.45} particleCount={200} />
+      <ConstellationBackground opacity={0.45} particleCount={100} />
       
       {/* Dynamic Header */}
       <header className={`fixed top-0 left-0 right-0 mx-auto z-40 w-full md:max-w-md bg-[#0d0d0d]/80 backdrop-blur-md border-b transition-all duration-300 ease-out flex items-center justify-between ${

@@ -52,49 +52,17 @@ export default function ConstellationBackground({
       vy: number;
       radius: number;
       color: string;
-    }> = [];
-
-    // Enforce initial spacing check
-    const minInitDist = 45;
-    let attempts = 0;
-    while (particles.length < particleCount && attempts < 2000) {
-      const x = Math.random() * width;
-      const y = Math.random() * height;
-      
-      let tooClose = false;
-      for (const p of particles) {
-        if (Math.hypot(p.x - x, p.y - y) < minInitDist) {
-          tooClose = true;
-          break;
-        }
-      }
-      
-      if (!tooClose) {
-        const randomColor = colors[Math.floor(Math.random() * colors.length)];
-        particles.push({
-          x,
-          y,
-          vx: (Math.random() - 0.5) * 0.24,
-          vy: (Math.random() - 0.5) * 0.24,
-          radius: Math.random() * 2.0 + 1.2,
-          color: randomColor
-        });
-      }
-      attempts++;
-    }
-
-    // Fallback if boundary space is tight
-    while (particles.length < particleCount) {
+    }> = Array.from({ length: particleCount }, () => {
       const randomColor = colors[Math.floor(Math.random() * colors.length)];
-      particles.push({
+      return {
         x: Math.random() * width,
         y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.24,
-        vy: (Math.random() - 0.5) * 0.24,
-        radius: Math.random() * 2.0 + 1.2,
+        vx: (Math.random() - 0.5) * 0.28,
+        vy: (Math.random() - 0.5) * 0.28,
+        radius: Math.random() * 2.2 + 1.2,
         color: randomColor
-      });
-    }
+      };
+    });
 
     const mouse = { x: -1000, y: -1000 };
 
@@ -131,17 +99,16 @@ export default function ConstellationBackground({
     const draw = () => {
       ctx.clearRect(0, 0, width, height);
 
-      const minDist = 40; // Minimum separation distance between nodes in motion
-
       // Render vector constellations
       for (let i = 0; i < particles.length; i++) {
         const p1 = particles[i];
         
-        // Gentle bounds bounce checks
-        if (p1.x < 0) { p1.x = 0; p1.vx *= -1; }
-        if (p1.x > width) { p1.x = width; p1.vx *= -1; }
-        if (p1.y < 0) { p1.y = 0; p1.vy *= -1; }
-        if (p1.y > height) { p1.y = height; p1.vy *= -1; }
+        p1.x += p1.vx;
+        p1.y += p1.vy;
+
+        // Bounce screen bounds
+        if (p1.x < 0 || p1.x > width) p1.vx *= -1;
+        if (p1.y < 0 || p1.y > height) p1.vy *= -1;
 
         // Draw individual dot node
         ctx.beginPath();
@@ -149,25 +116,10 @@ export default function ConstellationBackground({
         ctx.fillStyle = `rgba(${p1.color}, 0.85)`;
         ctx.fill();
 
-        // Connect nearby nodes and apply separation force
+        // Connect nearby nodes
         for (let j = i + 1; j < particles.length; j++) {
           const p2 = particles[j];
-          const dx = p2.x - p1.x;
-          const dy = p2.y - p1.y;
-          const dist = Math.hypot(dx, dy);
-
-          // 1. Avoidance/Repulsion force
-          if (dist < minDist && dist > 0) {
-            const force = (minDist - dist) / minDist * 0.012; // Gentle repulsion
-            const fx = (dx / dist) * force;
-            const fy = (dy / dist) * force;
-            p1.vx -= fx;
-            p1.vy -= fy;
-            p2.vx += fx;
-            p2.vy += fy;
-          }
-
-          // 2. Draw connections
+          const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
           if (dist < 80) {
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
@@ -177,17 +129,6 @@ export default function ConstellationBackground({
             ctx.stroke();
           }
         }
-
-        // Limit velocity speed cap to keep floating motion slow and premium
-        const speed = Math.hypot(p1.vx, p1.vy);
-        const maxSpeed = 0.28;
-        if (speed > maxSpeed) {
-          p1.vx = (p1.vx / speed) * maxSpeed;
-          p1.vy = (p1.vy / speed) * maxSpeed;
-        }
-
-        p1.x += p1.vx;
-        p1.y += p1.vy;
 
         // Draw connections to user pointer
         const mouseDist = Math.hypot(p1.x - mouse.x, p1.y - mouse.y);
