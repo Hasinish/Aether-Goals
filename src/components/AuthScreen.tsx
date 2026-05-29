@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useGoalsStore } from "../lib/store";
 import { getSupabaseClient, isSupabaseConfigured } from "../lib/supabase";
-import { ArrowRight, KeyRound, Mail, ShieldAlert } from "lucide-react";
+import { ArrowRight, KeyRound, Mail, ShieldAlert, Download } from "lucide-react";
 import ConstellationBackground from "./ConstellationBackground";
 
 interface BeforeInstallPromptEvent extends Event {
@@ -190,6 +190,7 @@ export default function AuthScreen() {
             AETHER
             <span className="text-[8px] text-neutral-500 font-sans font-bold ml-1.5 opacity-80 tracking-normal normal-case">v1.0</span>
           </span>
+          <Download size={10} className="text-emerald-400 shrink-0" />
         </button>
       </div>
 

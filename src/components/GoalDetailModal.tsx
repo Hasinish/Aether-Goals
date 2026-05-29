@@ -238,10 +238,14 @@ export default function GoalDetailModal({
             ) : (
               <div className="space-y-2.5">
                 {subtasks.map((task) => (
-                  <div
+                  <button
                     key={task.id}
+                    type="button"
+                    role="checkbox"
+                    aria-checked={task.is_complete}
+                    aria-label={`Toggle subtask: ${task.title}`}
                     onClick={() => toggleSubtask(task.id)}
-                    className="flex items-center gap-4 p-4 border border-neutral-900 bg-neutral-950/60 rounded-md cursor-pointer hover:border-neutral-800 hover:bg-neutral-950/90 select-none transition-all duration-200"
+                    className="w-full text-left flex items-center gap-4 p-4 border border-neutral-900 bg-neutral-950/60 rounded-md cursor-pointer hover:border-neutral-800 hover:bg-neutral-950/90 select-none transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-700"
                   >
                     <div
                       className={`flex items-center justify-center w-5 h-5 rounded-md border transition-all duration-200 ${
@@ -262,7 +266,7 @@ export default function GoalDetailModal({
                     >
                       {task.title}
                     </span>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}

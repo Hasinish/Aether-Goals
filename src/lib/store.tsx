@@ -462,7 +462,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setGoals((current) => current.filter((goal) => goal.id !== newGoal.id));
       const errMsg = e instanceof Error ? e.message : String(e);
       setSyncError(`Failed to sync new goal: ${errMsg}`);
-      await refreshData();
       throw e;
     } finally {
       removePendingId(newGoalId);
@@ -549,9 +548,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         localStorage.setItem(STORAGE_KEYS.SUBTASKS, JSON.stringify(parsedSubtasks));
       }
     } catch (e) {
+      if (goalToUpdate) {
+        setGoals((prev) =>
+          prev.map((g) => (g.id === goalId ? goalToUpdate : g))
+        );
+      }
       const errMsg = e instanceof Error ? e.message : String(e);
       setSyncError(`Failed to update goal: ${errMsg}`);
-      await refreshData();
       throw e; 
     } finally {
       removePendingId(goalId);
@@ -559,6 +562,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteGoal = async (goalId: string) => {
+    const goalToDelete = goals.find((g) => g.id === goalId);
+    const originalIndex = goals.findIndex((g) => g.id === goalId);
+
     addPendingId(goalId);
     setGoals((prev) => prev.filter((g) => g.id !== goalId));
 
@@ -582,9 +588,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         localStorage.setItem(STORAGE_KEYS.SUBTASKS, JSON.stringify(updatedSubtasks));
       }
     } catch (e) {
+      if (goalToDelete && originalIndex !== -1) {
+        setGoals((prev) => {
+          const updated = [...prev];
+          if (!updated.some((g) => g.id === goalId)) {
+            updated.splice(originalIndex, 0, goalToDelete);
+          }
+          return updated;
+        });
+      }
       const errMsg = e instanceof Error ? e.message : String(e);
       setSyncError(`Failed to delete goal: ${errMsg}`);
-      await refreshData();
       throw e;
     } finally {
       removePendingId(goalId);
@@ -658,9 +672,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
       }
     } catch (e) {
+      if (targetGoalId) {
+        setGoals((prevGoals) => {
+          return prevGoals.map((g) => {
+            if (g.id === targetGoalId) {
+              const updatedSubtasks = (g.subtasks || []).map((s) => {
+                if (s.id === subtaskId) {
+                  return { ...s, is_complete: !newIsComplete };
+                }
+                return s;
+              });
+              return calculateGoalMetrics({ ...g, subtasks: updatedSubtasks });
+            }
+            return g;
+          });
+        });
+      }
       const errMsg = e instanceof Error ? e.message : String(e);
       setSyncError(`Failed to save subtask status: ${errMsg}`);
-      await refreshData();
     } finally {
       inflightSubtasksRef.current.delete(subtaskId);
     }
@@ -669,6 +698,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const reorderGoals = async (startIndex: number, endIndex: number) => {
     if (isReorderingRef.current) return;
     isReorderingRef.current = true;
+
+    const previousGoals = [...goals];
 
     const updated = [...goals];
     if (startIndex < 0 || startIndex >= updated.length || endIndex < 0 || endIndex >= updated.length) {
@@ -701,9 +732,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(reordered));
       }
     } catch (e) {
+      setGoals(previousGoals);
       const errMsg = e instanceof Error ? e.message : String(e);
       setSyncError(`Failed to save reorder: ${errMsg}`);
-      await refreshData();
     } finally {
       isReorderingRef.current = false;
     }

@@ -130,7 +130,7 @@ export default function GoalCard({
                 disabled={isFirst}
                 onClick={onMoveUp}
                 aria-label="Move Goal Up"
-                className={`p-1.5 rounded-md transition-all ${
+                className={`p-1.5 rounded-md transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white focus-visible:bg-neutral-900 ${
                   isFirst
                     ? "text-neutral-700 opacity-30 pointer-events-none"
                     : "text-neutral-500 hover:text-white hover:bg-neutral-900"
@@ -144,7 +144,7 @@ export default function GoalCard({
                 disabled={isLast}
                 onClick={onMoveDown}
                 aria-label="Move Goal Down"
-                className={`p-1.5 rounded-md transition-all ${
+                className={`p-1.5 rounded-md transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white focus-visible:bg-neutral-900 ${
                   isLast
                     ? "text-neutral-700 opacity-30 pointer-events-none"
                     : "text-neutral-500 hover:text-white hover:bg-neutral-900"

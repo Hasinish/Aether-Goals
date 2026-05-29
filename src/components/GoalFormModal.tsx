@@ -145,7 +145,7 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
   };
 
   // --- POINTER EVENT DRAG SORTING HANDLERS ---
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>, idx: number) => {
+  const handlePointerDown = (e: React.PointerEvent<HTMLElement>, idx: number) => {
     // Only drag with left mouse button / primary touch pointer
     if (e.button !== 0) return;
 
@@ -170,7 +170,7 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
     setIsGliding(false);
   };
 
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handlePointerMove = (e: React.PointerEvent<HTMLElement>) => {
     const from = draggedIndexRef.current;
     if (from === null || isGliding) return;
 
@@ -205,7 +205,7 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
     }
   };
 
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handlePointerUp = (e: React.PointerEvent<HTMLElement>) => {
     const from = draggedIndexRef.current;
     const to = hoveredIndexRef.current;
 
@@ -240,6 +240,36 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
       setDraggedOffset(0);
       setIsGliding(false);
     }, 280);
+  };
+ 
+  const handleGripKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, idx: number) => {
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (idx === 0) return;
+      setSubtasks((prev) => {
+        const updated = [...prev];
+        const [movedItem] = updated.splice(idx, 1);
+        updated.splice(idx - 1, 0, movedItem);
+        return updated;
+      });
+      requestAnimationFrame(() => {
+        const buttons = formRef.current?.querySelectorAll("[data-subtask-grip]") as NodeListOf<HTMLButtonElement>;
+        buttons[idx - 1]?.focus();
+      });
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (idx === subtasks.length - 1) return;
+      setSubtasks((prev) => {
+        const updated = [...prev];
+        const [movedItem] = updated.splice(idx, 1);
+        updated.splice(idx + 1, 0, movedItem);
+        return updated;
+      });
+      requestAnimationFrame(() => {
+        const buttons = formRef.current?.querySelectorAll("[data-subtask-grip]") as NodeListOf<HTMLButtonElement>;
+        buttons[idx + 1]?.focus();
+      });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -477,15 +507,19 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
                       }}
                     >
                       {/* Grip Handle Icon (Restricted Draggability Handle via PointerEvents) */}
-                      <div
+                      <button
+                        type="button"
+                        data-subtask-grip="true"
+                        aria-label={`Move subtask "${task.title}" up or down`}
                         onPointerDown={(e) => handlePointerDown(e, idx)}
                         onPointerMove={handlePointerMove}
                         onPointerUp={handlePointerUp}
                         onPointerCancel={handlePointerUp}
-                        className="cursor-grab active:cursor-grabbing p-1 text-neutral-600 hover:text-neutral-400 transition-colors shrink-0 touch-none"
+                        onKeyDown={(e) => handleGripKeyDown(e, idx)}
+                        className="cursor-grab active:cursor-grabbing p-1 text-neutral-600 hover:text-neutral-400 focus-visible:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white rounded transition-colors shrink-0 touch-none"
                       >
                         <GripVertical size={14} />
-                      </div>
+                      </button>
 
                       <input
                         type="text"
