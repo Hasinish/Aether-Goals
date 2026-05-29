@@ -314,7 +314,7 @@ function OrbitalBezelMenu() {
   );
 }
 
-// 6. Interactive flow field swirling currents
+// 6. Interactive flow field swirling currents (mockup vector grid)
 function InteractiveVectorFlowField() {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
 
@@ -335,22 +335,6 @@ function InteractiveVectorFlowField() {
     };
     window.addEventListener("resize", handleResize);
 
-    const particles: Array<{
-      x: number;
-      y: number;
-      vx: number;
-      vy: number;
-      alpha: number;
-      speed: number;
-    }> = Array.from({ length: 180 }, () => ({
-      x: Math.random() * width,
-      y: Math.random() * height,
-      vx: 0,
-      vy: 0,
-      alpha: Math.random() * 0.5 + 0.25,
-      speed: Math.random() * 0.8 + 0.4
-    }));
-
     const mouse = { x: -1000, y: -1000 };
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -367,45 +351,69 @@ function InteractiveVectorFlowField() {
     canvas.addEventListener("mousemove", handleMouseMove, { passive: true });
     canvas.addEventListener("mouseleave", handleMouseLeave, { passive: true });
 
+    let time = 0;
+
     const draw = () => {
-      ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
-      ctx.fillRect(0, 0, width, height);
+      ctx.clearRect(0, 0, width, height);
+      time += 0.5;
 
-      for (let i = 0; i < particles.length; i++) {
-        const p = particles[i];
-        const angle = Math.sin(p.x * 0.008) * Math.cos(p.y * 0.008) * Math.PI * 2;
-        
-        p.vx += Math.cos(angle) * 0.05;
-        p.vy += Math.sin(angle) * 0.05;
+      const spacing = 16; // Dense vector grid spacing
+      const lineLength = 8; // Length of grid vectors
+      const cols = Math.ceil(width / spacing) + 1;
+      const rows = Math.ceil(height / spacing) + 1;
 
-        const dist = Math.hypot(p.x - mouse.x, p.y - mouse.y);
-        if (dist < 80) {
-          const force = (80 - dist) / 80;
-          const mouseAngle = Math.atan2(p.y - mouse.y, p.x - mouse.x);
-          p.vx += Math.cos(mouseAngle) * force * 0.4;
-          p.vy += Math.sin(mouseAngle) * force * 0.4;
+      // Draw vector flow grid
+      for (let c = 0; c < cols; c++) {
+        for (let r = 0; r < rows; r++) {
+          const x = c * spacing;
+          const y = r * spacing;
+
+          // Sandbox center swirl origin
+          const centerX = width / 2;
+          const centerY = height / 2;
+
+          const dxToCenter = x - centerX;
+          const dyToCenter = y - centerY;
+          const distToCenter = Math.hypot(dxToCenter, dyToCenter) || 1;
+
+          // Vortex swirl angle
+          const spiralAngle = Math.atan2(dyToCenter, dxToCenter) + Math.PI / 2;
+          const waveOffset = Math.sin(time * 0.015 + distToCenter * 0.015) * 0.3;
+          const baseAngle = spiralAngle + waveOffset;
+
+          let angle = baseAngle;
+          const dxToMouse = mouse.x - x;
+          const dyToMouse = mouse.y - y;
+          const distToMouse = Math.hypot(dxToMouse, dyToMouse);
+
+          let opacity = 0.18; // Clean resting slate opacity
+
+          if (mouse.x !== -1000 && mouse.y !== -1000) {
+            const influenceRadius = 65;
+            if (distToMouse < influenceRadius) {
+              const influence = 1 - distToMouse / influenceRadius;
+              const smoothInfluence = influence * influence * (3 - 2 * influence);
+              
+              // Swirl around mouse
+              const mouseSwirl = Math.atan2(dyToMouse, dxToMouse) + Math.PI / 2 + Math.PI / 6;
+              angle = (1 - smoothInfluence) * baseAngle + smoothInfluence * mouseSwirl;
+              
+              opacity = 0.18 + smoothInfluence * 0.65;
+            }
+          }
+
+          const halfL = lineLength / 2;
+          const lx = Math.cos(angle) * halfL;
+          const ly = Math.sin(angle) * halfL;
+
+          ctx.beginPath();
+          ctx.moveTo(x - lx, y - ly);
+          ctx.lineTo(x + lx, y + ly);
+          
+          ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
+          ctx.lineWidth = opacity > 0.3 ? 1.25 : 0.8;
+          ctx.stroke();
         }
-
-        const currSpeed = Math.hypot(p.vx, p.vy);
-        if (currSpeed > p.speed) {
-          p.vx = (p.vx / currSpeed) * p.speed;
-          p.vy = (p.vy / currSpeed) * p.speed;
-        }
-
-        p.x += p.vx;
-        p.y += p.vy;
-
-        if (p.x < 0 || p.x > width || p.y < 0 || p.y > height) {
-          p.x = Math.random() * width;
-          p.y = Math.random() * height;
-          p.vx = 0;
-          p.vy = 0;
-        }
-
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 0.8, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha})`;
-        ctx.fill();
       }
 
       animationFrameId = requestAnimationFrame(draw);
@@ -426,9 +434,9 @@ function InteractiveVectorFlowField() {
   return (
     <div className="border border-neutral-900 bg-black rounded-lg overflow-hidden h-40 relative flex items-center justify-center">
       <canvas ref={canvasRef} className="absolute inset-0 block pointer-events-auto" />
-      <div className="z-10 absolute pointer-events-none text-center bg-black/75 backdrop-blur-[2px] border border-neutral-800/50 p-2.5 rounded-lg select-none">
-        <span className="block text-[9px] font-mono text-neutral-400 uppercase tracking-widest">Vector Flow Field</span>
-        <span className="block text-[7px] font-mono text-neutral-600">DYNAMIC SWIRLING CURRENTS WITH CURSOR INTERACTION</span>
+      <div className="z-10 absolute pointer-events-none text-center bg-black/85 backdrop-blur-[2px] border border-neutral-800/60 p-2.5 rounded-lg select-none">
+        <span className="block text-[9px] font-mono text-neutral-400 uppercase tracking-widest font-bold">Vector Flow Field</span>
+        <span className="block text-[7px] font-mono text-neutral-600 uppercase">HIGH-FIDELITY VECTOR ROTATIONAL VORTEX GRID</span>
       </div>
     </div>
   );

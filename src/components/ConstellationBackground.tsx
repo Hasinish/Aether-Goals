@@ -32,7 +32,7 @@ export default function ConstellationBackground({
       width = canvas.width = parent.clientWidth || window.innerWidth;
       height = canvas.height = parent.clientHeight || window.innerHeight;
     };
-    
+
     // ResizeObserver tracks actual parent element dimension changes
     const resizeObserver = new ResizeObserver(() => {
       handleResize();
@@ -92,7 +92,7 @@ export default function ConstellationBackground({
       // Render vector constellations
       for (let i = 0; i < particles.length; i++) {
         const p1 = particles[i];
-        
+
         p1.x += p1.vx;
         p1.y += p1.vy;
 
