@@ -116,10 +116,10 @@ body {
 
 .border-sweep-card {
   position: relative;
-  background: rgba(255, 255, 255, 0.01); /* Near-invisible super-transparent glass */
-  backdrop-filter: blur(5px); /* Ultra-transparent crystalline blur to see background nodes sharply */
+  background: rgba(255, 255, 255, 0.1); /* Frosted glass card body at 10% opacity */
+  backdrop-filter: blur(5px); /* Clean crystalline blur to see background nodes sharply */
   -webkit-backdrop-filter: blur(5px);
-  border: 1px solid rgba(255, 255, 255, 0.04); /* Razor-thin crystalline edge */
+  border: 1px solid rgba(255, 255, 255, 0.08); /* Razer-thin premium crystalline border edge */
   transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
