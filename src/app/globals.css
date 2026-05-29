@@ -117,24 +117,26 @@ body {
 .border-sweep-card {
   position: relative;
   border: 1px solid transparent;
-  background: linear-gradient(#0a0a0a, #0a0a0a) padding-box,
-              linear-gradient(#262626, #262626) border-box;
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  background: linear-gradient(rgba(10, 10, 10, 0.55), rgba(10, 10, 10, 0.55)) padding-box,
+              linear-gradient(rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.09)) border-box;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
 }
 
 .border-sweep-card:hover {
-  background: linear-gradient(#0a0a0a, #0a0a0a) padding-box,
-              linear-gradient(90deg, #262626 0%, #262626 40%, #ffffff 50%, #262626 60%, #262626 100%) border-box;
+  background: linear-gradient(rgba(10, 10, 10, 0.55), rgba(10, 10, 10, 0.55)) padding-box,
+              linear-gradient(90deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.09) 40%, rgba(255, 255, 255, 0.7) 50%, rgba(255, 255, 255, 0.09) 60%, rgba(255, 255, 255, 0.09) 100%) border-box;
   background-size: auto, 200% auto;
   background-position: center, 150% center;
   animation: borderSweep 2.2s linear infinite;
   transform: translateY(-2.5px);
-  box-shadow: 0 12px 36px rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 36px rgba(255, 255, 255, 0.12);
 }
 
 .border-sweep-card:active {
   transform: translateY(0.5px) scale(0.975);
-  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.03);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.05);
 }
 
 
