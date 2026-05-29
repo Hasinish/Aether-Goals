@@ -28,6 +28,65 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
   const draggedIndexRef = useRef<number | null>(null);
   
   const formRef = useRef<HTMLFormElement>(null);
+  const subtaskRectsRef = useRef<Record<string, DOMRect>>({});
+  const isSubtaskReorderingRef = useRef(false);
+  const useIsomorphicLayoutEffect = typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect;
+
+  const measureSubtaskRows = () => {
+    const elements = document.querySelectorAll("[data-subtask-id]");
+    const rects: Record<string, DOMRect> = {};
+    elements.forEach((el) => {
+      const id = el.getAttribute("data-subtask-id");
+      if (id) {
+        rects[id] = el.getBoundingClientRect();
+      }
+    });
+    subtaskRectsRef.current = rects;
+  };
+
+  useIsomorphicLayoutEffect(() => {
+    if (!isSubtaskReorderingRef.current) return;
+    isSubtaskReorderingRef.current = false;
+
+    const elements = document.querySelectorAll("[data-subtask-id]") as NodeListOf<HTMLElement>;
+    const movedElements: Array<{ el: HTMLElement }> = [];
+
+    elements.forEach((el) => {
+      const id = el.getAttribute("data-subtask-id");
+      if (!id) return;
+      const firstRect = subtaskRectsRef.current[id];
+      if (!firstRect) return;
+
+      const lastRect = el.getBoundingClientRect();
+      const deltaY = firstRect.top - lastRect.top;
+      const deltaX = firstRect.left - lastRect.left;
+
+      if (deltaX !== 0 || deltaY !== 0) {
+        el.style.transition = "none";
+        el.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+        movedElements.push({ el });
+      }
+    });
+
+    if (movedElements.length === 0) return;
+
+    // Force browser layout flush so the inverted transforms are committed before the next paint
+    void document.body.offsetHeight;
+
+    requestAnimationFrame(() => {
+      movedElements.forEach(({ el }) => {
+        el.style.transition = "transform 280ms cubic-bezier(0.16, 1, 0.3, 1)";
+        el.style.transform = "translate(0px, 0px)";
+      });
+
+      setTimeout(() => {
+        movedElements.forEach(({ el }) => {
+          el.style.transition = "";
+          el.style.transform = "";
+        });
+      }, 280);
+    });
+  }, [subtasks]);
 
   // Pre-populate if editing
   useEffect(() => {
@@ -83,6 +142,8 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
   const handleDragEnter = (targetIdx: number) => {
     const currentDrag = draggedIndexRef.current;
     if (currentDrag !== null && currentDrag !== targetIdx) {
+      measureSubtaskRows();
+      isSubtaskReorderingRef.current = true;
       setSubtasks((prev) => {
         const updated = [...prev];
         const [draggedItem] = updated.splice(currentDrag, 1);
@@ -116,6 +177,8 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
       if (targetRow) {
         const targetIdx = parseInt(targetRow.getAttribute("data-subtask-index") || "", 10);
         if (!isNaN(targetIdx) && targetIdx !== currentDrag) {
+          measureSubtaskRows();
+          isSubtaskReorderingRef.current = true;
           setSubtasks((prev) => {
             const updated = [...prev];
             const [draggedItem] = updated.splice(currentDrag, 1);
@@ -320,6 +383,7 @@ export default function GoalFormModal({ editGoal, onClose }: GoalFormModalProps)
                 <div
                   key={task.id}
                   data-subtask-index={idx}
+                  data-subtask-id={task.id}
                   onDragEnter={() => handleDragEnter(idx)}
                   onDragOver={handleDragOver}
                   className={`flex items-center justify-between gap-3 p-3.5 border border-neutral-900 bg-neutral-950/40 rounded-md focus-within:border-neutral-700 transition-all duration-300 select-none ${
