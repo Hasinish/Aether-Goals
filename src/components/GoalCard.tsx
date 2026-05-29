@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useCountUp } from "../hooks/useCountUp";
 import { Goal } from "../lib/types";
 import { useGoalsStore } from "../lib/store";
 import { MoreHorizontal, Edit2, Trash2, ChevronUp, ChevronDown, AlertTriangle } from "lucide-react";
@@ -27,6 +28,7 @@ export default function GoalCard({
 }: GoalCardProps) {
   const { deleteGoal, pendingGoalIds } = useGoalsStore();
   const isPending = pendingGoalIds.has(goal.id);
+  const displayPercent = useCountUp(goal.progressPercent || 0, 900);
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -83,8 +85,10 @@ export default function GoalCard({
     <div
       onClick={() => !isPending && !showDeleteConfirm && onTap(goal)}
       onMouseLeave={() => setShowMenu(false)}
-      className={`group relative flex flex-col justify-between w-full min-h-[160px] p-4 bg-neutral-950 border border-neutral-800 rounded-lg cursor-pointer select-none overflow-visible transition-all duration-300 ${
-        isPending ? "opacity-50 pointer-events-none" : "hover:border-neutral-600 hover:shadow-[0_4px_32px_rgba(255,255,255,0.06)]"
+      className={`group relative flex flex-col justify-between w-full min-h-[160px] p-4 rounded-lg cursor-pointer select-none overflow-visible ${
+        isPending || showDeleteConfirm
+          ? "bg-neutral-950 border border-neutral-800" + (isPending ? " opacity-50 pointer-events-none" : "")
+          : "border-sweep-card"
       }`}
     >
       {/* Inline delete confirmation overlay */}
@@ -210,7 +214,7 @@ export default function GoalCard({
         {/* Stats Row */}
         <div className="flex items-center justify-between gap-4 mb-2 select-none">
           <span className="text-white font-mono text-sm tracking-wider font-extrabold">
-            {goal.progressPercent || 0}%
+            {displayPercent}%
           </span>
         </div>
 

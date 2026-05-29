@@ -9,7 +9,9 @@ import AuthScreen from "@/components/AuthScreen";
 import GoalCard from "@/components/GoalCard";
 import GoalDetailModal from "@/components/GoalDetailModal";
 import GoalFormModal from "@/components/GoalFormModal";
+import AetherLogo from "@/components/AetherLogo";
 import { LogOut, Plus, Search, Sparkles } from "lucide-react";
+import ConstellationBackground from "@/components/ConstellationBackground";
 
 export default function Home() {
   const { goals, loading, user, logout, reorderGoals, syncError, clearSyncError } = useGoalsStore();
@@ -19,10 +21,12 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [showSearch, setShowSearch] = useState(false);
+  const [isHeaderCompressed, setIsHeaderCompressed] = useState(false);
 
   const cardRectsRef = React.useRef<Record<string, DOMRect>>({});
   const prevGoalsRef = React.useRef<Goal[]>([]);
   const isReorderingRef = React.useRef(false);
+  const tagsRef = React.useRef<HTMLDivElement>(null);
 
   // Get all unique tags for the horizontal tag filters (Memoized at top to avoid conditional hook early returns)
   const allTags = React.useMemo(() => {
@@ -83,6 +87,76 @@ export default function Home() {
     isReorderingRef.current = false;
   }, [goals]);
 
+  React.useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 20) {
+        setIsHeaderCompressed(true);
+      } else {
+        setIsHeaderCompressed(false);
+      }
+    };
+    // Initialize immediately on mount in case page is already scrolled
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    const el = tagsRef.current;
+    if (!el) return;
+
+    let isDown = false;
+    let startX = 0;
+    let scrollLeft = 0;
+    let isDragging = false;
+
+    const onMouseDown = (e: MouseEvent) => {
+      isDown = true;
+      startX = e.pageX - el.offsetLeft;
+      scrollLeft = el.scrollLeft;
+      isDragging = false;
+    };
+
+    const onMouseLeave = () => {
+      isDown = false;
+    };
+
+    const onMouseUp = () => {
+      if (isDragging) {
+        const preventClick = (e: MouseEvent) => {
+          e.stopImmediatePropagation();
+          el.removeEventListener("click", preventClick, true);
+        };
+        el.addEventListener("click", preventClick, true);
+      }
+      isDown = false;
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDown) return;
+      const x = e.pageX - el.offsetLeft;
+      const walk = (x - startX) * 1.5;
+      if (Math.abs(walk) > 5) {
+        isDragging = true;
+      }
+      el.scrollLeft = scrollLeft - walk;
+    };
+
+    el.addEventListener("mousedown", onMouseDown);
+    el.addEventListener("mouseleave", onMouseLeave);
+    el.addEventListener("mouseup", onMouseUp);
+    el.addEventListener("mousemove", onMouseMove);
+
+    return () => {
+      el.removeEventListener("mousedown", onMouseDown);
+      el.removeEventListener("mouseleave", onMouseLeave);
+      el.removeEventListener("mouseup", onMouseUp);
+      el.removeEventListener("mousemove", onMouseMove);
+    };
+  }, [goals]);
+
   // Authenticate Gate
   if (!user) {
     return <AuthScreen />;
@@ -140,16 +214,25 @@ export default function Home() {
   });
 
   return (
-    <div className="min-h-screen bg-black text-white md:max-w-md md:mx-auto md:shadow-2xl md:border-x md:border-neutral-900 pb-28 relative flex flex-col">
+    <div className="min-h-screen bg-black text-white md:max-w-md md:mx-auto md:shadow-2xl md:border-x md:border-neutral-900 pb-28 relative flex flex-col overflow-hidden">
+      <ConstellationBackground opacity={0.45} particleCount={100} />
       
       {/* Dynamic Header */}
-      <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-neutral-900 px-6 py-5 flex items-center justify-between">
-        <div className="flex items-center gap-2 select-none">
+      <header className={`fixed top-0 left-0 right-0 mx-auto z-40 w-full md:max-w-md bg-black/80 backdrop-blur-md border-b transition-all duration-300 ease-out flex items-center justify-between ${
+        isHeaderCompressed
+          ? "py-3 px-6 border-neutral-800 shadow-[0_4px_30px_rgba(0,0,0,0.85)]"
+          : "py-5 px-6 border-neutral-900/60 shadow-none"
+      }`}>
+        <div className={`flex items-center gap-2 select-none transition-transform duration-300 ease-out origin-left ${
+          isHeaderCompressed ? "scale-[0.91]" : "scale-100"
+        }`}>
           <div className="w-2.5 h-2.5 bg-white rounded-lg animate-pulse" />
-          <h1 className="text-xl font-black tracking-tighter uppercase">Aether</h1>
+          <AetherLogo />
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className={`flex items-center gap-2.5 transition-transform duration-300 ease-out origin-right ${
+          isHeaderCompressed ? "scale-[0.91]" : "scale-100"
+        }`}>
           <span className="text-[10px] uppercase font-mono tracking-widest text-neutral-500 hidden sm:inline-block mr-1.5">
             {user === "guest" ? "Guest Sandbox" : user.email?.split("@")[0]}
           </span>
@@ -180,7 +263,7 @@ export default function Home() {
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 px-6 py-6 space-y-6">
+      <main className="flex-1 px-6 pt-24 pb-6 space-y-6">
         {/* Decorative Quote Panel */}
         <div className="flex items-center gap-3 p-4 border border-neutral-900 bg-neutral-950/40 rounded-lg select-none">
           <Sparkles size={16} className="text-neutral-400 shrink-0" />
@@ -206,7 +289,10 @@ export default function Home() {
 
         {/* Tag Filters Row */}
         {allTags.length > 0 && (
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 select-none">
+          <div 
+            ref={tagsRef}
+            className="flex items-center gap-1.5 overflow-x-auto pb-2.5 -mx-6 px-6 touch-pan-x flex-nowrap shrink-0 pointer-events-auto select-none cursor-grab active:cursor-grabbing"
+          >
             <button
               onClick={() => setSelectedTag(null)}
               className={`px-3 py-1 text-[9px] uppercase tracking-wider font-mono rounded-lg border transition-all ${
@@ -257,9 +343,10 @@ export default function Home() {
           <div className="grid grid-cols-1 gap-3.5">
             {filteredGoals.map((goal, idx) => (
               <div
-                key={goal.id}
+                key={`${goal.id}-${selectedTag}`}
                 data-drag-id={goal.id}
-                className="select-none opacity-100"
+                className="animate-card-entrance"
+                style={{ animationDelay: `${idx * 60}ms` }}
               >
                 <GoalCard
                   goal={goal}

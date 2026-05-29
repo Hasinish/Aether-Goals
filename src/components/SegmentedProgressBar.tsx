@@ -1,12 +1,10 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 
 interface SegmentedProgressBarProps {
   progressPercent: number;
   totalSegments?: number;
   heightClass?: string;
   gapClass?: string;
-  activeColorClass?: string;
-  inactiveColorClass?: string;
   segmentIdPrefix: string;
 }
 
@@ -15,11 +13,22 @@ export default function SegmentedProgressBar({
   totalSegments = 20,
   heightClass = "h-3",
   gapClass = "gap-[2px]",
-  activeColorClass = "bg-white opacity-100",
-  inactiveColorClass = "bg-neutral-700 opacity-60",
   segmentIdPrefix,
 }: SegmentedProgressBarProps) {
+  const [shouldAnimate, setShouldAnimate] = useState(false);
   const activeSegments = Math.round((progressPercent / 100) * totalSegments);
+
+  useEffect(() => {
+    // Reset state to force animation re-trigger
+    setShouldAnimate(false);
+    
+    // Tiny delay to ensure browser paints the un-animated base clipped state
+    const timer = setTimeout(() => {
+      setShouldAnimate(true);
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, [progressPercent]);
 
   return (
     <div 
@@ -34,9 +43,17 @@ export default function SegmentedProgressBar({
         return (
           <div
             key={`${segmentIdPrefix}-${idx}`}
-            className={`flex-1 h-full rounded-[1px] transition-all duration-500 ${
-              isActive ? activeColorClass : inactiveColorClass
-            }`}
+            className="flex-1 h-full rounded-[1px]"
+            style={
+              isActive && shouldAnimate
+                ? {
+                    animation: `ledTurnOn 0.12s ease-out ${idx * 60}ms forwards`,
+                    backgroundColor: "rgba(255, 255, 255, 0.06)",
+                  }
+                : {
+                    backgroundColor: "rgba(255, 255, 255, 0.06)",
+                  }
+            }
           />
         );
       })}

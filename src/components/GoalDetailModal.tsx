@@ -140,7 +140,6 @@ export default function GoalDetailModal({ goalId, onClose, onEditTap }: GoalDeta
             totalSegments={30}
             heightClass="h-7"
             gapClass="gap-[3px]"
-            activeColorClass="bg-neutral-200 opacity-100"
             segmentIdPrefix={`detail-segment-${goal.id}`}
           />
 

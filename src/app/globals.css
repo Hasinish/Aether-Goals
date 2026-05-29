@@ -42,6 +42,42 @@ body {
   animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* Staggered card entrance */
+@keyframes cardEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-card-entrance {
+  opacity: 0;
+  animation: cardEntrance 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Shimmer sweep across active progress segments */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.segment-shimmer {
+  background: linear-gradient(
+    90deg,
+    #ffffff 0%,
+    #ffffff 40%,
+    #e8e8e8 50%,
+    #ffffff 60%,
+    #ffffff 100%
+  );
+  background-size: 200% auto;
+  animation: shimmer 2.4s linear infinite;
+}
+
 /* Hide scrollbars for clean minimal app shell view */
 ::-webkit-scrollbar {
   display: none;
@@ -49,4 +85,81 @@ body {
 
 * {
   scrollbar-width: none;
+}
+
+/* Metallic scroll-driven shimmer for the Aether logo */
+.aether-logo-metallic {
+  background: linear-gradient(
+    110deg,
+    #888  0%,
+    #888 48%,
+    #ccc 48%,
+    #fff 50%,
+    #ccc 52%,
+    #888 52%,
+    #888 100%
+  );
+  background-size: 800% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  background-position-x: 0px;
+  will-change: background-position-x;
+}
+
+/* Premium Dynamic Interactive Goal Cards (Combined Options B and C) */
+@keyframes borderSweep {
+  0% { background-position: center, 150% center; }
+  100% { background-position: center, -50% center; }
+}
+
+.border-sweep-card {
+  position: relative;
+  border: 1px solid transparent;
+  background: linear-gradient(#0a0a0a, #0a0a0a) padding-box,
+              linear-gradient(#262626, #262626) border-box;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.border-sweep-card:hover {
+  background: linear-gradient(#0a0a0a, #0a0a0a) padding-box,
+              linear-gradient(90deg, #262626 0%, #262626 40%, #ffffff 50%, #262626 60%, #262626 100%) border-box;
+  background-size: auto, 200% auto;
+  background-position: center, 150% center;
+  animation: borderSweep 2.2s linear infinite;
+  transform: translateY(-2.5px);
+  box-shadow: 0 12px 36px rgba(255, 255, 255, 0.08);
+}
+
+.border-sweep-card:active {
+  transform: translateY(0.5px) scale(0.975);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.03);
+}
+
+/* Staggered Boot-Up Cascade for Progress Segments */
+@keyframes segmentBoot {
+  from {
+    opacity: 0;
+    transform: scaleY(0.75);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+.segment-boot-animate {
+  opacity: 0;
+  animation: segmentBoot 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* LED Segment Turn-On instant color transition keyframe */
+@keyframes ledTurnOn {
+  from {
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+  to {
+    background-color: #ffffff;
+  }
 }

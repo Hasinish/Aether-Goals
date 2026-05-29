@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useGoalsStore } from "../lib/store";
 import { getSupabaseClient, isSupabaseConfigured } from "../lib/supabase";
 import { ArrowRight, KeyRound, Mail, ShieldAlert } from "lucide-react";
+import ConstellationBackground from "./ConstellationBackground";
 
 export default function AuthScreen() {
   const { loginAsGuest } = useGoalsStore();
@@ -80,7 +81,8 @@ export default function AuthScreen() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-between min-h-screen bg-black text-white px-6 py-12 md:max-w-md md:mx-auto md:shadow-2xl md:border-x md:border-neutral-900 select-none animate-fade-in">
+    <div className="flex flex-col items-center justify-between min-h-screen bg-black text-white px-6 py-12 md:max-w-md md:mx-auto md:shadow-2xl md:border-x md:border-neutral-900 select-none animate-fade-in relative overflow-hidden">
+      <ConstellationBackground opacity={0.3} particleCount={60} />
       
       {/* Decorative Top Accent */}
       <div className="w-full flex justify-center mt-8">
