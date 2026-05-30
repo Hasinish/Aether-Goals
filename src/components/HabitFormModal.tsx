@@ -50,12 +50,16 @@ export default function HabitFormModal({ editHabit, onClose }: HabitFormModalPro
   const [error, setError] = useState("");
 
   // Sheet animation state
-  const [dragY, setDragY] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const startDragY = useRef(0);
+  const sheetRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const triggerCloseRef = useRef<() => void>(() => {});
+
+  // Mouse-only drag refs (desktop handle)
+  const mouseActiveRef = useRef(false);
+  const mouseStartYRef = useRef(0);
+  const mouseDragYRef = useRef(0);
 
   useEffect(() => {
     const t = requestAnimationFrame(() => setIsMounted(true));
@@ -64,8 +68,14 @@ export default function HabitFormModal({ editHabit, onClose }: HabitFormModalPro
 
   const triggerClose = useCallback(() => {
     setIsClosing(true);
+    if (sheetRef.current) {
+      sheetRef.current.style.transition = "transform 0.32s cubic-bezier(0.4, 0, 1, 1)";
+      sheetRef.current.style.transform = "translateY(100%)";
+    }
     setTimeout(onClose, 320);
   }, [onClose]);
+
+  useEffect(() => { triggerCloseRef.current = triggerClose; }, [triggerClose]);
 
   // Pre-populate when editing
   useEffect(() => {
@@ -83,39 +93,148 @@ export default function HabitFormModal({ editHabit, onClose }: HabitFormModalPro
     setError("");
   }, [editHabit]);
 
-  // ── Drawer gesture handlers ────────────────────────────────────────────
+  // ── Native touch: smart scroll vs sheet-drag detection ─────────────────
+  useEffect(() => {
+    const sheet = sheetRef.current;
+    const form = formRef.current;
+    if (!sheet || !form) return;
+
+    let startY = 0;
+    let mode: "undecided" | "sheet" | "scroll" = "undecided";
+    let currentDrag = 0;
+    let lastY = 0;
+    let lastTime = 0;
+    let velocity = 0;
+
+    const onTouchStart = (e: TouchEvent) => {
+      const rawTarget = e.target as Node | null;
+      if (!rawTarget) return;
+
+      // Extract element safely (handling potential text nodes)
+      const target = rawTarget instanceof Element ? rawTarget : rawTarget.parentElement;
+      if (!target) return;
+
+      const insideForm = form.contains(target);
+
+      startY = e.touches[0].clientY;
+      lastY = startY;
+      lastTime = performance.now();
+      velocity = 0;
+      currentDrag = 0;
+
+      if (!insideForm) {
+        mode = "sheet";
+      } else {
+        mode = "undecided";
+      }
+
+      sheet.style.transition = "none";
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      const y = e.touches[0].clientY;
+      const now = performance.now();
+      const dt = now - lastTime;
+      if (dt > 0) velocity = (y - lastY) / dt;
+      lastY = y;
+      lastTime = now;
+
+      const deltaY = y - startY;
+
+      if (mode === "undecided") {
+        const absDeltaY = Math.abs(deltaY);
+        if (absDeltaY > 1) {
+          if (deltaY > 0 && form.scrollTop <= 1) {
+            mode = "sheet";
+          } else {
+            mode = "scroll";
+          }
+        } else {
+          // Preemptively block native scroll/bounce initiation on any down drag at top
+          if (deltaY > 0 && form.scrollTop <= 1 && e.cancelable) {
+            e.preventDefault();
+          }
+        }
+      } else if (mode === "scroll") {
+        // If we are scrolling natively, but hit the top and continue pulling down
+        if (form.scrollTop <= 1 && y > lastY) {
+          mode = "sheet";
+          startY = y; // Reset startY to drag sheet smoothly from 0
+        }
+      }
+
+      if (mode === "sheet") {
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+        currentDrag = Math.max(0, y - startY);
+        sheet.style.transform = `translateY(${currentDrag}px)`;
+      }
+    };
+
+    const onTouchEnd = () => {
+      if (mode === "sheet") {
+        if (currentDrag > 90 || velocity > 0.5) {
+          triggerCloseRef.current();
+        } else {
+          sheet.style.transition = "transform 0.42s cubic-bezier(0.175, 0.885, 0.32, 1.18)";
+          sheet.style.transform = "translateY(0px)";
+        }
+      }
+      mode = "undecided";
+      currentDrag = 0;
+    };
+
+    sheet.addEventListener("touchstart", onTouchStart, { passive: false, capture: true });
+    sheet.addEventListener("touchmove", onTouchMove, { passive: false, capture: true });
+    sheet.addEventListener("touchend", onTouchEnd, { passive: true });
+    sheet.addEventListener("touchcancel", onTouchEnd, { passive: true });
+
+    return () => {
+      sheet.removeEventListener("touchstart", onTouchStart, { capture: true });
+      sheet.removeEventListener("touchmove", onTouchMove, { capture: true });
+      sheet.removeEventListener("touchend", onTouchEnd);
+      sheet.removeEventListener("touchcancel", onTouchEnd);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Mouse-only pointer handlers for the drag handle pill ───────────────
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.pointerType === "mouse" && e.button !== 0) return;
-    const target = e.target as HTMLElement;
-    if (target.closest("button") || target.closest("input") || target.closest("a")) return;
-    if (formRef.current?.contains(target) && formRef.current.scrollTop > 0) return;
-    setIsDragging(true);
-    startDragY.current = e.clientY - dragY;
+    if (e.pointerType === "touch") return;
+    if (e.button !== 0) return;
+    mouseActiveRef.current = true;
+    mouseStartYRef.current = e.clientY;
+    mouseDragYRef.current = 0;
     e.currentTarget.setPointerCapture(e.pointerId);
+    if (sheetRef.current) sheetRef.current.style.transition = "none";
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging) return;
-    const delta = e.clientY - startDragY.current;
-    if (delta < 0 && formRef.current?.contains(e.target as HTMLElement)) {
-      setIsDragging(false);
-      e.currentTarget.releasePointerCapture(e.pointerId);
-      setDragY(0);
-      return;
-    }
-    setDragY(delta < 0 ? delta * 0.2 : delta);
+    if (!mouseActiveRef.current) return;
+    const drag = Math.max(0, e.clientY - mouseStartYRef.current);
+    mouseDragYRef.current = drag;
+    if (sheetRef.current) sheetRef.current.style.transform = `translateY(${drag}px)`;
   };
 
   const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging) return;
-    setIsDragging(false);
+    if (!mouseActiveRef.current) return;
+    mouseActiveRef.current = false;
     e.currentTarget.releasePointerCapture(e.pointerId);
-    if (dragY > 90) triggerClose();
-    else setDragY(0);
+    if (mouseDragYRef.current > 90) {
+      triggerClose();
+    } else {
+      if (sheetRef.current) {
+        sheetRef.current.style.transition = "transform 0.42s cubic-bezier(0.175, 0.885, 0.32, 1.18)";
+        sheetRef.current.style.transform = "translateY(0px)";
+      }
+    }
   };
 
-  const sheetTransform = isClosing || !isMounted ? "translateY(100%)" : `translateY(${dragY}px)`;
-  const sheetTransition = isDragging ? "none" : "transform 0.42s cubic-bezier(0.175, 0.885, 0.32, 1.18)";
+  const onPointerCancel = (e: React.PointerEvent<HTMLDivElement>) => onPointerUp(e);
+
+  const sheetTransform = isClosing || !isMounted ? "translateY(100%)" : "translateY(0px)";
+  const sheetTransition = "transform 0.42s cubic-bezier(0.175, 0.885, 0.32, 1.18)";
 
   // ── Submit ─────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
@@ -157,15 +276,20 @@ export default function HabitFormModal({ editHabit, onClose }: HabitFormModalPro
 
       {/* Drawer */}
       <div
+        ref={sheetRef}
+        data-modal-sheet="true"
         style={{ transform: sheetTransform, transition: sheetTransition }}
         className="fixed bottom-0 left-0 right-0 z-[51] flex flex-col max-h-[92vh] bg-[#0d0d0d] text-white rounded-t-3xl border-t border-white/10 shadow-[0_-16px_48px_rgba(0,0,0,0.7)] md:max-w-md md:mx-auto"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
       >
-        {/* Drag handle */}
-        <div className="flex items-center justify-center pt-3 pb-2.5 cursor-grab active:cursor-grabbing select-none touch-none">
-          <div className="w-12 h-1 rounded-full bg-neutral-800 hover:bg-neutral-700 transition-colors" />
+        {/* Drag handle — visual affordance + mouse drag trigger */}
+        <div 
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerCancel}
+          className="flex items-center justify-center pt-4 pb-3 cursor-grab active:cursor-grabbing select-none touch-none shrink-0"
+        >
+          <div className="w-12 h-1.5 rounded-full bg-neutral-700 hover:bg-neutral-500 transition-colors" />
         </div>
 
         {/* Header */}

@@ -109,7 +109,7 @@ export default function DeadlineCard({ deadline, onEditTap }: DeadlineCardProps)
       onClick={() => !isPending && !showDeleteConfirm && toggleDeadlineCompletion(deadline.id)}
       className={`group relative flex flex-col justify-between w-full p-4 rounded-lg select-none overflow-visible transition-all duration-300 border-sweep-card ${
         isPending
-          ? "opacity-50 pointer-events-none bg-white/[0.05] border-white/20"
+          ? "opacity-50 pointer-events-none bg-neutral-900/75 border-white/10"
           : deadline.completed
           ? "bg-neutral-950/40 opacity-70"
           : ""

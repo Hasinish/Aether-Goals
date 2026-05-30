@@ -184,7 +184,7 @@ export default function HabitCard({ habit, onTap, onEditTap, entranceDelay = 0 }
       onClick={() => !isPending && !showDeleteConfirm && onTap(habit)}
       className={`animate-habit-entrance group relative flex flex-col justify-between w-full p-4 rounded-lg cursor-pointer select-none overflow-visible transition-all duration-300 ${
         isPending
-          ? "bg-white/[0.05] border border-white/20 opacity-50 pointer-events-none backdrop-blur-[5px]"
+          ? "bg-neutral-900/75 border border-white/10 opacity-50 pointer-events-none backdrop-blur-[8px]"
           : isFullyComplete
           ? "border-sweep-card habit-card-complete"
           : "border-sweep-card"

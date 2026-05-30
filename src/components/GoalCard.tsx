@@ -88,7 +88,7 @@ export default function GoalCard({
       onMouseLeave={() => setShowMenu(false)}
       className={`group relative flex flex-col justify-between w-full min-h-[160px] p-4 rounded-lg cursor-pointer select-none overflow-visible ${
         isPending || showDeleteConfirm
-          ? "bg-white/[0.05] border border-white/50 backdrop-blur-[5px]" + (isPending ? " opacity-50 pointer-events-none" : "")
+          ? "bg-neutral-900/75 border border-white/20 backdrop-blur-[8px]" + (isPending ? " opacity-50 pointer-events-none" : "")
           : "border-sweep-card"
       }`}
     >
@@ -158,9 +158,10 @@ export default function GoalCard({
           {goal.tags.slice(0, 2).map((tag) => (
             <span
               key={tag}
-              className="px-2 py-0.5 text-[9px] uppercase tracking-widest font-mono text-neutral-200 border border-neutral-850 bg-neutral-950/60 rounded-md"
+              className="px-2.5 py-0.5 text-[8.5px] uppercase tracking-wider font-mono text-neutral-400 border border-neutral-900/60 bg-neutral-950/40 rounded-full transition-all duration-300 group-hover:border-neutral-800/80 group-hover:text-neutral-300 flex items-center gap-0.5 select-none"
             >
-              {tag}
+              <span className="text-cyan-500/80 font-bold">#</span>
+              {tag.toLowerCase()}
             </span>
           ))}
         </div>

@@ -55,39 +55,293 @@ function HomeContent() {
   const [isHeaderCompressed, setIsHeaderCompressed] = useState(false);
   const [activeTab, setActiveTab] = useState<"deadlines" | "goals" | "habits">("goals");
   const [prevTab, setPrevTab] = useState<"deadlines" | "goals" | "habits">("goals");
-  const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null);
+  const dragStartPos = React.useRef<{ x: number; y: number } | null>(null);
+  const progressRef = React.useRef(0);
+  const dragDirectionRef = React.useRef<"undecided" | "horizontal" | "vertical">("undecided");
+  const [isDraggingActive, setIsDraggingActive] = useState(false);
+  const [transitioning, setTransitioning] = useState(false);
+
+  const pillRef = React.useRef<HTMLDivElement>(null);
+  const trackRef = React.useRef<HTMLDivElement>(null);
+  const pageRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  const activeTabRef = React.useRef(activeTab);
+  React.useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  React.useEffect(() => {
+    setTransitioning(true);
+    const timer = setTimeout(() => {
+      setTransitioning(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [activeTab]);
+
+  const isTabCollapsed = (tab: "deadlines" | "goals" | "habits") => {
+    if (isDraggingActive) return false;
+    if (activeTab === tab) return false;
+    if (transitioning && prevTab === tab) return false;
+    return true;
+  };
 
   const handleDragStart = (clientX: number, clientY: number) => {
-    setDragStartPos({ x: clientX, y: clientY });
+    dragStartPos.current = { x: clientX, y: clientY };
+    setIsDraggingActive(true);
+    progressRef.current = 0;
+    dragDirectionRef.current = "undecided";
+  };
+
+  const handleDragMove = (clientX: number, clientY: number) => {
+    if (!dragStartPos.current) return;
+    const diffX = dragStartPos.current.x - clientX;
+    const viewportWidth = typeof window !== "undefined" ? Math.min(window.innerWidth, 448) : 448;
+    let newProgress = -diffX / viewportWidth;
+    
+    const activeTabVal = activeTabRef.current;
+    
+    // Dampen if dragging out of bounds
+    if (activeTabVal === "deadlines" && newProgress > 0) {
+      newProgress = Math.pow(newProgress, 0.65) * 0.3;
+    } else if (activeTabVal === "habits" && newProgress < 0) {
+      newProgress = -Math.pow(Math.abs(newProgress), 0.65) * 0.3;
+    }
+    
+    newProgress = Math.max(-1, Math.min(1, newProgress));
+    progressRef.current = newProgress;
+
+    // --- HIGH-PERFORMANCE DIRECT DOM TRANSFORMS ---
+    // 1. Viewport Slider Track Layout Translation (Using absolute left keeps blurs and is extremely performant)
+    if (trackRef.current) {
+      const activeIndex = activeTabVal === "deadlines" ? 0 : activeTabVal === "goals" ? 1 : 2;
+      const leftPx = -activeIndex * viewportWidth + (newProgress * viewportWidth);
+      trackRef.current.style.left = `${leftPx}px`;
+      trackRef.current.style.transition = "none";
+    }
+
+    // 2. Sliding Indicator Background (Top Pill)
+    if (pillRef.current) {
+      const tabIndices = { deadlines: 0, goals: 1, habits: 2 };
+      const currentIndex = tabIndices[activeTabVal];
+      const baseLeft = currentIndex * 33.333;
+      const baseRight = (2 - currentIndex) * 33.333;
+      
+      let currentLeft = baseLeft;
+      let currentRight = baseRight;
+
+      if (newProgress < 0) {
+        // Swiping left (next tab)
+        const lag = Math.pow(Math.abs(newProgress), 1.6) * -1;
+        const lead = Math.pow(Math.abs(newProgress), 0.75) * -1;
+        currentLeft = baseLeft - lag * 33.333;
+        currentRight = baseRight + lead * 33.333;
+      } else {
+        // Swiping right (prev tab)
+        const lead = Math.pow(newProgress, 0.75);
+        const lag = Math.pow(newProgress, 1.6);
+        currentLeft = baseLeft - lead * 33.333;
+        currentRight = baseRight + lag * 33.333;
+      }
+      
+      currentLeft = Math.max(0, Math.min(66.666, currentLeft));
+      currentRight = Math.max(0, Math.min(66.666, currentRight));
+      
+      pillRef.current.style.left = `${currentLeft}%`;
+      pillRef.current.style.right = `${currentRight}%`;
+      pillRef.current.style.transition = "none";
+      
+      const innerPill = pillRef.current.querySelector('.bg-white') as HTMLElement;
+      if (innerPill) {
+        innerPill.style.transform = `scaleY(${1 - Math.abs(newProgress) * 0.12})`;
+        innerPill.style.transition = "none";
+      }
+    }
+
+    // 3. Dynamic Card Parallax, Scale, and Opacity Morphs
+    const activeIndex = activeTabVal === "deadlines" ? 0 : activeTabVal === "goals" ? 1 : 2;
+    const pages = ["deadlines", "goals", "habits"] as const;
+    pages.forEach((tabName, idx) => {
+      const pageEl = pageRefs.current[tabName];
+      if (pageEl) {
+        const d = (idx - activeIndex) + newProgress;
+        const clampedD = Math.max(-1, Math.min(1, d));
+        const absD = Math.abs(clampedD);
+        
+        if (absD < 1) {
+          const scale = 1 - 0.08 * absD;
+          const opacity = 1 - absD;
+          const translateX = clampedD * -20; // Premium depth parallax translation
+          
+          pageEl.style.transform = `scale(${scale}) translateX(${translateX}px)`;
+          pageEl.style.opacity = `${opacity}`;
+          pageEl.style.transition = "none";
+        } else {
+          // Completely offscreen during drag
+          pageEl.style.transform = `scale(0.92) translateX(${clampedD * -20}px)`;
+          pageEl.style.opacity = "0";
+          pageEl.style.transition = "none";
+        }
+      }
+    });
   };
 
   const handleDragEnd = (clientX: number, clientY: number) => {
-    if (!dragStartPos) return;
-    const diffX = dragStartPos.x - clientX;
-    const diffY = dragStartPos.y - clientY;
-
-    // Horizontal swipe threshold: 50px difference horizontally, and mostly horizontal path
-    if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY) * 1.5) {
-      if (diffX > 0) {
-        if (activeTab === "deadlines") {
-          setPrevTab("deadlines");
-          setActiveTab("goals");
-        } else if (activeTab === "goals") {
-          setPrevTab("goals");
-          setActiveTab("habits");
-        }
-      } else {
-        if (activeTab === "habits") {
-          setPrevTab("habits");
-          setActiveTab("goals");
-        } else if (activeTab === "goals") {
-          setPrevTab("goals");
-          setActiveTab("deadlines");
-        }
+    if (!dragStartPos.current) return;
+    setIsDraggingActive(false);
+    
+    const diffX = dragStartPos.current.x - clientX;
+    const threshold = 50; 
+    const activeTabVal = activeTabRef.current;
+    let targetTab = activeTabVal;
+    
+    if (diffX > threshold) {
+      if (activeTabVal === "deadlines") {
+        targetTab = "goals";
+      } else if (activeTabVal === "goals") {
+        targetTab = "habits";
+      }
+    } else if (diffX < -threshold) {
+      if (activeTabVal === "habits") {
+        targetTab = "goals";
+      } else if (activeTabVal === "goals") {
+        targetTab = "deadlines";
       }
     }
-    setDragStartPos(null);
+
+    // Snap the track using layout left percentages (no GPU composites)
+    if (trackRef.current) {
+      const activeIndex = targetTab === "deadlines" ? 0 : targetTab === "goals" ? 1 : 2;
+      trackRef.current.style.transition = "left 500ms cubic-bezier(0.34, 1.56, 0.64, 1)";
+      trackRef.current.style.left = `${-activeIndex * 100}%`;
+    }
+
+    if (pillRef.current) {
+      const targetIndex = targetTab === "deadlines" ? 0 : targetTab === "goals" ? 1 : 2;
+      pillRef.current.style.transition = "left 300ms cubic-bezier(0.34, 1.56, 0.64, 1), right 300ms cubic-bezier(0.34, 1.56, 0.64, 1)";
+      pillRef.current.style.left = `${targetIndex * 33.333}%`;
+      pillRef.current.style.right = `${(2 - targetIndex) * 33.333}%`;
+      
+      const innerPill = pillRef.current.querySelector('.bg-white') as HTMLElement;
+      if (innerPill) {
+        innerPill.style.transition = "transform 300ms ease-out";
+        innerPill.style.transform = "";
+      }
+    }
+
+    // Snap target and inactive cards to their resting states
+    const targetIndex = targetTab === "deadlines" ? 0 : targetTab === "goals" ? 1 : 2;
+    const pages = ["deadlines", "goals", "habits"] as const;
+    pages.forEach((tabName, idx) => {
+      const pageEl = pageRefs.current[tabName];
+      if (pageEl) {
+        pageEl.style.transition = "transform 450ms cubic-bezier(0.16, 1, 0.3, 1), opacity 450ms cubic-bezier(0.16, 1, 0.3, 1)";
+        if (idx === targetIndex) {
+          pageEl.style.transform = "scale(1) translateX(0px)";
+          pageEl.style.opacity = "1";
+        } else {
+          const d = idx - targetIndex;
+          pageEl.style.transform = `scale(0.92) translateX(${d * -20}px)`;
+          pageEl.style.opacity = "0";
+        }
+      }
+    });
+    
+    if (targetTab !== activeTabVal) {
+      setPrevTab(activeTabVal);
+      setActiveTab(targetTab);
+    }
+    
+    dragStartPos.current = null;
+    progressRef.current = 0;
   };
+
+  const getTabStyle = (tab: "deadlines" | "goals" | "habits") => {
+    const tabIndices = { deadlines: 0, goals: 1, habits: 2 };
+    const currentIndex = tabIndices[activeTab];
+    const targetIndex = tabIndices[tab];
+    const d = targetIndex - currentIndex;
+    
+    if (activeTab === tab) {
+      return {
+        opacity: 1,
+        transform: "scale(1) translateX(0px)",
+        transition: isDraggingActive ? "none" : "transform 450ms cubic-bezier(0.16, 1, 0.3, 1), opacity 450ms cubic-bezier(0.16, 1, 0.3, 1)"
+      };
+    }
+    
+    return {
+      opacity: 0,
+      transform: `scale(0.92) translateX(${d * -20}px)`,
+      transition: isDraggingActive ? "none" : "transform 450ms cubic-bezier(0.16, 1, 0.3, 1), opacity 450ms cubic-bezier(0.16, 1, 0.3, 1)"
+    };
+  };
+
+  React.useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const onTouchStart = (e: TouchEvent) => {
+      const target = e.target as HTMLElement;
+      // Skip page swipe when touching inside a bottom-sheet modal
+      if (target.closest("[data-modal-sheet]")) return;
+      if (target.closest(".touch-pan-x")) {
+        return; // Skip page swipe capture when scrolling horizontally inside scroll containers
+      }
+      handleDragStart(e.touches[0].clientX, e.touches[0].clientY);
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!dragStartPos.current) return;
+      
+      const clientX = e.touches[0].clientX;
+      const clientY = e.touches[0].clientY;
+      const diffX = dragStartPos.current.x - clientX;
+      const diffY = dragStartPos.current.y - clientY;
+
+      // Detect gesture intent on first significant movement
+      if (dragDirectionRef.current === "undecided") {
+        const threshold = 6;
+        if (Math.abs(diffX) > threshold || Math.abs(diffY) > threshold) {
+          if (Math.abs(diffX) > Math.abs(diffY) * 1.1) {
+            dragDirectionRef.current = "horizontal";
+          } else {
+            dragDirectionRef.current = "vertical";
+            setIsDraggingActive(false); // Discard active drag state to allow smooth layout reset
+          }
+        }
+      }
+
+      if (dragDirectionRef.current === "horizontal") {
+        e.preventDefault(); // Block horizontal browser swipe nav & vertical scrolling
+        handleDragMove(clientX, clientY);
+      }
+      // If it's a vertical swipe, we do nothing and let the browser scroll the page natively!
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (dragStartPos.current) {
+        if (dragDirectionRef.current === "horizontal") {
+          handleDragEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+        } else {
+          // If vertical, just reset the dragging state cleanly
+          setIsDraggingActive(false);
+          dragStartPos.current = null;
+          progressRef.current = 0;
+        }
+      }
+    };
+
+    container.addEventListener("touchstart", onTouchStart, { passive: false });
+    container.addEventListener("touchmove", onTouchMove, { passive: false });
+    container.addEventListener("touchend", onTouchEnd, { passive: false });
+
+    return () => {
+      container.removeEventListener("touchstart", onTouchStart);
+      container.removeEventListener("touchmove", onTouchMove);
+      container.removeEventListener("touchend", onTouchEnd);
+    };
+  }, []);
 
   const cardRectsRef = React.useRef<Record<string, DOMRect>>({});
   const prevGoalsRef = React.useRef<Goal[]>([]);
@@ -96,17 +350,25 @@ function HomeContent() {
   // Track which card IDs have already played their entrance animation
   const introducedIdsRef = React.useRef<Set<string>>(new Set());
 
-  // Get all unique tags for the horizontal tag filters (Memoized at top to avoid conditional hook early returns)
+  // Get all unique tags, normalized case-insensitively and sorted alphabetically to avoid visual irregularity
   const allTags = React.useMemo(() => {
-    return Array.from(
-      new Set(goals.flatMap((g) => g.tags))
-    ).filter(Boolean);
+    const uniqueTags = new Set(
+      goals
+        .flatMap((g) => g.tags || [])
+        .map((t) => t.trim().toLowerCase())
+        .filter(Boolean)
+    );
+    return Array.from(uniqueTags).sort();
   }, [goals]);
 
   const allHabitTags = React.useMemo(() => {
-    return Array.from(
-      new Set(habits.flatMap((h) => h.tags || []))
-    ).filter(Boolean);
+    const uniqueTags = new Set(
+      habits
+        .flatMap((h) => h.tags || [])
+        .map((t) => t.trim().toLowerCase())
+        .filter(Boolean)
+    );
+    return Array.from(uniqueTags).sort();
   }, [habits]);
 
   const tagsToDisplay = activeTab === "habits" ? allHabitTags : allTags;
@@ -122,7 +384,7 @@ function HomeContent() {
       const matchesSearch = g.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         g.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
       
-      const matchesTag = !selectedTag || g.tags.includes(selectedTag);
+      const matchesTag = !selectedTag || g.tags.some(t => t.toLowerCase() === selectedTag.toLowerCase());
 
       let matchesTab = true;
       if (activeTab === "deadlines") {
@@ -443,7 +705,7 @@ function HomeContent() {
         g.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
       
       // 2. Horizontal Tag filter
-      const matchesTag = !selectedTag || g.tags.includes(selectedTag);
+      const matchesTag = !selectedTag || g.tags.some(t => t.toLowerCase() === selectedTag.toLowerCase());
 
       // 3. Tab filter
       let matchesTab = true;
@@ -521,17 +783,16 @@ function HomeContent() {
 
   return (
     <div 
+      ref={containerRef}
       className="min-h-screen bg-black text-white md:max-w-md md:mx-auto md:shadow-2xl md:border-x md:border-neutral-900 pb-28 relative flex flex-col overflow-hidden"
-      onTouchStart={(e) => handleDragStart(e.touches[0].clientX, e.touches[0].clientY)}
-      onTouchEnd={(e) => handleDragEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY)}
     >
       <ConstellationBackground opacity={0.45} particleCount={200} />
       
       {/* Dynamic Header */}
-      <header className={`fixed top-0 left-0 right-0 mx-auto z-40 w-full md:max-w-md bg-[#0d0d0d]/80 backdrop-blur-md border-b transition-all duration-300 ease-out flex items-center justify-between ${
+      <header className={`fixed top-0 left-0 right-0 mx-auto z-40 w-full md:max-w-md bg-[#0d0d0d]/80 backdrop-blur-md transition-all duration-300 ease-out flex items-center justify-between ${
         isHeaderCompressed
-          ? "py-3 px-6 border-neutral-800 shadow-[0_4px_30px_rgba(0,0,0,0.85)]"
-          : "py-5 px-6 border-neutral-900/60 shadow-none"
+          ? "h-14 px-6 border-b border-transparent shadow-none"
+          : "h-[76px] px-6 border-b border-neutral-900/60 shadow-none"
       }`}>
         <div className={`flex items-center gap-2 select-none transition-transform duration-300 ease-out origin-left ${
           isHeaderCompressed ? "scale-[0.91]" : "scale-100"
@@ -576,28 +837,76 @@ function HomeContent() {
       {/* Main Container */}
       <main className="flex-1 px-6 pt-24 pb-6 space-y-6">
         {/* Navigation Tabs (Deadlines, Goals, Habits) with Morphing Pill Switcher */}
-        <div className="relative flex w-full bg-neutral-950 border border-neutral-900 rounded-xl p-1 select-none shrink-0 overflow-hidden">
+        <div 
+          className={`sticky top-[55px] z-30 flex select-none shrink-0 overflow-hidden transition-all duration-300 ease-out ${
+            isHeaderCompressed
+              ? "rounded-none -mx-6 bg-[#0d0d0d]/80 backdrop-blur-md border-x-0 border-t-0 border-b border-neutral-800 shadow-[0_10px_30px_rgba(0,0,0,0.9)] p-1 w-[calc(100%+3rem)]"
+              : "rounded-xl border border-neutral-900 bg-neutral-950 p-1 w-full"
+          }`}
+        >
           {/* Sliding Indicator Background */}
           {(() => {
             const tabIndices = { deadlines: 0, goals: 1, habits: 2 };
             const currentIndex = tabIndices[activeTab];
             const prevIndex = tabIndices[prevTab];
+            const progress = progressRef.current;
+            
+            let leftStyle = `${currentIndex * 33.333}%`;
+            let rightStyle = `${(2 - currentIndex) * 33.333}%`;
+            let transitionStyle = currentIndex > prevIndex
+              ? "right 320ms cubic-bezier(0.34, 1.8, 0.45, 1), left 380ms cubic-bezier(0.4, 0, 0.2, 1) 40ms"
+              : currentIndex < prevIndex
+                ? "left 320ms cubic-bezier(0.34, 1.8, 0.45, 1), right 380ms cubic-bezier(0.4, 0, 0.2, 1) 40ms"
+                : "left 300ms ease-out, right 300ms ease-out";
+                
+            if (isDraggingActive) {
+              const baseLeft = currentIndex * 33.333;
+              const baseRight = (2 - currentIndex) * 33.333;
+              
+              let currentLeft = baseLeft;
+              let currentRight = baseRight;
+
+              if (progress < 0) {
+                // Swiping left (next tab)
+                const lag = Math.pow(Math.abs(progress), 1.6) * -1;
+                const lead = Math.pow(Math.abs(progress), 0.75) * -1;
+                currentLeft = baseLeft - lag * 33.333;
+                currentRight = baseRight + lead * 33.333;
+              } else {
+                // Swiping right (prev tab)
+                const lead = Math.pow(progress, 0.75);
+                const lag = Math.pow(progress, 1.6);
+                currentLeft = baseLeft - lead * 33.333;
+                currentRight = baseRight + lag * 33.333;
+              }
+              
+              currentLeft = Math.max(0, Math.min(66.666, currentLeft));
+              currentRight = Math.max(0, Math.min(66.666, currentRight));
+              
+              leftStyle = `${currentLeft}%`;
+              rightStyle = `${currentRight}%`;
+              transitionStyle = "none";
+            }
+            
             return (
               <div 
+                ref={pillRef}
                 className="absolute inset-y-0"
                 style={{
-                  left: `${currentIndex * 33.333}%`,
-                  right: `${(2 - currentIndex) * 33.333}%`,
-                  transition: 
-                    currentIndex > prevIndex
-                      ? "right 320ms cubic-bezier(0.34, 1.8, 0.45, 1), left 380ms cubic-bezier(0.4, 0, 0.2, 1) 40ms"
-                      : currentIndex < prevIndex
-                        ? "left 320ms cubic-bezier(0.34, 1.8, 0.45, 1), right 380ms cubic-bezier(0.4, 0, 0.2, 1) 40ms"
-                        : "left 300ms ease-out, right 300ms ease-out"
+                  left: leftStyle,
+                  right: rightStyle,
+                  transition: transitionStyle
                 }}
               >
                 <div className="w-full h-full p-1">
-                  <div className="w-full h-full bg-white rounded-lg shadow-md" />
+                  <div 
+                    className="w-full h-full bg-white rounded-lg shadow-md origin-center transition-transform duration-100 ease-out" 
+                    style={{
+                      transform: isDraggingActive 
+                        ? `scaleY(${1 - Math.abs(progress) * 0.12})` 
+                        : undefined
+                    }}
+                  />
                 </div>
               </div>
             );
@@ -647,59 +956,80 @@ function HomeContent() {
         {tagsToDisplay.length > 0 && (
           <div 
             ref={tagsRef}
-            className="flex items-center gap-1.5 overflow-x-auto pb-2.5 -mx-6 px-6 touch-pan-x flex-nowrap shrink-0 pointer-events-auto select-none cursor-grab active:cursor-grabbing"
+            className="flex items-center gap-2 overflow-x-auto pb-3 -mx-6 px-6 touch-pan-x flex-nowrap shrink-0 pointer-events-auto select-none cursor-grab active:cursor-grabbing scrollbar-none"
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchMove={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
           >
             <button
               onClick={() => setSelectedTag(null)}
-              className={`px-3 py-1 text-[9px] uppercase tracking-wider font-mono rounded-lg border transition-all ${
+              className={`py-1.5 px-3.5 text-[9px] uppercase tracking-widest font-mono rounded-full border transition-all duration-300 active:scale-95 shrink-0 ${
                 !selectedTag
-                  ? "bg-white text-black border-white"
-                  : "bg-transparent text-neutral-300 border-neutral-900 hover:text-neutral-200"
+                  ? "bg-white text-black border-transparent shadow-[0_0_12px_rgba(255,255,255,0.15)] font-bold scale-102"
+                  : "bg-neutral-950/30 text-neutral-400 border-neutral-900/60 backdrop-blur-md hover:text-white hover:border-neutral-800 hover:bg-neutral-950/60"
               }`}
             >
               {activeTab === "habits" ? "All Habits" : activeTab === "deadlines" ? "All Deadlines" : "All Goals"}
             </button>
-            {tagsToDisplay.map((tag) => (
-              <button
-                key={tag}
-                onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
-                className={`px-3 py-1 text-[9px] uppercase tracking-wider font-mono rounded-lg border transition-all shrink-0 ${
-                  selectedTag === tag
-                    ? "bg-white text-black border-white"
-                    : "bg-transparent text-neutral-300 border-neutral-900 hover:text-neutral-200"
-                }`}
-              >
-                #{tag}
-              </button>
-            ))}
+            {tagsToDisplay.map((tag) => {
+              const isActive = selectedTag?.toLowerCase() === tag.toLowerCase();
+              return (
+                <button
+                  key={tag}
+                  onClick={() => setSelectedTag(isActive ? null : tag)}
+                  className={`py-1.5 px-3.5 text-[9px] uppercase tracking-widest font-mono rounded-full border transition-all duration-300 shrink-0 flex items-center gap-0.5 active:scale-95 ${
+                    isActive
+                      ? "bg-white text-black border-transparent shadow-[0_0_12px_rgba(255,255,255,0.15)] font-bold scale-102"
+                      : "bg-neutral-950/30 text-neutral-400 border-neutral-900/60 backdrop-blur-md hover:text-white hover:border-neutral-800 hover:bg-neutral-950/60"
+                  }`}
+                >
+                  <span className={isActive ? "text-neutral-500 font-extrabold" : "text-cyan-400/80 font-bold"}>#</span>
+                  {tag}
+                </button>
+              );
+            })}
           </div>
         )}
 
         {/* Viewport Slider Track */}
-        <div className="w-full overflow-hidden py-2 -my-2">
+        <div className="w-full overflow-hidden py-2 -my-2 relative">
           <div 
-            className="flex w-[300%] transition-transform duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+            ref={trackRef}
+            className="flex w-[300%] relative"
             style={{
-              transform: 
-                activeTab === "deadlines"
-                  ? "translateX(0%)"
-                  : activeTab === "goals"
-                    ? "translateX(-33.333%)"
-                    : "translateX(-66.666%)"
+              left: (() => {
+                const activeIndex = activeTab === "deadlines" ? 0 : activeTab === "goals" ? 1 : 2;
+                return `${-activeIndex * 100}%`;
+              })(),
+              transition: isDraggingActive 
+                ? "none" 
+                : "left 500ms cubic-bezier(0.34, 1.56, 0.64, 1)"
             }}
           >
             {/* Page 1: Deadlines */}
-            <div className="w-1/3 shrink-0">
+            <div 
+              ref={(el) => { pageRefs.current["deadlines"] = el; }}
+              className={`w-1/3 shrink-0 ${isTabCollapsed("deadlines") ? "h-0 overflow-hidden" : ""}`}
+              style={getTabStyle("deadlines")}
+            >
               {renderPageContent("deadlines")}
             </div>
 
             {/* Page 2: Goals */}
-            <div className="w-1/3 shrink-0">
+            <div 
+              ref={(el) => { pageRefs.current["goals"] = el; }}
+              className={`w-1/3 shrink-0 ${isTabCollapsed("goals") ? "h-0 overflow-hidden" : ""}`}
+              style={getTabStyle("goals")}
+            >
               {renderPageContent("goals")}
             </div>
 
             {/* Page 3: Habits */}
-            <div className="w-1/3 shrink-0">
+            <div 
+              ref={(el) => { pageRefs.current["habits"] = el; }}
+              className={`w-1/3 shrink-0 ${isTabCollapsed("habits") ? "h-0 overflow-hidden" : ""}`}
+              style={getTabStyle("habits")}
+            >
               {renderPageContent("habits")}
             </div>
           </div>

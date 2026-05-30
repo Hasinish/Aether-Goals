@@ -202,12 +202,12 @@ export default function HabitAnalyticsModal({ habit, onClose }: HabitAnalyticsMo
         ref={sheetRef}
         style={{ transform: sheetTransform, transition: sheetTransition }}
         className="fixed bottom-0 left-0 right-0 z-[51] flex flex-col max-h-[90vh] bg-[#0d0d0d] text-white rounded-t-3xl border-t border-white/50 shadow-[0_-16px_48px_rgba(0,0,0,0.7)] md:max-w-md md:mx-auto"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
       >
         {/* Drag handle */}
         <div
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
           className="flex items-center justify-center pt-2.5 pb-2 cursor-grab active:cursor-grabbing select-none touch-none shrink-0"
         >
           <div className="w-12 h-1 rounded-full bg-neutral-800 hover:bg-neutral-700 transition-colors" />

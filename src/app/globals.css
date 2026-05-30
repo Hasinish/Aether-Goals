@@ -151,21 +151,24 @@ body {
 
 .border-sweep-card {
   position: relative;
-  background: rgba(255, 255, 255, 0.05); /* Highly polished frosted glass at 5% opacity */
+  background: rgba(13, 13, 13, 0.75); /* Deep charcoal semi-opaque glass that maintains aesthetic during transforms */
   background-clip: padding-box; /* Prevents background bleeding under border on zoom */
-  backdrop-filter: blur(5px); /* Ultra-transparent crystalline blur to see background nodes sharply */
-  -webkit-backdrop-filter: blur(5px);
-  border: 1px solid rgba(255, 255, 255, 0.5); /* Elegant crystalline border edge at 50% opacity */
+  backdrop-filter: blur(8px); /* Slightly stronger premium crystalline blur */
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.4); /* Sleek modern border edge */
   transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  transform: translateZ(0); /* Hardware accelerate to prevent backdrop-filter flicker/disappearance */
+  backface-visibility: hidden;
+  perspective: 1000px;
 }
 
 /* Pseudo-element gradient border sweep, masked completely out of the card interior */
 .border-sweep-card::before {
   content: "";
   position: absolute;
-  inset: -1px;
+  inset: -2px;
   border-radius: inherit;
-  padding: 1px;
+  padding: 2px;
   box-sizing: border-box; /* Fixes zoom subpixel rendering and clipping */
   background: transparent;
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -209,9 +212,9 @@ body {
 .border-sweep-card-auto::before {
   content: "";
   position: absolute;
-  inset: -1px;
+  inset: -2px;
   border-radius: inherit;
-  padding: 1px;
+  padding: 2px;
   box-sizing: border-box; /* Fixes zoom subpixel rendering and clipping */
   background: linear-gradient(90deg, rgba(6, 182, 212, 0.15) 0%, rgba(6, 182, 212, 0.15) 35%, #06b6d4 45%, #10b981 55%, rgba(16, 185, 129, 0.15) 65%, rgba(16, 185, 129, 0.15) 100%);
   background-size: 200% auto;
