@@ -59,7 +59,7 @@ export function useBottomSheetDrag({
 
       if (!insideScroll) {
         mode = "sheet";
-        wasDragging = true;
+        wasDragging = false;
         sheet.style.transition = "none";
       } else {
         mode = "undecided";
@@ -94,7 +94,7 @@ export function useBottomSheetDrag({
             if (deltaY > 0 && (!scrollEl || scrollEl.scrollTop <= 1)) {
               mode = "sheet";
               startY = y;
-              wasDragging = true;
+              wasDragging = false;
               sheet.style.transition = "none";
             } else {
               mode = "scroll";
@@ -112,7 +112,7 @@ export function useBottomSheetDrag({
         if (scrollEl && scrollEl.scrollTop <= 1 && frameDelta > 0) {
           mode = "sheet";
           startY = y; // Reset startY to drag smoothly from 0
-          wasDragging = true;
+          wasDragging = false;
           sheet.style.transition = "none";
         }
       }
@@ -122,6 +122,9 @@ export function useBottomSheetDrag({
           e.preventDefault();
         }
         currentDrag = Math.max(0, y - startY);
+        if (currentDrag > 4) {
+          wasDragging = true;
+        }
         sheet.style.transform = `translateY(${currentDrag}px)`;
       }
     };
@@ -131,11 +134,15 @@ export function useBottomSheetDrag({
       isDraggingGesture = false;
 
       if (mode === "sheet" || currentDrag > 0) {
-        wasDragging = true;
         if (clickTimeout) clearTimeout(clickTimeout);
-        clickTimeout = setTimeout(() => {
+        if (currentDrag > 4) {
+          wasDragging = true;
+          clickTimeout = setTimeout(() => {
+            wasDragging = false;
+          }, 100);
+        } else {
           wasDragging = false;
-        }, 100);
+        }
 
         if (currentDrag > closeThreshold || velocity > 0.5) {
           onCloseRef.current();
@@ -182,7 +189,7 @@ export function useBottomSheetDrag({
 
       if (!insideScroll) {
         pointerMode = "sheet";
-        wasDragging = true;
+        wasDragging = false;
         sheet.style.transition = "none";
       } else {
         pointerMode = "undecided";
@@ -223,7 +230,7 @@ export function useBottomSheetDrag({
             if (deltaY > 0 && (!scrollEl || scrollEl.scrollTop <= 1)) {
               pointerMode = "sheet";
               pointerStartY = y;
-              wasDragging = true;
+              wasDragging = false;
               sheet.style.transition = "none";
             } else {
               pointerMode = "scroll";
@@ -236,13 +243,16 @@ export function useBottomSheetDrag({
         if (scrollEl && scrollEl.scrollTop <= 1 && frameDelta > 0) {
           pointerMode = "sheet";
           pointerStartY = y; // Reset startY to drag sheet smoothly from 0
-          wasDragging = true;
+          wasDragging = false;
           sheet.style.transition = "none";
         }
       }
 
       if (pointerMode === "sheet") {
         pointerCurrentDrag = Math.max(0, y - pointerStartY);
+        if (pointerCurrentDrag > 4) {
+          wasDragging = true;
+        }
         sheet.style.transform = `translateY(${pointerCurrentDrag}px)`;
       }
     };
@@ -258,11 +268,15 @@ export function useBottomSheetDrag({
       }
 
       if (pointerMode === "sheet" || pointerCurrentDrag > 0) {
-        wasDragging = true;
         if (clickTimeout) clearTimeout(clickTimeout);
-        clickTimeout = setTimeout(() => {
+        if (pointerCurrentDrag > 4) {
+          wasDragging = true;
+          clickTimeout = setTimeout(() => {
+            wasDragging = false;
+          }, 100);
+        } else {
           wasDragging = false;
-        }, 100);
+        }
 
         if (pointerCurrentDrag > closeThreshold || pointerVelocity > 0.5) {
           onCloseRef.current();

@@ -53,6 +53,8 @@ function HomeContent() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [isHeaderCompressed, setIsHeaderCompressed] = useState(false);
+  const [isTabDocked, setIsTabDocked] = useState(false);
+  const sentinelRef = React.useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<"deadlines" | "goals" | "habits">("goals");
   const [prevTab, setPrevTab] = useState<"deadlines" | "goals" | "habits">("goals");
   const dragStartPos = React.useRef<{ x: number; y: number } | null>(null);
@@ -62,6 +64,7 @@ function HomeContent() {
   const [transitioning, setTransitioning] = useState(false);
 
   const pillRef = React.useRef<HTMLDivElement>(null);
+  const headerPillRef = React.useRef<HTMLDivElement>(null);
   const trackRef = React.useRef<HTMLDivElement>(null);
   const pageRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -121,42 +124,43 @@ function HomeContent() {
     }
 
     // 2. Sliding Indicator Background (Top Pill)
-    if (pillRef.current) {
-      const tabIndices = { deadlines: 0, goals: 1, habits: 2 };
-      const currentIndex = tabIndices[activeTabVal];
-      const baseLeft = currentIndex * 33.333;
-      const baseRight = (2 - currentIndex) * 33.333;
-      
-      let currentLeft = baseLeft;
-      let currentRight = baseRight;
+    const tabIndices = { deadlines: 0, goals: 1, habits: 2 };
+    const currentIndex = tabIndices[activeTabVal];
+    const baseLeft = currentIndex * 33.333;
+    const baseRight = (2 - currentIndex) * 33.333;
+    
+    let currentLeft = baseLeft;
+    let currentRight = baseRight;
 
-      if (newProgress < 0) {
-        // Swiping left (next tab)
-        const lag = Math.pow(Math.abs(newProgress), 1.6) * -1;
-        const lead = Math.pow(Math.abs(newProgress), 0.75) * -1;
-        currentLeft = baseLeft - lag * 33.333;
-        currentRight = baseRight + lead * 33.333;
-      } else {
-        // Swiping right (prev tab)
-        const lead = Math.pow(newProgress, 0.75);
-        const lag = Math.pow(newProgress, 1.6);
-        currentLeft = baseLeft - lead * 33.333;
-        currentRight = baseRight + lag * 33.333;
-      }
+    if (newProgress < 0) {
+      // Swiping left (next tab)
+      const lag = Math.pow(Math.abs(newProgress), 1.6) * -1;
+      const lead = Math.pow(Math.abs(newProgress), 0.75) * -1;
+      currentLeft = baseLeft - lag * 33.333;
+      currentRight = baseRight + lead * 33.333;
+    } else {
+      // Swiping right (prev tab)
+      const lead = Math.pow(newProgress, 0.75);
+      const lag = Math.pow(newProgress, 1.6);
+      currentLeft = baseLeft - lead * 33.333;
+      currentRight = baseRight + lag * 33.333;
+    }
+    
+    currentLeft = Math.max(0, Math.min(66.666, currentLeft));
+    currentRight = Math.max(0, Math.min(66.666, currentRight));
+    
+    [pillRef.current, headerPillRef.current].forEach((pillEl) => {
+      if (!pillEl) return;
+      pillEl.style.left = `${currentLeft}%`;
+      pillEl.style.right = `${currentRight}%`;
+      pillEl.style.transition = "none";
       
-      currentLeft = Math.max(0, Math.min(66.666, currentLeft));
-      currentRight = Math.max(0, Math.min(66.666, currentRight));
-      
-      pillRef.current.style.left = `${currentLeft}%`;
-      pillRef.current.style.right = `${currentRight}%`;
-      pillRef.current.style.transition = "none";
-      
-      const innerPill = pillRef.current.querySelector('.bg-white') as HTMLElement;
+      const innerPill = pillEl.querySelector('.bg-white') as HTMLElement;
       if (innerPill) {
         innerPill.style.transform = `scaleY(${1 - Math.abs(newProgress) * 0.12})`;
         innerPill.style.transition = "none";
       }
-    }
+    });
 
     // 3. Dynamic Card Parallax, Scale, and Opacity Morphs
     const activeIndex = activeTabVal === "deadlines" ? 0 : activeTabVal === "goals" ? 1 : 2;
@@ -216,21 +220,21 @@ function HomeContent() {
       trackRef.current.style.left = `${-activeIndex * 100}%`;
     }
 
-    if (pillRef.current) {
-      const targetIndex = targetTab === "deadlines" ? 0 : targetTab === "goals" ? 1 : 2;
-      pillRef.current.style.transition = "left 300ms cubic-bezier(0.34, 1.56, 0.64, 1), right 300ms cubic-bezier(0.34, 1.56, 0.64, 1)";
-      pillRef.current.style.left = `${targetIndex * 33.333}%`;
-      pillRef.current.style.right = `${(2 - targetIndex) * 33.333}%`;
+    const targetIndex = targetTab === "deadlines" ? 0 : targetTab === "goals" ? 1 : 2;
+    [pillRef.current, headerPillRef.current].forEach((pillEl) => {
+      if (!pillEl) return;
+      pillEl.style.transition = "left 300ms cubic-bezier(0.34, 1.56, 0.64, 1), right 300ms cubic-bezier(0.34, 1.56, 0.64, 1)";
+      pillEl.style.left = `${targetIndex * 33.333}%`;
+      pillEl.style.right = `${(2 - targetIndex) * 33.333}%`;
       
-      const innerPill = pillRef.current.querySelector('.bg-white') as HTMLElement;
+      const innerPill = pillEl.querySelector('.bg-white') as HTMLElement;
       if (innerPill) {
         innerPill.style.transition = "transform 300ms ease-out";
         innerPill.style.transform = "";
       }
-    }
+    });
 
     // Snap target and inactive cards to their resting states
-    const targetIndex = targetTab === "deadlines" ? 0 : targetTab === "goals" ? 1 : 2;
     const pages = ["deadlines", "goals", "habits"] as const;
     pages.forEach((tabName, idx) => {
       const pageEl = pageRefs.current[tabName];
@@ -474,15 +478,24 @@ function HomeContent() {
 
   React.useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 20) {
-        setIsHeaderCompressed(true);
+      const scrollY = window.scrollY;
+      setIsHeaderCompressed(scrollY > 20);
+
+      const sentinel = sentinelRef.current;
+      if (sentinel) {
+        const rect = sentinel.getBoundingClientRect();
+        // Since the compressed header height is 56px, once rect.top <= 56, the tab docks.
+        setIsTabDocked(rect.top <= 56);
       } else {
-        setIsHeaderCompressed(false);
+        // Fallback calculation based on scroll offset
+        setIsTabDocked(scrollY > 110);
       }
     };
-    // Initialize immediately on mount in case page is already scrolled
-    handleScroll();
+
     window.addEventListener("scroll", handleScroll, { passive: true });
+    // Initialize immediately
+    handleScroll();
+
     return () => {
       window.removeEventListener("scroll", handleScroll);
     };
@@ -775,6 +788,100 @@ function HomeContent() {
     );
   };
 
+  const renderTabs = (isForHeader: boolean) => {
+    const tabIndices = { deadlines: 0, goals: 1, habits: 2 };
+    const currentIndex = tabIndices[activeTab];
+    const prevIndex = tabIndices[prevTab];
+    const progress = progressRef.current;
+    
+    let leftStyle = `${currentIndex * 33.333}%`;
+    let rightStyle = `${(2 - currentIndex) * 33.333}%`;
+    let transitionStyle = currentIndex > prevIndex
+      ? "right 320ms cubic-bezier(0.34, 1.8, 0.45, 1), left 380ms cubic-bezier(0.4, 0, 0.2, 1) 40ms"
+      : currentIndex < prevIndex
+        ? "left 320ms cubic-bezier(0.34, 1.8, 0.45, 1), right 380ms cubic-bezier(0.4, 0, 0.2, 1) 40ms"
+        : "left 300ms ease-out, right 300ms ease-out";
+        
+    if (isDraggingActive) {
+      const baseLeft = currentIndex * 33.333;
+      const baseRight = (2 - currentIndex) * 33.333;
+      
+      let currentLeft = baseLeft;
+      let currentRight = baseRight;
+
+      if (progress < 0) {
+        // Swiping left (next tab)
+        const lag = Math.pow(Math.abs(progress), 1.6) * -1;
+        const lead = Math.pow(Math.abs(progress), 0.75) * -1;
+        currentLeft = baseLeft - lag * 33.333;
+        currentRight = baseRight + lead * 33.333;
+      } else {
+        // Swiping right (prev tab)
+        const lead = Math.pow(progress, 0.75);
+        const lag = Math.pow(progress, 1.6);
+        currentLeft = baseLeft - lead * 33.333;
+        currentRight = baseRight + lag * 33.333;
+      }
+      
+      currentLeft = Math.max(0, Math.min(66.666, currentLeft));
+      currentRight = Math.max(0, Math.min(66.666, currentRight));
+      
+      leftStyle = `${currentLeft}%`;
+      rightStyle = `${currentRight}%`;
+      transitionStyle = "none";
+    }
+    
+    return (
+      <div className="relative flex w-full h-full select-none">
+        {/* Sliding Indicator Background */}
+        <div 
+          ref={isForHeader ? headerPillRef : pillRef}
+          className="absolute inset-y-0"
+          style={{
+            left: leftStyle,
+            right: rightStyle,
+            transition: transitionStyle
+          }}
+        >
+          <div className="w-full h-full p-1">
+            <div 
+              className="w-full h-full bg-white rounded-lg shadow-md origin-center transition-transform duration-100 ease-out" 
+              style={{
+                transform: isDraggingActive 
+                  ? `scaleY(${1 - Math.abs(progress) * 0.12})` 
+                  : undefined
+              }}
+            />
+          </div>
+        </div>
+
+        {[
+          { id: "deadlines" as const, label: "Deadlines" },
+          { id: "goals" as const, label: "Goals" },
+          { id: "habits" as const, label: "Habits" }
+        ].map((item) => {
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => {
+                setPrevTab(activeTab);
+                setActiveTab(item.id);
+              }}
+              className={`flex-1 py-2 text-[10px] font-mono font-bold uppercase tracking-widest rounded-lg transition-colors duration-300 relative z-10 ${
+                isActive 
+                  ? "text-black font-extrabold" 
+                  : "text-neutral-500 hover:text-neutral-300"
+              }`}
+            >
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
   const syncError = goalsSyncError || habitsSyncError;
   const handleClearSyncError = () => {
     if (goalsSyncError) clearGoalsSyncError();
@@ -784,157 +891,84 @@ function HomeContent() {
   return (
     <div 
       ref={containerRef}
-      className="min-h-screen bg-black text-white md:max-w-md md:mx-auto md:shadow-2xl md:border-x md:border-neutral-900 pb-28 relative flex flex-col overflow-hidden"
+      className="min-h-screen bg-black text-white md:max-w-md md:mx-auto md:shadow-2xl md:border-x md:border-neutral-900 pb-28 relative flex flex-col"
     >
       <ConstellationBackground opacity={0.45} particleCount={200} />
       
       {/* Dynamic Header */}
-      <header className={`fixed top-0 left-0 right-0 mx-auto z-40 w-full md:max-w-md bg-[#0d0d0d]/80 backdrop-blur-md transition-all duration-300 ease-out flex items-center justify-between ${
-        isHeaderCompressed
-          ? "h-14 px-6 border-b border-transparent shadow-none"
-          : "h-[76px] px-6 border-b border-neutral-900/60 shadow-none"
+      <header className={`fixed top-0 left-0 right-0 mx-auto z-40 w-full md:max-w-md bg-[#0d0d0d]/80 backdrop-blur-md transition-all duration-300 ease-out flex flex-col justify-between overflow-hidden ${
+        isTabDocked
+          ? "h-24 border-b border-white/5 shadow-[0_10px_30px_rgba(0,0,0,0.9)]"
+          : isHeaderCompressed
+            ? "h-14 border-b border-transparent shadow-none"
+            : "h-[76px] border-b border-neutral-900/60 shadow-none"
       }`}>
-        <div className={`flex items-center gap-2 select-none transition-transform duration-300 ease-out origin-left ${
-          isHeaderCompressed ? "scale-[0.91]" : "scale-100"
+        <div className={`w-full flex items-center justify-between px-6 select-none transition-all duration-300 ${
+          isHeaderCompressed || isTabDocked ? "h-14" : "h-[76px]"
         }`}>
-          <div className="w-2 h-2 rounded-full animate-breath-cyan-green" />
-          <AetherLogo />
+          <div className={`flex items-center gap-2 select-none transition-transform duration-300 ease-out origin-left ${
+            isHeaderCompressed || isTabDocked ? "scale-[0.91]" : "scale-100"
+          }`}>
+            <div className="w-2 h-2 rounded-full animate-breath-cyan-green" />
+            <AetherLogo />
+          </div>
+
+          <div className={`flex items-center gap-2.5 transition-transform duration-300 ease-out origin-right ${
+            isHeaderCompressed || isTabDocked ? "scale-[0.91]" : "scale-100"
+          }`}>
+            <span className="text-[10px] uppercase font-mono tracking-widest text-neutral-300 hidden sm:inline-block mr-1.5">
+              {user === "guest" ? "Guest Sandbox" : user.email?.split("@")[0]}
+            </span>
+            <button
+              onClick={() => {
+                setShowSearch(!showSearch);
+                if (showSearch) {
+                  setSearchQuery(""); // Clear query when closing search bar
+                }
+              }}
+              className={`p-2 rounded-lg transition-all ${
+                showSearch 
+                  ? "text-white bg-neutral-900" 
+                  : "text-neutral-500 hover:text-white hover:bg-neutral-900"
+              }`}
+              aria-label="Toggle Search"
+            >
+              <Search size={16} />
+            </button>
+
+            <button
+              onClick={() => logout()}
+              className="p-2 text-neutral-500 hover:text-white hover:bg-neutral-900 rounded-lg transition-all"
+              aria-label="Logout"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
 
-        <div className={`flex items-center gap-2.5 transition-transform duration-300 ease-out origin-right ${
-          isHeaderCompressed ? "scale-[0.91]" : "scale-100"
+        {/* Nested Tabs inside the Header for seamless blur */}
+        <div className={`px-6 pb-2 w-full transition-all duration-300 ease-out ${
+          isTabDocked ? "opacity-100 translate-y-0 h-10 visible" : "opacity-0 -translate-y-2 h-0 invisible pointer-events-none"
         }`}>
-          <span className="text-[10px] uppercase font-mono tracking-widest text-neutral-300 hidden sm:inline-block mr-1.5">
-            {user === "guest" ? "Guest Sandbox" : user.email?.split("@")[0]}
-          </span>
-          <button
-            onClick={() => {
-              setShowSearch(!showSearch);
-              if (showSearch) {
-                setSearchQuery(""); // Clear query when closing search bar
-              }
-            }}
-            className={`p-2 rounded-lg transition-all ${
-              showSearch 
-                ? "text-white bg-neutral-900" 
-                : "text-neutral-500 hover:text-white hover:bg-neutral-900"
-            }`}
-            aria-label="Toggle Search"
-          >
-            <Search size={16} />
-          </button>
-
-          <button
-            onClick={() => logout()}
-            className="p-2 text-neutral-500 hover:text-white hover:bg-neutral-900 rounded-lg transition-all"
-            aria-label="Logout"
-          >
-            <LogOut size={16} />
-          </button>
+          {renderTabs(true)}
         </div>
       </header>
 
       {/* Main Container */}
       <main className="flex-1 px-6 pt-24 pb-6 space-y-6">
+        {/* Sentinel to detect when tab hits header */}
+        <div ref={sentinelRef} className="h-[1px] w-full pointer-events-none -mb-[1px]" />
+
         {/* Navigation Tabs (Deadlines, Goals, Habits) with Morphing Pill Switcher */}
         <div 
-          className={`sticky top-[55px] z-30 flex select-none shrink-0 overflow-hidden transition-all duration-300 ease-out ${
-            isHeaderCompressed
-              ? "rounded-none -mx-6 bg-[#0d0d0d]/80 backdrop-blur-md border-x-0 border-t-0 border-b border-neutral-800 shadow-[0_10px_30px_rgba(0,0,0,0.9)] p-1 w-[calc(100%+3rem)]"
-              : "rounded-xl border border-neutral-900 bg-neutral-950 p-1 w-full"
+          className={`sticky top-[55px] z-30 flex select-none shrink-0 overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
+            isTabDocked
+              ? "opacity-0 pointer-events-none scale-[0.96]"
+              : "opacity-100 scale-100 rounded-xl border border-neutral-900 bg-neutral-950 p-1 w-full"
           }`}
+          style={{ marginTop: 0 }}
         >
-          {/* Sliding Indicator Background */}
-          {(() => {
-            const tabIndices = { deadlines: 0, goals: 1, habits: 2 };
-            const currentIndex = tabIndices[activeTab];
-            const prevIndex = tabIndices[prevTab];
-            const progress = progressRef.current;
-            
-            let leftStyle = `${currentIndex * 33.333}%`;
-            let rightStyle = `${(2 - currentIndex) * 33.333}%`;
-            let transitionStyle = currentIndex > prevIndex
-              ? "right 320ms cubic-bezier(0.34, 1.8, 0.45, 1), left 380ms cubic-bezier(0.4, 0, 0.2, 1) 40ms"
-              : currentIndex < prevIndex
-                ? "left 320ms cubic-bezier(0.34, 1.8, 0.45, 1), right 380ms cubic-bezier(0.4, 0, 0.2, 1) 40ms"
-                : "left 300ms ease-out, right 300ms ease-out";
-                
-            if (isDraggingActive) {
-              const baseLeft = currentIndex * 33.333;
-              const baseRight = (2 - currentIndex) * 33.333;
-              
-              let currentLeft = baseLeft;
-              let currentRight = baseRight;
-
-              if (progress < 0) {
-                // Swiping left (next tab)
-                const lag = Math.pow(Math.abs(progress), 1.6) * -1;
-                const lead = Math.pow(Math.abs(progress), 0.75) * -1;
-                currentLeft = baseLeft - lag * 33.333;
-                currentRight = baseRight + lead * 33.333;
-              } else {
-                // Swiping right (prev tab)
-                const lead = Math.pow(progress, 0.75);
-                const lag = Math.pow(progress, 1.6);
-                currentLeft = baseLeft - lead * 33.333;
-                currentRight = baseRight + lag * 33.333;
-              }
-              
-              currentLeft = Math.max(0, Math.min(66.666, currentLeft));
-              currentRight = Math.max(0, Math.min(66.666, currentRight));
-              
-              leftStyle = `${currentLeft}%`;
-              rightStyle = `${currentRight}%`;
-              transitionStyle = "none";
-            }
-            
-            return (
-              <div 
-                ref={pillRef}
-                className="absolute inset-y-0"
-                style={{
-                  left: leftStyle,
-                  right: rightStyle,
-                  transition: transitionStyle
-                }}
-              >
-                <div className="w-full h-full p-1">
-                  <div 
-                    className="w-full h-full bg-white rounded-lg shadow-md origin-center transition-transform duration-100 ease-out" 
-                    style={{
-                      transform: isDraggingActive 
-                        ? `scaleY(${1 - Math.abs(progress) * 0.12})` 
-                        : undefined
-                    }}
-                  />
-                </div>
-              </div>
-            );
-          })()}
-
-          {[
-            { id: "deadlines" as const, label: "Deadlines" },
-            { id: "goals" as const, label: "Goals" },
-            { id: "habits" as const, label: "Habits" }
-          ].map((item) => {
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setPrevTab(activeTab);
-                  setActiveTab(item.id);
-                }}
-                className={`flex-1 py-2 text-[10px] font-mono font-bold uppercase tracking-widest rounded-lg transition-colors duration-300 relative z-10 ${
-                  isActive 
-                    ? "text-black font-extrabold" 
-                    : "text-neutral-500 hover:text-neutral-300"
-                }`}
-              >
-                {item.label}
-              </button>
-            );
-          })}
+          {renderTabs(false)}
         </div>
 
         {/* Search Bar (Toggled) */}
