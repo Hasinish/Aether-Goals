@@ -5,6 +5,7 @@ import { Goal } from "../lib/types";
 import { useGoalsStore } from "../lib/store";
 import { Check, Edit2, Trash2 } from "lucide-react";
 import SegmentedProgressBar from "./SegmentedProgressBar";
+import { useBottomSheetDrag } from "../hooks/useBottomSheetDrag";
 
 interface GoalDetailModalProps {
   goalId: string | null;
@@ -22,11 +23,9 @@ export default function GoalDetailModal({
   const goalExists = !!goal;
 
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
-  const [dragY, setDragY] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const startDragY = useRef(0);
+  const sheetRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const triggerClose = useCallback(() => {
@@ -48,6 +47,12 @@ export default function GoalDetailModal({
     }
   }, [goalId, goalExists, triggerClose]);
 
+  useBottomSheetDrag({
+    sheetRef,
+    scrollRef,
+    onClose: triggerClose,
+  });
+
   // Don't render content until we have a goal
   if (!goal) return null;
 
@@ -55,67 +60,12 @@ export default function GoalDetailModal({
   const completedCount = subtasks.filter((s) => s.is_complete).length;
   const totalCount = subtasks.length;
 
-  // ── Pointer gesture handlers ──────────────────────────────────────────────
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.pointerType === "mouse" && e.button !== 0) return;
-
-    const target = e.target as HTMLElement;
-
-    // Ignore drag inputs on interactive elements
-    const isInteractive = target.closest("button") || target.closest("input") || target.closest("textarea") || target.closest("a");
-    if (isInteractive) return;
-
-    // If clicking inside the scrollable container, check if we're at the top.
-    // If we're scrolled down, let standard scrolling work.
-    if (scrollRef.current && scrollRef.current.contains(target)) {
-      if (scrollRef.current.scrollTop > 0) {
-        return;
-      }
-    }
-
-    setIsDragging(true);
-    startDragY.current = e.clientY - dragY;
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging) return;
-    const delta = e.clientY - startDragY.current;
-
-    // If dragging up inside the scrollable area, cancel sheet drag to allow native scroll down
-    if (delta < 0 && scrollRef.current) {
-      const target = e.target as HTMLElement;
-      if (scrollRef.current.contains(target)) {
-        setIsDragging(false);
-        e.currentTarget.releasePointerCapture(e.pointerId);
-        setDragY(0);
-        return;
-      }
-    }
-
-    // Rubber-band resistance when dragging upward
-    setDragY(delta < 0 ? delta * 0.2 : delta);
-  };
-
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging) return;
-    setIsDragging(false);
-    e.currentTarget.releasePointerCapture(e.pointerId);
-    if (dragY > 90) {
-      triggerClose();
-    } else {
-      setDragY(0);
-    }
-  };
-
   // ── Derived transform ─────────────────────────────────────────────────────
   const sheetTransform = isClosing || !isMounted
     ? "translateY(100%)"
-    : `translateY(${dragY}px)`;
+    : "translateY(0px)";
 
-  const sheetTransition = isDragging
-    ? "none"
-    : "transform 0.42s cubic-bezier(0.175, 0.885, 0.32, 1.18)";
+  const sheetTransition = "transform 0.42s cubic-bezier(0.175, 0.885, 0.32, 1.18)";
 
   return (
     <>
@@ -128,11 +78,9 @@ export default function GoalDetailModal({
 
       {/* Spring Drawer Sheet */}
       <div
+        ref={sheetRef}
         style={{ transform: sheetTransform, transition: sheetTransition }}
         className="fixed bottom-0 left-0 right-0 z-[51] flex flex-col max-h-[90vh] bg-[#0d0d0d] text-white rounded-t-3xl border-t border-white/50 shadow-[0_-16px_48px_rgba(0,0,0,0.7)] md:max-w-md md:mx-auto"
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
       >
         {/* Drag handle */}
         <div

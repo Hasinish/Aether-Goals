@@ -1,14 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Habit, HabitLog } from "../lib/types";
+import { Habit } from "../lib/types";
 import { X, Calendar, Award, CheckCircle, Percent, Flame } from "lucide-react";
-function friendlyDate(dateStr: string): string {
-  if (!dateStr) return "";
-  const [year, month, day] = dateStr.split("-").map(Number);
-  const d = new Date(year, month - 1, day);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
+import { useBottomSheetDrag } from "../hooks/useBottomSheetDrag";
 
 interface HabitAnalyticsModalProps {
   habit: Habit;
@@ -17,11 +12,8 @@ interface HabitAnalyticsModalProps {
 
 export default function HabitAnalyticsModal({ habit, onClose }: HabitAnalyticsModalProps) {
   const [activeMonthOffset, setActiveMonthOffset] = useState(0); // 0 = current month, 1 = 1 month ago, 2 = 2 months ago
-  const [dragY, setDragY] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const startDragY = useRef(0);
   const sheetRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -35,53 +27,14 @@ export default function HabitAnalyticsModal({ habit, onClose }: HabitAnalyticsMo
     setTimeout(onClose, 320);
   }, [onClose]);
 
-  // ── Gestures ─────────────────────────────────────────────────────────────
-  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.pointerType === "mouse" && e.button !== 0) return;
-    const target = e.target as HTMLElement;
-    if (target.closest("button") || target.closest("select") || target.closest("a")) return;
+  useBottomSheetDrag({
+    sheetRef,
+    scrollRef,
+    onClose: triggerClose,
+  });
 
-    // If clicking inside the scrollable container, check if we're at the top.
-    // If we're scrolled down, let standard scrolling work.
-    if (scrollRef.current && scrollRef.current.contains(target)) {
-      if (scrollRef.current.scrollTop > 0) {
-        return;
-      }
-    }
-
-    setIsDragging(true);
-    startDragY.current = e.clientY - dragY;
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-
-  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging) return;
-    const delta = e.clientY - startDragY.current;
-
-    // If dragging up inside the scrollable area, cancel sheet drag to allow native scroll down
-    if (delta < 0 && scrollRef.current) {
-      const target = e.target as HTMLElement;
-      if (scrollRef.current.contains(target)) {
-        setIsDragging(false);
-        e.currentTarget.releasePointerCapture(e.pointerId);
-        setDragY(0);
-        return;
-      }
-    }
-
-    setDragY(delta < 0 ? delta * 0.2 : delta);
-  };
-
-  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging) return;
-    setIsDragging(false);
-    e.currentTarget.releasePointerCapture(e.pointerId);
-    if (dragY > 90) triggerClose();
-    else setDragY(0);
-  };
-
-  const sheetTransform = isClosing || !isMounted ? "translateY(100%)" : `translateY(${dragY}px)`;
-  const sheetTransition = isDragging ? "none" : "transform 0.42s cubic-bezier(0.175, 0.885, 0.32, 1.18)";
+  const sheetTransform = isClosing || !isMounted ? "translateY(100%)" : "translateY(0px)";
+  const sheetTransition = "transform 0.42s cubic-bezier(0.175, 0.885, 0.32, 1.18)";
 
   // ── Month calculations ────────────────────────────────────────────────────
   const months = React.useMemo(() => {
@@ -205,9 +158,6 @@ export default function HabitAnalyticsModal({ habit, onClose }: HabitAnalyticsMo
       >
         {/* Drag handle */}
         <div
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
           className="flex items-center justify-center pt-2.5 pb-2 cursor-grab active:cursor-grabbing select-none touch-none shrink-0"
         >
           <div className="w-12 h-1 rounded-full bg-neutral-800 hover:bg-neutral-700 transition-colors" />
