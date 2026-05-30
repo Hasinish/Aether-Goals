@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useCountUp } from "../hooks/useCountUp";
 import { Goal } from "../lib/types";
 import { useGoalsStore } from "../lib/store";
-import { MoreHorizontal, Edit2, Trash2, ChevronUp, ChevronDown, AlertTriangle } from "lucide-react";
+import { MoreHorizontal, Edit2, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import SegmentedProgressBar from "./SegmentedProgressBar";
 
 interface GoalCardProps {
@@ -88,21 +88,16 @@ export default function GoalCard({
       onMouseLeave={() => setShowMenu(false)}
       className={`group relative flex flex-col justify-between w-full min-h-[160px] p-4 rounded-lg cursor-pointer select-none overflow-visible ${
         isPending || showDeleteConfirm
-          ? "bg-neutral-900/75 border border-white/20 backdrop-blur-[8px]" + (isPending ? " opacity-50 pointer-events-none" : "")
+          ? "bg-white/20 border border-white/30 opacity-70 pointer-events-none backdrop-blur-[12px]"
           : "border-sweep-card"
       }`}
     >
       {/* Inline delete confirmation overlay */}
       {showDeleteConfirm && (
         <div
-          className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-lg bg-black/95 border border-red-900/50 p-5 animate-fade-in"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-black/70 backdrop-blur-[2px] p-5 animate-fade-in"
           onClick={(e) => e.stopPropagation()}
         >
-          <AlertTriangle size={18} className="text-red-400" />
-          <p className="text-[11px] font-mono text-neutral-300 text-center leading-relaxed">
-            Delete <span className="text-white font-semibold">&ldquo;{goal.title}&rdquo;</span>?<br />
-            <span className="text-neutral-500">This cannot be undone.</span>
-          </p>
           <div className="flex items-center gap-2 w-full">
             <button
               onClick={handleCancelDelete}

@@ -108,7 +108,6 @@ body {
   will-change: background-position-x;
 }
 
-/* Metallic automatic loop shimmer for Aether login logo */
 .aether-logo-metallic-auto {
   background: linear-gradient(
     110deg,

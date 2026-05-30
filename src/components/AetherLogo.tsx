@@ -30,8 +30,15 @@ export default function AetherLogo() {
   }, []);
 
   return (
-    <span ref={textRef} className="aether-logo-metallic text-xl font-black tracking-tighter uppercase">
-      Aether
-    </span>
+    <div className="relative inline-block select-none leading-none">
+      {/* Solid Opaque Backdrop Text Layer to block constellation/stars */}
+      <span className="absolute inset-0 text-xl font-black tracking-tighter uppercase text-black select-none pointer-events-none" aria-hidden="true">
+        Aether
+      </span>
+      {/* Shimmering Metallic Foreground Text Layer */}
+      <span ref={textRef} className="relative aether-logo-metallic text-xl font-black tracking-tighter uppercase block">
+        Aether
+      </span>
+    </div>
   );
 }

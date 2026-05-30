@@ -525,7 +525,7 @@ function HomeContent() {
       onTouchStart={(e) => handleDragStart(e.touches[0].clientX, e.touches[0].clientY)}
       onTouchEnd={(e) => handleDragEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY)}
     >
-      <ConstellationBackground opacity={0.45} particleCount={200} />
+      <ConstellationBackground opacity={0.75} particleCount={150} />
       
       {/* Dynamic Header */}
       <header className={`fixed top-0 left-0 right-0 mx-auto z-40 w-full md:max-w-md bg-[#0d0d0d]/80 backdrop-blur-md border-b transition-all duration-300 ease-out flex items-center justify-between ${

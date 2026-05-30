@@ -182,13 +182,11 @@ export default function HabitCard({ habit, onTap, onEditTap, entranceDelay = 0 }
   return (
     <div
       onClick={() => !isPending && !showDeleteConfirm && onTap(habit)}
-      className={`animate-habit-entrance group relative flex flex-col justify-between w-full p-4 rounded-lg cursor-pointer select-none overflow-visible transition-all duration-300 ${
-        isPending
-          ? "bg-neutral-900/75 border border-white/10 opacity-50 pointer-events-none backdrop-blur-[8px]"
-          : isFullyComplete
-          ? "border-sweep-card habit-card-complete"
-          : "border-sweep-card"
-      }`}
+      className={`animate-habit-entrance group relative flex flex-col justify-between w-full p-4 rounded-lg cursor-pointer select-none overflow-visible ${
+         "bg-white/20 border border-white/30 opacity-70 backdrop-blur-[12px]" + (isPending ? " pointer-events-none" : "")
+       } ${
+         isFullyComplete ? "border-sweep-card habit-card-complete" : "border-sweep-card"
+       }`}
       style={{ animationDelay: `${entranceDelay}ms` }}
     >
       {/* Delete confirmation overlay */}

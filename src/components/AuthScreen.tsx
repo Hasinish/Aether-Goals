@@ -174,11 +174,11 @@ export default function AuthScreen() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-between min-h-screen bg-black text-white px-6 py-12 md:max-w-md md:mx-auto md:shadow-2xl md:border-x md:border-neutral-900 select-none animate-fade-in relative overflow-hidden">
-      <ConstellationBackground opacity={0.3} particleCount={150} />
+    <div className="flex flex-col items-center justify-between min-h-screen bg-black/70 backdrop-blur-xl text-white px-6 py-12 md:max-w-md md:mx-auto md:shadow-2xl md:border-x md:border-neutral-900 select-none animate-fade-in relative overflow-hidden">
+      <ConstellationBackground opacity={0.75} particleCount={150} fullscreen />
       
       {/* Decorative Top Accent / Clickable PWA Installer */}
-      <div className="w-full flex justify-center mt-8">
+            <div className="w-full flex justify-center mt-8 bg-black/30 backdrop-blur-md rounded-lg p-2">
         <button
           type="button"
           onClick={handlePwaInstallClick}
@@ -196,19 +196,26 @@ export default function AuthScreen() {
 
       {/* Main Title Area */}
       <div className="text-center space-y-4 my-auto">
-        <h1 className="text-6xl font-black tracking-tighter uppercase aether-logo-metallic-auto select-none">
-          AETHER
-        </h1>
+        <div className="relative inline-block select-none mb-1">
+          {/* Solid Opaque Backdrop Text Layer to block constellation/stars */}
+          <span className="absolute inset-0 text-6xl font-black tracking-tighter uppercase text-black select-none pointer-events-none" aria-hidden="true">
+            AETHER
+          </span>
+          {/* Shimmering Metallic Foreground Text Layer */}
+          <h1 className="relative text-6xl font-black tracking-tighter uppercase aether-logo-metallic-auto select-none">
+            AETHER
+          </h1>
+        </div>
         <p className="text-xs text-neutral-200 font-light max-w-[260px] mx-auto leading-relaxed">
           Premium, high-fidelity dark-mode goal tracker. Build discipline, measure milestones.
         </p>
       </div>
 
       {/* Sign-In Forms / Options */}
-      <div className="w-full space-y-6">
+      <div className="w-full space-y-6 bg-neutral-900/40 backdrop-blur-sm rounded-xl p-4">
         {/* Messages */}
         {message && (
-          <div className="p-4 border border-neutral-800 bg-neutral-950/80 rounded-lg text-xs text-neutral-300 text-center leading-normal">
+          <div className="p-4 border border-neutral-800 bg-neutral-950/60 backdrop-blur-md rounded-lg text-xs text-neutral-300 text-center leading-normal">
             {message}
           </div>
         )}
@@ -233,7 +240,7 @@ export default function AuthScreen() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your email address..."
-                    className="w-full px-4 py-3 bg-neutral-950 border border-neutral-800 rounded-md text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
+                    className="w-full px-4 py-3 bg-neutral-900/30 border border-neutral-800 rounded-md text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors backdrop-blur-md"
                   />
                 </div>
 
@@ -249,7 +256,7 @@ export default function AuthScreen() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Enter your password..."
-                      className="w-full px-4 py-3 bg-neutral-950 border border-neutral-800 rounded-md text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
+                      className="w-full px-4 py-3 bg-neutral-900/30 border border-neutral-800 rounded-md text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors backdrop-blur-md"
                     />
                   </div>
                 )}

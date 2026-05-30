@@ -787,7 +787,7 @@ const InteractiveDeviceMockup = ({ title, description, navBarType }: Interactive
 export default function NavbarSandbox() {
   return (
     <div className="min-h-screen bg-black text-white pb-32 relative flex flex-col overflow-hidden">
-      <ConstellationBackground opacity={0.35} particleCount={150} />
+      <ConstellationBackground opacity={0.75} particleCount={150} />
 
       {/* SVG Gooey Filter definitions for Tab Style 3 */}
       <svg className="hidden">
