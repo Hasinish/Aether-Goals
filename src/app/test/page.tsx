@@ -45,14 +45,52 @@ function friendlyDate(dateStr: string): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-// ─── Apple Premium Frosted Background ────────────────────────────────────
+// ─── Interactive 3D Tilt Hook ────────────────────────────────────────────
+function useCardTilt() {
+  const [tilt, setTilt] = useState({ x: 0, y: 0, shineX: 50, shineY: 50 });
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    const card = cardRef.current;
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    // Relative coordinates (-0.5 to 0.5)
+    const relX = (x / rect.width) - 0.5;
+    const relY = (y / rect.height) - 0.5;
+    
+    // 3D angles of tilt (max 8 degrees)
+    const tiltX = -relY * 12;
+    const tiltY = relX * 12;
+    
+    // Position of simulated light glare reflection
+    const shineX = (x / rect.width) * 100;
+    const shineY = (y / rect.height) * 100;
+    
+    setTilt({ x: tiltX, y: tiltY, shineX, shineY });
+  };
+
+  const handleMouseLeave = () => {
+    // Reset back to equilibrium
+    setTilt({ x: 0, y: 0, shineX: 50, shineY: 50 });
+  };
+
+  return { tilt, cardRef, handleMouseMove, handleMouseLeave };
+}
+
+// ─── Apple Premium Frosted Dynamic Fluid Background ──────────────────────
 function AppleBackground() {
   return (
-    <div className="absolute inset-0 -z-10 overflow-hidden bg-[#0a0a0c]">
-      {/* Soft luxurious dark mode fluid blobs */}
-      <div className="absolute -top-[30%] -left-[20%] w-[90%] h-[90%] rounded-full bg-[#1c2333]/30 blur-[130px] animate-pulse duration-[8s]" />
-      <div className="absolute -bottom-[20%] -right-[10%] w-[80%] h-[80%] rounded-full bg-[#182924]/30 blur-[120px] animate-pulse duration-[10s]" />
-      <div className="absolute top-[35%] left-[25%] w-[60%] h-[60%] rounded-full bg-[#20172e]/25 blur-[140px] animate-pulse duration-[12s]" />
+    <div className="absolute inset-0 -z-10 overflow-hidden bg-[#070709]">
+      {/* Animated fluid blur mesh gradients */}
+      <div className="absolute -top-[20%] -left-[30%] w-[100%] h-[100%] rounded-full bg-[#1b253b]/30 blur-[130px] animate-float-1" />
+      <div className="absolute -bottom-[20%] -right-[20%] w-[90%] h-[90%] rounded-full bg-[#152e25]/30 blur-[120px] animate-float-2" />
+      <div className="absolute top-[35%] left-[20%] w-[70%] h-[70%] rounded-full bg-[#271536]/25 blur-[140px] animate-float-3" />
+      
+      {/* Subtle organic light ray */}
+      <div className="absolute top-0 right-1/4 w-[2px] h-[70vh] bg-gradient-to-b from-white/[0.04] to-transparent blur-[1px]" />
     </div>
   );
 }
@@ -60,13 +98,176 @@ function AppleBackground() {
 // ─── Apple Sans-Serif tracked Logo ───────────────────────────────────────
 function AppleAetherLogo() {
   return (
-    <span className="text-xl font-bold tracking-tight text-white/95 select-none bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent font-sans">
+    <span className="text-xl font-bold tracking-tight text-white select-none bg-gradient-to-r from-white via-zinc-300 to-zinc-500 bg-clip-text text-transparent font-sans">
       Aether
     </span>
   );
 }
 
-// ─── Apple Refined Goal Card ─────────────────────────────────────────────
+// ─── Apple Activity concentric rings widget ──────────────────────────────
+function AppleSummaryWidget({ 
+  goalsCount, 
+  goalsPct, 
+  habitsCount, 
+  habitsPct, 
+  deadlinesCount, 
+  deadlinesPct,
+  activeTab,
+  setActiveTab
+}: {
+  goalsCount: number;
+  goalsPct: number;
+  habitsCount: number;
+  habitsPct: number;
+  deadlinesCount: number;
+  deadlinesPct: number;
+  activeTab: string;
+  setActiveTab: (tab: "deadlines" | "goals" | "habits") => void;
+}) {
+  const radius1 = 48; // Goals (Outer ring)
+  const radius2 = 36; // Habits (Middle ring)
+  const radius3 = 24; // Deadlines (Inner ring)
+  
+  const circ1 = 2 * Math.PI * radius1;
+  const circ2 = 2 * Math.PI * radius2;
+  const circ3 = 2 * Math.PI * radius3;
+  
+  const offset1 = circ1 - (Math.max(goalsPct, 3) / 100) * circ1;
+  const offset2 = circ2 - (Math.max(habitsPct, 3) / 100) * circ2;
+  const offset3 = circ3 - (Math.max(deadlinesPct, 3) / 100) * circ3;
+
+  return (
+    <div className="w-full p-6 rounded-[32px] border border-white/[0.05] bg-zinc-900/30 backdrop-blur-2xl flex items-center justify-between gap-5 relative overflow-hidden select-none hover:bg-zinc-800/25 transition-all duration-500 shadow-xl group">
+      {/* Glare background reflections */}
+      <div className="absolute top-0 right-0 w-36 h-36 bg-blue-500/5 rounded-full blur-[70px] pointer-events-none transition-all duration-700 group-hover:scale-125" />
+      <div className="absolute bottom-0 left-0 w-36 h-36 bg-emerald-500/5 rounded-full blur-[70px] pointer-events-none transition-all duration-700 group-hover:scale-125" />
+      
+      {/* Summary data */}
+      <div className="flex-1 space-y-4 z-10">
+        <div>
+          <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest font-sans flex items-center gap-1">
+            <Sparkles size={9} className="text-zinc-400 animate-pulse" />
+            Aether Dashboard
+          </span>
+          <h2 className="text-lg font-bold tracking-tight text-white/95 font-sans mt-0.5">Focus Summary</h2>
+        </div>
+        
+        <div className="space-y-2.5">
+          {/* Goals */}
+          <div 
+            onClick={() => setActiveTab("goals")}
+            className={`flex items-center justify-between cursor-pointer py-1 px-2.5 rounded-xl transition-all duration-300 ${
+              activeTab === "goals" 
+                ? "bg-[#007AFF]/10 border border-[#007AFF]/25 scale-102" 
+                : "border border-transparent opacity-75 hover:opacity-100 hover:bg-white/[0.03]"
+            }`}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-2 h-2 rounded-full bg-gradient-to-r from-[#007AFF] to-[#5856D6]" />
+              <span className="text-xs text-zinc-300 font-medium font-sans truncate">Goals Progress</span>
+            </div>
+            <span className="text-xs font-bold text-zinc-100 font-sans ml-2 shrink-0">{Math.round(goalsPct)}%</span>
+          </div>
+
+          {/* Habits */}
+          <div 
+            onClick={() => setActiveTab("habits")}
+            className={`flex items-center justify-between cursor-pointer py-1 px-2.5 rounded-xl transition-all duration-300 ${
+              activeTab === "habits" 
+                ? "bg-[#30D158]/10 border border-[#30D158]/25 scale-102" 
+                : "border border-transparent opacity-75 hover:opacity-100 hover:bg-white/[0.03]"
+            }`}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-2 h-2 rounded-full bg-[#30D158]" />
+              <span className="text-xs text-zinc-300 font-medium font-sans truncate">Habits Streak</span>
+            </div>
+            <span className="text-xs font-bold text-zinc-100 font-sans ml-2 shrink-0">{Math.round(habitsPct)}%</span>
+          </div>
+
+          {/* Deadlines */}
+          <div 
+            onClick={() => setActiveTab("deadlines")}
+            className={`flex items-center justify-between cursor-pointer py-1 px-2.5 rounded-xl transition-all duration-300 ${
+              activeTab === "deadlines" 
+                ? "bg-[#FF453A]/10 border border-[#FF453A]/25 scale-102" 
+                : "border border-transparent opacity-75 hover:opacity-100 hover:bg-white/[0.03]"
+            }`}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-2 h-2 rounded-full bg-[#FF453A]" />
+              <span className="text-xs text-zinc-300 font-medium font-sans truncate">Deadlines Met</span>
+            </div>
+            <span className="text-xs font-bold text-zinc-100 font-sans ml-2 shrink-0">{Math.round(deadlinesPct)}%</span>
+          </div>
+        </div>
+      </div>
+      
+      {/* Interactive Rings SVG */}
+      <div className="relative shrink-0 flex items-center justify-center z-10 w-28 h-28 select-none">
+        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
+          {/* Tracks */}
+          <circle cx="60" cy="60" r={radius1} fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="6.5" />
+          <circle cx="60" cy="60" r={radius2} fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="6.5" />
+          <circle cx="60" cy="60" r={radius3} fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="6.5" />
+          
+          {/* Active Rings */}
+          <circle 
+            cx="60" 
+            cy="60" 
+            r={radius1} 
+            fill="none" 
+            stroke="url(#apple-goals-grad)" 
+            strokeWidth="7" 
+            strokeDasharray={circ1} 
+            strokeDashoffset={offset1}
+            strokeLinecap="round"
+            className="transition-all duration-1000 ease-out"
+          />
+          <circle 
+            cx="60" 
+            cy="60" 
+            r={radius2} 
+            fill="none" 
+            stroke="#30D158" 
+            strokeWidth="7" 
+            strokeDasharray={circ2} 
+            strokeDashoffset={offset2}
+            strokeLinecap="round"
+            className="transition-all duration-1000 ease-out"
+          />
+          <circle 
+            cx="60" 
+            cy="60" 
+            r={radius3} 
+            fill="none" 
+            stroke="#FF453A" 
+            strokeWidth="7" 
+            strokeDasharray={circ3} 
+            strokeDashoffset={offset3}
+            strokeLinecap="round"
+            className="transition-all duration-1000 ease-out"
+          />
+          
+          {/* Gradients */}
+          <defs>
+            <linearGradient id="apple-goals-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#007AFF" />
+              <stop offset="100%" stopColor="#5856D6" />
+            </linearGradient>
+          </defs>
+        </svg>
+        
+        {/* Core dynamic logo marker */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <Activity className="w-4 h-4 text-white/50 animate-pulse duration-[2.5s]" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Apple Refened Goal Card with 3D Tilt ───────────────────────────────
 interface AppleGoalCardProps {
   goal: Goal;
   onTap: (goal: Goal) => void;
@@ -92,6 +293,8 @@ function AppleGoalCard({
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const { tilt, cardRef, handleMouseMove, handleMouseLeave } = useCardTilt();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -136,15 +339,26 @@ function AppleGoalCard({
 
   return (
     <div
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
       onClick={() => !isPending && !showDeleteConfirm && onTap(goal)}
-      className={`group relative flex flex-col justify-between w-full min-h-[145px] p-5 rounded-[24px] cursor-pointer select-none overflow-visible transition-all duration-300 border border-white/[0.05] bg-zinc-900/40 backdrop-blur-xl hover:bg-zinc-800/40 hover:scale-[1.01] active:scale-[0.985] ${
+      className={`group relative flex flex-col justify-between w-full min-h-[145px] p-5 rounded-[28px] cursor-pointer select-none overflow-visible border border-white/[0.05] ${
         isPending ? "opacity-60 pointer-events-none" : ""
       }`}
+      style={{
+        transform: `perspective(1000px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) scale3d(1.015, 1.015, 1.015)`,
+        transition: "transform 0.15s ease-out, background 0.3s, shadow 0.3s",
+        background: `radial-gradient(circle at ${tilt.shineX}% ${tilt.shineY}%, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0) 65%), rgba(28,28,30,0.35)`,
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        boxShadow: tilt.x !== 0 ? "0 20px 40px rgba(0,0,0,0.4)" : "0 10px 30px rgba(0,0,0,0.2)"
+      }}
     >
       {/* iOS Action Alert Style Modal */}
       {showDeleteConfirm && (
         <div
-          className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-[24px] bg-[#1c1c1e]/95 border border-white/10 p-5 animate-fade-in"
+          className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-[28px] bg-[#1c1c1e]/95 border border-white/10 p-5 animate-fade-in"
           onClick={(e) => e.stopPropagation()}
         >
           <AlertTriangle size={18} className="text-red-400" />
@@ -170,19 +384,19 @@ function AppleGoalCard({
       )}
 
       {/* Header tags and menus */}
-      <div className="flex items-center justify-between gap-4 mb-3">
+      <div className="flex items-center justify-between gap-4 mb-3 z-10">
         <div className="flex flex-wrap items-center gap-1.5 max-w-[80%]">
           {goal.tags.slice(0, 2).map((tag) => (
             <span
               key={tag}
-              className="px-3 py-0.5 text-[9px] font-sans font-semibold text-zinc-400 bg-zinc-800/40 rounded-full border border-white/5"
+              className="px-3 py-0.5 text-[9px] font-sans font-bold text-zinc-400 bg-zinc-800/40 rounded-full border border-white/5 uppercase tracking-wider"
             >
-              {tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase()}
+              {tag.toLowerCase()}
             </span>
           ))}
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
           {/* Reorder Buttons inside rounded capsule */}
           {(onMoveUp || onMoveDown) && (
             <div className="flex items-center bg-zinc-800/30 border border-white/5 rounded-full p-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -215,7 +429,7 @@ function AppleGoalCard({
               <button
                 onClick={handleMenuToggle}
                 className={`p-1.5 text-zinc-500 hover:text-white rounded-full transition-colors ${
-                  showMenu ? "text-white bg-zinc-850" : ""
+                  showMenu ? "text-white bg-zinc-855" : ""
                 }`}
               >
                 <MoreHorizontal size={14} />
@@ -247,36 +461,38 @@ function AppleGoalCard({
       </div>
 
       {/* Goal Title */}
-      <div className="flex-1 flex flex-col justify-start mb-3">
-        <h2 className="text-base font-semibold tracking-tight text-white line-clamp-1 leading-snug font-sans">
+      <div className="flex-1 flex flex-col justify-start mb-3.5 z-10">
+        <h2 className="text-[15px] font-bold tracking-tight text-white/95 line-clamp-1 leading-snug font-sans">
           {goal.title}
         </h2>
       </div>
 
       {/* Progress tracking */}
-      <div className="space-y-1.5">
+      <div className="space-y-2 z-10">
         <div className="flex items-center justify-between select-none">
-          <span className="text-[9px] font-sans text-zinc-500 uppercase tracking-widest font-semibold">
-            Progress
+          <span className="text-[9px] font-sans text-zinc-500 uppercase tracking-widest font-bold">
+            Goal Progress
           </span>
-          <span className="text-white font-sans text-xs font-bold">
+          <span className="text-white font-sans text-xs font-bold bg-white/[0.04] px-2 py-0.5 border border-white/5 rounded-md shadow-sm">
             {displayPercent}%
           </span>
         </div>
 
-        {/* Apple Rounded Progress bar */}
-        <div className="w-full h-[6px] bg-zinc-800/60 rounded-full overflow-hidden">
+        {/* Apple Rounded Progress bar with subtle light ray sheen */}
+        <div className="w-full h-[7px] bg-zinc-800/40 rounded-full overflow-hidden border border-white/[0.02]">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-[#007AFF] to-[#5856D6] transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
+            className="h-full rounded-full bg-gradient-to-r from-[#007AFF] to-[#5856D6] transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] relative"
             style={{ width: `${goal.progressPercent || 0}%` }}
-          />
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse duration-[2.5s]" />
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-// ─── Apple Premium Habit Card ──────────────────────────────────────────
+// ─── Apple Premium Habit Card with 3D Tilt ─────────────────────────────
 interface AppleHabitCardProps {
   habit: Habit;
   onTap: (habit: Habit) => void;
@@ -291,6 +507,8 @@ function AppleHabitCard({ habit, onTap, onEditTap, entranceDelay = 0 }: AppleHab
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showRipple, setShowRipple] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const { tilt, cardRef, handleMouseMove, handleMouseLeave } = useCardTilt();
 
   useEffect(() => {
     if (!showMenu) return;
@@ -373,16 +591,26 @@ function AppleHabitCard({ habit, onTap, onEditTap, entranceDelay = 0 }: AppleHab
 
   return (
     <div
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
       onClick={() => !isPending && !showDeleteConfirm && onTap(habit)}
-      className={`group relative flex flex-col justify-between w-full p-5 rounded-[24px] cursor-pointer select-none overflow-visible transition-all duration-300 border border-white/[0.05] bg-zinc-900/40 backdrop-blur-xl hover:bg-zinc-800/40 hover:scale-[1.01] active:scale-[0.985] ${
+      className={`group relative flex flex-col justify-between w-full p-5 rounded-[28px] cursor-pointer select-none overflow-visible border border-white/[0.05] ${
         isPending ? "opacity-60 pointer-events-none" : ""
       }`}
-      style={{ animationDelay: `${entranceDelay}ms` }}
+      style={{
+        transform: `perspective(1000px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) scale3d(1.015, 1.015, 1.015)`,
+        transition: "transform 0.15s ease-out, background 0.3s, shadow 0.3s",
+        background: `radial-gradient(circle at ${tilt.shineX}% ${tilt.shineY}%, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0) 65%), rgba(28,28,30,0.35)`,
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        boxShadow: tilt.x !== 0 ? "0 20px 40px rgba(0,0,0,0.4)" : "0 10px 30px rgba(0,0,0,0.2)"
+      }}
     >
       {/* Delete confirmation iOS Alert */}
       {showDeleteConfirm && (
         <div
-          className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-[24px] bg-[#1c1c1e]/95 border border-white/10 p-5 animate-fade-in"
+          className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-[28px] bg-[#1c1c1e]/95 border border-white/10 p-5 animate-fade-in"
           onClick={(e) => e.stopPropagation()}
         >
           <AlertTriangle size={20} className="text-red-400" />
@@ -408,7 +636,7 @@ function AppleHabitCard({ habit, onTap, onEditTap, entranceDelay = 0 }: AppleHab
       )}
 
       {/* Header Info */}
-      <div className="flex items-center justify-between gap-3 mb-3.5 relative">
+      <div className="flex items-center justify-between gap-3 mb-3.5 relative z-10">
         <div className="flex items-center gap-2.5">
           {/* Apple-Style Accent Rounded Icon Square */}
           <div className="p-2.5 rounded-2xl border flex items-center justify-center shrink-0 bg-blue-500/10 border-blue-500/20 text-[#007AFF]">
@@ -416,7 +644,7 @@ function AppleHabitCard({ habit, onTap, onEditTap, entranceDelay = 0 }: AppleHab
           </div>
 
           <div className="flex flex-col">
-            <h3 className="text-base font-semibold tracking-tight text-white line-clamp-1 leading-snug font-sans">
+            <h3 className="text-[15px] font-bold tracking-tight text-white line-clamp-1 leading-snug font-sans">
               {habit.title}
             </h3>
             <p className="text-[10px] font-sans text-zinc-500">
@@ -430,7 +658,7 @@ function AppleHabitCard({ habit, onTap, onEditTap, entranceDelay = 0 }: AppleHab
           <button
             onClick={handleCheck}
             disabled={isPending}
-            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 ${
+            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 active:scale-90 ${
               isFullyComplete
                 ? "bg-[#30D158] text-white shadow-[0_0_12px_rgba(48,209,88,0.2)]"
                 : "border-2 border-zinc-700 bg-zinc-850 text-zinc-500 hover:text-zinc-300 hover:border-zinc-500"
@@ -451,7 +679,7 @@ function AppleHabitCard({ habit, onTap, onEditTap, entranceDelay = 0 }: AppleHab
           <div className="relative" ref={menuRef}>
             <button
               onClick={(e) => { e.stopPropagation(); setShowMenu((s) => !s); }}
-              className={`p-1.5 text-zinc-500 hover:text-white rounded-full transition-colors ${showMenu ? "text-white bg-zinc-800" : ""}`}
+              className={`p-1.5 text-zinc-500 hover:text-white rounded-full transition-colors ${showMenu ? "text-white bg-zinc-805" : ""}`}
             >
               <MoreHorizontal size={14} />
             </button>
@@ -487,8 +715,8 @@ function AppleHabitCard({ habit, onTap, onEditTap, entranceDelay = 0 }: AppleHab
         </div>
       </div>
 
-      {/* Fitness-style Log Grid (No neon borders, soft solid boxes) */}
-      <div className="mb-3.5 overflow-hidden">
+      {/* Fitness-style Log Grid (Glowing shimmers on completion) */}
+      <div className="mb-3.5 overflow-hidden z-10">
         <div
           className="grid gap-[3px] w-full"
           style={{ gridTemplateColumns: `repeat(20, minmax(0, 1fr))` }}
@@ -499,9 +727,11 @@ function AppleHabitCard({ habit, onTap, onEditTap, entranceDelay = 0 }: AppleHab
               return (
                 <div
                   key={`day-${cell.dayIndex}`}
-                  className="w-full aspect-square rounded-[3px] bg-[#30D158] transition-all duration-300"
+                  className="w-full aspect-square rounded-[3px] bg-[#30D158] relative overflow-hidden transition-all duration-300 shadow-[0_0_8px_rgba(48,209,88,0.2)]"
                   title={label}
-                />
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full animate-shimmer-fast" />
+                </div>
               );
             }
             if (cell.state === "partial") {
@@ -525,12 +755,14 @@ function AppleHabitCard({ habit, onTap, onEditTap, entranceDelay = 0 }: AppleHab
       </div>
 
       {/* Apple-style Progress Indicator bar */}
-      <div className="space-y-2">
-        <div className="w-full h-[5px] rounded-full overflow-hidden bg-zinc-800">
+      <div className="space-y-2 z-10">
+        <div className="w-full h-[5px] rounded-full overflow-hidden bg-zinc-800/60 border border-white/[0.02]">
           <div
-            className="h-full rounded-full transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] bg-[#007AFF]"
+            className="h-full rounded-full transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] bg-[#007AFF] relative"
             style={{ width: `${progressPct}%` }}
-          />
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-pulse duration-[2.5s]" />
+          </div>
         </div>
 
         {/* Tags & Streaks */}
@@ -540,9 +772,9 @@ function AppleHabitCard({ habit, onTap, onEditTap, entranceDelay = 0 }: AppleHab
               habit.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="px-2.5 py-0.5 text-[9px] font-sans font-semibold text-zinc-400 bg-zinc-800/40 rounded-full border border-white/5"
+                  className="px-2.5 py-0.5 text-[9px] font-sans font-bold text-zinc-400 bg-zinc-800/40 rounded-full border border-white/5 uppercase tracking-wider"
                 >
-                  {tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase()}
+                  {tag.toLowerCase()}
                 </span>
               ))
             ) : (
@@ -552,7 +784,7 @@ function AppleHabitCard({ habit, onTap, onEditTap, entranceDelay = 0 }: AppleHab
             )}
           </div>
           <div
-            className={`text-[10px] font-sans shrink-0 flex items-center gap-1 font-semibold ${
+            className={`text-[10px] font-sans shrink-0 flex items-center gap-1 font-bold ${
               streak > 0 ? "text-orange-400" : "text-zinc-500"
             }`}
           >
@@ -569,7 +801,7 @@ function AppleHabitCard({ habit, onTap, onEditTap, entranceDelay = 0 }: AppleHab
   );
 }
 
-// ─── Apple Premium Deadline Card ───────────────────────────────────────
+// ─── Apple Premium Deadline Card with 3D Tilt ──────────────────────────
 interface AppleDeadlineCardProps {
   deadline: Deadline;
   onEditTap: (deadline: Deadline) => void;
@@ -583,6 +815,8 @@ function AppleDeadlineCard({ deadline, onEditTap }: AppleDeadlineCardProps) {
   const [timeRemainingText, setTimeRemainingText] = useState("");
   const [urgency, setUrgency] = useState<"red" | "yellow" | "green">("green");
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const { tilt, cardRef, handleMouseMove, handleMouseLeave } = useCardTilt();
 
   useEffect(() => {
     if (!showMenu) return;
@@ -657,22 +891,33 @@ function AppleDeadlineCard({ deadline, onEditTap }: AppleDeadlineCardProps) {
   }, [deadline.due_date]);
 
   const urgencyDotClass = {
-    red: "bg-[#FF453A]",
-    yellow: "bg-[#FFD60A]",
-    green: "bg-[#30D158]",
+    red: "bg-[#FF453A] shadow-[0_0_8px_rgba(255,69,58,0.4)]",
+    yellow: "bg-[#FFD60A] shadow-[0_0_8px_rgba(255,214,10,0.3)]",
+    green: "bg-[#30D158] shadow-[0_0_8px_rgba(48,209,88,0.3)]",
   }[urgency];
 
   return (
     <div
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
       onClick={() => !isPending && !showDeleteConfirm && toggleDeadlineCompletion(deadline.id)}
-      className={`group relative flex flex-col justify-between w-full p-5 rounded-[24px] cursor-pointer select-none overflow-visible transition-all duration-300 border border-white/[0.05] bg-zinc-900/40 backdrop-blur-xl hover:bg-zinc-800/40 hover:scale-[1.01] active:scale-[0.985] ${
+      className={`group relative flex flex-col justify-between w-full p-5 rounded-[28px] cursor-pointer select-none overflow-visible border border-white/[0.05] ${
         isPending ? "opacity-60 pointer-events-none" : ""
       } ${deadline.completed ? "opacity-50" : ""}`}
+      style={{
+        transform: `perspective(1000px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) scale3d(1.015, 1.015, 1.015)`,
+        transition: "transform 0.15s ease-out, background 0.3s, shadow 0.3s",
+        background: `radial-gradient(circle at ${tilt.shineX}% ${tilt.shineY}%, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0) 65%), rgba(28,28,30,0.35)`,
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        boxShadow: tilt.x !== 0 ? "0 20px 40px rgba(0,0,0,0.4)" : "0 10px 30px rgba(0,0,0,0.2)"
+      }}
     >
       {/* Delete confirmation iOS Style alert */}
       {showDeleteConfirm && (
         <div
-          className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-[24px] bg-[#1c1c1e]/95 border border-white/10 p-5 animate-fade-in"
+          className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-[28px] bg-[#1c1c1e]/95 border border-white/10 p-5 animate-fade-in"
           onClick={(e) => e.stopPropagation()}
         >
           <AlertTriangle size={20} className="text-red-400" />
@@ -698,7 +943,7 @@ function AppleDeadlineCard({ deadline, onEditTap }: AppleDeadlineCardProps) {
       )}
 
       {/* Header Row */}
-      <div className="flex items-start justify-between gap-3 mb-3 relative">
+      <div className="flex items-start justify-between gap-3 mb-3.5 relative z-10">
         <div className="flex items-center gap-3 min-w-0">
           {/* iOS Circular Radio Toggle Button */}
           <button
@@ -707,7 +952,7 @@ function AppleDeadlineCard({ deadline, onEditTap }: AppleDeadlineCardProps) {
               toggleDeadlineCompletion(deadline.id);
             }}
             disabled={isPending}
-            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 shrink-0 ${
+            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 shrink-0 active:scale-90 ${
               deadline.completed
                 ? "bg-[#30D158] border-transparent text-white"
                 : "border-zinc-700 bg-zinc-850 hover:border-zinc-500 text-transparent"
@@ -718,7 +963,7 @@ function AppleDeadlineCard({ deadline, onEditTap }: AppleDeadlineCardProps) {
 
           <div className="flex flex-col min-w-0">
             <h3
-              className={`text-base font-semibold tracking-tight text-white line-clamp-1 leading-snug font-sans ${
+              className={`text-[15px] font-bold tracking-tight text-white line-clamp-1 leading-snug font-sans ${
                 deadline.completed ? "line-through text-zinc-500" : ""
               }`}
             >
@@ -738,7 +983,7 @@ function AppleDeadlineCard({ deadline, onEditTap }: AppleDeadlineCardProps) {
           <button
             onClick={() => setShowMenu((s) => !s)}
             className={`p-1.5 text-zinc-500 hover:text-white rounded-full transition-colors ${
-              showMenu ? "text-white bg-zinc-850" : ""
+              showMenu ? "text-white bg-zinc-805" : ""
             }`}
           >
             <MoreHorizontal size={14} />
@@ -773,10 +1018,10 @@ function AppleDeadlineCard({ deadline, onEditTap }: AppleDeadlineCardProps) {
       </div>
 
       {/* Countdown Panel */}
-      <div className="flex items-center justify-between mt-1 bg-zinc-950/30 border border-white/5 p-3 rounded-2xl select-none">
+      <div className="flex items-center justify-between mt-1 bg-zinc-950/30 border border-white/5 p-3 rounded-2xl select-none z-10">
         <div className="flex items-center gap-2 min-w-0">
           <div className={`w-2 h-2 rounded-full shrink-0 ${urgencyDotClass}`} />
-          <span className="text-[10px] uppercase font-sans tracking-widest text-zinc-500 font-semibold shrink-0">
+          <span className="text-[10px] uppercase font-sans tracking-widest text-zinc-500 font-bold shrink-0">
             Time Left:
           </span>
         </div>
@@ -785,7 +1030,7 @@ function AppleDeadlineCard({ deadline, onEditTap }: AppleDeadlineCardProps) {
             deadline.completed
               ? "text-zinc-500"
               : urgency === "red"
-              ? "text-[#FF453A]"
+              ? "text-[#FF453A] animate-pulse"
               : urgency === "yellow"
               ? "text-[#FFD60A]"
               : "text-[#30D158]"
@@ -931,7 +1176,7 @@ function HomeContent() {
       pillEl.style.right = `${currentRight}%`;
       pillEl.style.transition = "none";
       
-      const innerPill = pillEl.querySelector('.bg-white') || pillEl.querySelector('.bg-[#636366]/50');
+      const innerPill = pillEl.querySelector('.bg-[#636366]/50');
       if (innerPill) {
         (innerPill as HTMLElement).style.transform = `scaleY(${1 - Math.abs(newProgress) * 0.12})`;
         (innerPill as HTMLElement).style.transition = "none";
@@ -1001,7 +1246,7 @@ function HomeContent() {
       pillEl.style.left = `${targetIndex * 33.333}%`;
       pillEl.style.right = `${(2 - targetIndex) * 33.333}%`;
       
-      const innerPill = pillEl.querySelector('.bg-white') || pillEl.querySelector('.bg-[#636366]/50');
+      const innerPill = pillEl.querySelector('.bg-[#636366]/50');
       if (innerPill) {
         (innerPill as HTMLElement).style.transition = "transform 300ms ease-out";
         (innerPill as HTMLElement).style.transform = "";
@@ -1577,7 +1822,7 @@ function HomeContent() {
         {/* iOS style sliding segmented indicator pill */}
         <div 
           ref={isForHeader ? headerPillRef : pillRef}
-          className="absolute inset-y-0 animate-fade-in"
+          className="absolute inset-y-0"
           style={{
             left: leftStyle,
             right: rightStyle,
@@ -1623,6 +1868,27 @@ function HomeContent() {
     );
   };
 
+  // ─── Live Dynamic Rings Summary Math ────────────────────────────────────
+  const goalsPct = React.useMemo(() => {
+    const activeGoals = goals.filter(g => !g.tags.some(t => t.toLowerCase() === "habit" || t.toLowerCase() === "deadline") && !g.title.toLowerCase().includes("deadline"));
+    return activeGoals.length > 0 
+      ? (activeGoals.reduce((sum, g) => sum + (g.progressPercent || 0), 0) / activeGoals.length) 
+      : 0;
+  }, [goals]);
+
+  const habitsPct = React.useMemo(() => {
+    return habits.length > 0
+      ? (habits.reduce((sum, h) => sum + (h.completionsToday ?? 0) / h.daily_target, 0) / habits.length) * 100
+      : 0;
+  }, [habits]);
+
+  const deadlinesPct = React.useMemo(() => {
+    const completedDeadlines = deadlines.filter(d => d.completed).length;
+    return deadlines.length > 0
+      ? (completedDeadlines / deadlines.length) * 100
+      : 0;
+  }, [deadlines]);
+
   const syncError = goalsSyncError || habitsSyncError;
   const handleClearSyncError = () => {
     if (goalsSyncError) clearGoalsSyncError();
@@ -1632,9 +1898,44 @@ function HomeContent() {
   return (
     <div 
       ref={containerRef}
-      className="min-h-screen text-white md:max-w-md md:mx-auto md:shadow-2xl md:border-x md:border-zinc-900 pb-28 relative flex flex-col font-sans"
+      className="min-h-screen text-white md:max-w-md md:mx-auto md:shadow-2xl md:border-x md:border-zinc-900 pb-28 relative flex flex-col font-sans overflow-hidden"
       style={{ zIndex: 1 }}
     >
+      {/* Dynamic Keyframe Animations for Fluid Blobs */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes float-blob-1 {
+          0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+          33% { transform: translate(45px, -60px) scale(1.15) rotate(120deg); }
+          66% { transform: translate(-30px, 30px) scale(0.9) rotate(240deg); }
+        }
+        @keyframes float-blob-2 {
+          0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+          33% { transform: translate(-50px, 40px) scale(0.9) rotate(-120deg); }
+          66% { transform: translate(40px, -45px) scale(1.1) rotate(-240deg); }
+        }
+        @keyframes float-blob-3 {
+          0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+          33% { transform: translate(30px, 45px) scale(1.05) rotate(60deg); }
+          66% { transform: translate(-40px, -30px) scale(0.95) rotate(180deg); }
+        }
+        @keyframes shimmer-sweep {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        .animate-float-1 {
+          animation: float-blob-1 16s ease-in-out infinite alternate;
+        }
+        .animate-float-2 {
+          animation: float-blob-2 20s ease-in-out infinite alternate;
+        }
+        .animate-float-3 {
+          animation: float-blob-3 24s ease-in-out infinite alternate;
+        }
+        .animate-shimmer-fast {
+          animation: shimmer-sweep 2s infinite linear;
+        }
+      `}} />
+
       {/* Premium Apple Frosted Dynamic background */}
       <AppleBackground />
       
@@ -1670,7 +1971,7 @@ function HomeContent() {
               }}
               className={`p-2 rounded-full transition-all ${
                 showSearch 
-                  ? "text-white bg-zinc-800" 
+                  ? "text-white bg-zinc-805" 
                   : "text-zinc-500 hover:text-white hover:bg-zinc-800/40"
               }`}
               aria-label="Toggle Search"
@@ -1700,6 +2001,25 @@ function HomeContent() {
       <main className="flex-1 px-6 pt-24 pb-6 space-y-6">
         {/* Sentinel to detect when tab hits header */}
         <div ref={sentinelRef} className="h-[1px] w-full pointer-events-none -mb-[1px]" />
+
+        {/* Jaw-dropping Apple Concentric Rings Summary Widget */}
+        {!isHeaderCompressed && !isTabDocked && (
+          <div className="animate-fade-in">
+            <AppleSummaryWidget
+              goalsCount={goals.filter(g => !g.tags.some(t => t.toLowerCase() === "habit" || t.toLowerCase() === "deadline") && !g.title.toLowerCase().includes("deadline")).length}
+              goalsPct={goalsPct}
+              habitsCount={habits.length}
+              habitsPct={habitsPct}
+              deadlinesCount={deadlines.filter(d => !d.completed).length}
+              deadlinesPct={deadlinesPct}
+              activeTab={activeTab}
+              setActiveTab={(tab) => {
+                setPrevTab(activeTab);
+                setActiveTab(tab);
+              }}
+            />
+          </div>
+        )}
 
         {/* Navigation Tabs (Deadlines, Goals, Habits) with Morphing Pill Switcher */}
         <div 
@@ -1739,7 +2059,7 @@ function HomeContent() {
           >
             <button
               onClick={() => setSelectedTag(null)}
-              className={`py-1.5 px-4 text-[10px] font-sans font-semibold rounded-full border transition-all duration-300 active:scale-95 shrink-0 ${
+              className={`py-1.5 px-4 text-[10px] font-sans font-bold rounded-full border transition-all duration-300 active:scale-95 shrink-0 ${
                 !selectedTag
                   ? "bg-white text-black border-transparent shadow-md scale-102"
                   : "bg-zinc-900/60 text-zinc-400 border-white/[0.05] hover:text-white"
@@ -1753,7 +2073,7 @@ function HomeContent() {
                 <button
                   key={tag}
                   onClick={() => setSelectedTag(isActive ? null : tag)}
-                  className={`py-1.5 px-4 text-[10px] font-sans font-semibold rounded-full border transition-all duration-300 shrink-0 active:scale-95 ${
+                  className={`py-1.5 px-4 text-[10px] font-sans font-bold rounded-full border transition-all duration-300 shrink-0 active:scale-95 ${
                     isActive
                       ? "bg-white text-black border-transparent shadow-md scale-102"
                       : "bg-zinc-900/60 text-zinc-400 border-white/[0.05] hover:text-white"
@@ -1833,7 +2153,7 @@ function HomeContent() {
       )}
 
       {/* Floating Bottom Add Goal Trigger Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-[#0a0a0c] via-[#0a0a0c]/80 to-transparent py-6 flex justify-center pointer-events-none">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-[#070709] via-[#070709]/80 to-transparent py-6 flex justify-center pointer-events-none">
         <button
           onClick={handleAddTap}
           className="pointer-events-auto relative flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-[#007AFF] to-[#5856D6] text-white text-xs font-semibold rounded-full shadow-lg hover:brightness-110 hover:scale-[1.03] active:scale-[0.97] transition-all duration-300"
