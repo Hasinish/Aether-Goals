@@ -13,7 +13,7 @@ export function useBottomSheetDrag({
   scrollRef,
   onClose,
   closeThreshold = 90,
-  ignoreSelector = '[data-subtask-grip="true"],[data-no-sheet-drag="true"]',
+  ignoreSelector = 'button, input, select, textarea, a, [role="button"], [role="checkbox"], [data-subtask-grip="true"],[data-no-sheet-drag="true"]',
 }: UseBottomSheetDragProps) {
   const onCloseRef = useRef(onClose);
   useEffect(() => {
