@@ -166,28 +166,40 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
           setGoals(assembledGoals);
         } else {
-          // Migration logic
-          const localGoalsRaw = localStorage.getItem(STORAGE_KEYS.GOALS);
-          const localSubtasksRaw = localStorage.getItem(STORAGE_KEYS.SUBTASKS);
+          // goalsData is empty (0 rows). This can happen in two cases:
+          //   A) First-ever login — user needs seed data
+          //   B) User deliberately deleted all their goals — we must NOT re-seed
+          //
+          // We disambiguate using the SEEDED flag in localStorage.
+          const seededKey = `${STORAGE_KEYS.SEEDED}_${user.id}`;
+          const alreadySeeded = localStorage.getItem(seededKey);
 
-          let goalsCorrupt = false;
-          if (localGoalsRaw) {
-            try {
-              const parsed = JSON.parse(localGoalsRaw);
-              if (!Array.isArray(parsed)) goalsCorrupt = true;
-            } catch {
-              goalsCorrupt = true;
+          if (alreadySeeded) {
+            // Case B: User cleared all their goals — respect that, show empty state.
+            setGoals([]);
+          } else {
+            // Case A: First time for this user — check if there's local guest data to migrate.
+            const localGoalsRaw = localStorage.getItem(STORAGE_KEYS.GOALS);
+            const localSubtasksRaw = localStorage.getItem(STORAGE_KEYS.SUBTASKS);
+
+            let goalsCorrupt = false;
+            if (localGoalsRaw) {
+              try {
+                const parsed = JSON.parse(localGoalsRaw);
+                if (!Array.isArray(parsed)) goalsCorrupt = true;
+              } catch {
+                goalsCorrupt = true;
+              }
             }
-          }
-          if (goalsCorrupt) {
-            setSyncError("Local goals data is corrupt.");
-          }
+            if (goalsCorrupt) {
+              setSyncError("Local goals data is corrupt.");
+            }
 
-          const parsedGoals = safeParseArray<Goal>(localGoalsRaw, []);
-          const parsedSubtasks = safeParseArray<Subtask>(localSubtasksRaw, []);
+            const parsedGoals = safeParseArray<Goal>(localGoalsRaw, []);
+            const parsedSubtasks = safeParseArray<Subtask>(localSubtasksRaw, []);
 
-          if (localGoalsRaw !== null && !goalsCorrupt) {
-            if (parsedGoals.length > 0) {
+            if (localGoalsRaw !== null && !goalsCorrupt && parsedGoals.length > 0) {
+              // Migrate guest localStorage data into Supabase
               const goalIdMap: Record<string, string> = {};
               parsedGoals.forEach(g => { goalIdMap[g.id] = createId("goal"); });
               
@@ -228,7 +240,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 }
               }
 
-              // Wiping guest localStorage only after all remote inserts succeed
+              // Mark seeded BEFORE wiping localStorage
+              localStorage.setItem(seededKey, "1");
               localStorage.removeItem(STORAGE_KEYS.GOALS);
               localStorage.removeItem(STORAGE_KEYS.SUBTASKS);
 
@@ -247,12 +260,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               }).sort((a, b) => a.sort_order - b.sort_order);
               setGoals(assembledGoals);
             } else {
-              setGoals([]);
+              // No local data — seed with demo data
+              await seedDataToSupabase(user.id);
+              // Mark as seeded after seedDataToSupabase completes
+              localStorage.setItem(seededKey, "1");
             }
-          } else if (localGoalsRaw === null) {
-            await seedDataToSupabase(user.id);
-          } else {
-            setGoals([]);
           }
         }
       } else {
@@ -285,11 +297,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }).sort((a, b) => a.sort_order - b.sort_order);
 
           setGoals(assembledGoals);
-        } else if (localGoalsRaw === null) {
+        } else if (localGoalsRaw === null && !localStorage.getItem(STORAGE_KEYS.SEEDED)) {
+          // First time guest user — seed with demo data
           const { goals: seedGoals, subtasks: seedSubtasks } = getInitialSeedData();
           
           localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(seedGoals));
           localStorage.setItem(STORAGE_KEYS.SUBTASKS, JSON.stringify(seedSubtasks));
+          localStorage.setItem(STORAGE_KEYS.SEEDED, "1");
 
           const assembledGoals = seedGoals.map((g) => {
             const goalSubtasks = seedSubtasks.filter((s) => s.goal_id === g.id);
@@ -301,6 +315,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
           setGoals(assembledGoals);
         } else {
+          // User deliberately cleared all goals — show empty state
           setGoals([]);
         }
       }

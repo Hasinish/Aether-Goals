@@ -5,4 +5,5 @@ export const STORAGE_KEYS = {
   HABITS: "aether_habits",
   HABIT_LOGS: "aether_habit_logs",
   DEADLINES: "aether_deadlines",
+  SEEDED: "aether_seeded",
 } as const;
