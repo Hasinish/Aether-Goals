@@ -571,9 +571,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       if (!isOfflineMode && user && user !== "guest") {
         const client = getSupabaseClient();
-        // Relies on database ON DELETE CASCADE rule for subtasks
-        const { error: gError } = await client.from("goals").delete().eq("id", goalId);
+        const { data, error: gError } = await client.from("goals").delete().eq("id", goalId).select();
         if (gError) throw gError;
+        if (!data || data.length === 0) {
+          throw new Error("Delete blocked by Row Level Security (RLS). Please ensure you have a DELETE policy configured for the 'goals' table.");
+        }
       } else {
         const localGoals = localStorage.getItem(STORAGE_KEYS.GOALS);
         const localSubtasks = localStorage.getItem(STORAGE_KEYS.SUBTASKS);

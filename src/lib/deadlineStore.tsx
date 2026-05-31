@@ -203,8 +203,11 @@ export const DeadlineStoreProvider: React.FC<{
       try {
         if (!isOfflineMode && user && user !== "guest") {
           const client = getSupabaseClient();
-          const { error } = await client.from("deadlines").delete().eq("id", id);
+          const { data, error } = await client.from("deadlines").delete().eq("id", id).select();
           if (error) throw error;
+          if (!data || data.length === 0) {
+            throw new Error("Delete blocked by Row Level Security (RLS). Please ensure you have a DELETE policy configured for the 'deadlines' table.");
+          }
         } else {
           const localList = fetchFromLocal();
           const filtered = localList.filter((d) => d.id !== id);

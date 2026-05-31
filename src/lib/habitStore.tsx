@@ -357,8 +357,11 @@ export const HabitStoreProvider: React.FC<{
       try {
         if (!isOfflineMode && user && user !== "guest") {
           const client = getSupabaseClient();
-          const { error } = await client.from("habits").delete().eq("id", id);
+          const { data, error } = await client.from("habits").delete().eq("id", id).select();
           if (error) throw error;
+          if (!data || data.length === 0) {
+            throw new Error("Delete blocked by Row Level Security (RLS). Please ensure you have a DELETE policy configured for the 'habits' table.");
+          }
         } else {
           const { rawHabits, logs } = fetchFromLocal();
           const updatedHabits = rawHabits.filter((h) => h.id !== id);

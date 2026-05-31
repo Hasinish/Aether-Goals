@@ -142,6 +142,9 @@ export default function AuthScreen() {
           const { error: authError } = await client.auth.signUp({
             email: email.trim(),
             password: password,
+            options: {
+              emailRedirectTo: typeof window !== "undefined" ? window.location.origin : undefined,
+            },
           });
 
           if (authError) throw authError;
