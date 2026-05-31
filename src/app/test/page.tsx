@@ -1,2231 +1,1081 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { ArrowLeft, LogOut, Plus, Search, MoreHorizontal, Edit2, Trash2, ChevronUp, ChevronDown, AlertTriangle, Check, Calendar, Activity, Flame, ShieldCheck, GlassWater, BookOpen, Brain, Heart, Moon, Sparkles, Dumbbell, Apple, Coffee, Clock } from "lucide-react";
 
-const useIsomorphicLayoutEffect = typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect;
-import { useGoalsStore } from "@/lib/store";
-import { Goal, Habit, Deadline } from "@/lib/types";
-import AuthScreen from "@/components/AuthScreen";
-import GoalDetailModal from "@/components/GoalDetailModal";
-import GoalFormModal from "@/components/GoalFormModal";
-import HabitFormModal from "@/components/HabitFormModal";
-import DeadlineFormModal from "@/components/DeadlineFormModal";
-import HabitAnalyticsModal from "@/components/HabitAnalyticsModal";
-import { HabitStoreProvider, useHabitsStore } from "@/lib/habitStore";
-import { DeadlineStoreProvider, useDeadlinesStore } from "@/lib/deadlineStore";
-import { LogOut, Plus, Search, MoreHorizontal, Edit2, Trash2, ChevronUp, ChevronDown, AlertTriangle, Check, Calendar, Activity, Flame, ShieldCheck, GlassWater, BookOpen, Brain, Heart, Moon, Sparkles, Dumbbell, Apple, Coffee, Clock } from "lucide-react";
-import { useCountUp } from "@/hooks/useCountUp";
+// ─── STAGE LOAD DELAY STYLE ANIMATIONS ───────────────────────────────────
+// Inject custom Google Font (JetBrains Mono) and keyframe animations
+const CSS_STYLE_BLOCK = `
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap');
 
-// ─── Local Icon map for Habits ─────────────────────────────────────────────
-const HABIT_ICONS = {
-  activity: Activity,
-  flame: Flame,
-  water: GlassWater,
-  book: BookOpen,
-  brain: Brain,
-  heart: Heart,
-  moon: Moon,
-  sparkles: Sparkles,
-  dumbbell: Dumbbell,
-  apple: Apple,
-  coffee: Coffee,
-  clock: Clock,
-} as const;
-
-// ─── Local Date Helpers ──────────────────────────────────────────────────
-function dateStrForOffset(daysAgo: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - daysAgo);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+* {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace !important;
 }
 
-function friendlyDate(dateStr: string): string {
-  const [year, month, day] = dateStr.split("-").map(Number);
-  const d = new Date(year, month - 1, day);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-// ─── Interactive 3D Tilt Hook ────────────────────────────────────────────
-function useCardTilt() {
-  const [tilt, setTilt] = useState({ x: 0, y: 0, shineX: 50, shineY: 50 });
-  const cardRef = useRef<HTMLDivElement>(null);
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    const card = cardRef.current;
-    if (!card) return;
-    const rect = card.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    // Relative coordinates (-0.5 to 0.5)
-    const relX = (x / rect.width) - 0.5;
-    const relY = (y / rect.height) - 0.5;
-    
-    // 3D angles of tilt (max 8 degrees)
-    const tiltX = -relY * 12;
-    const tiltY = relX * 12;
-    
-    // Position of simulated light glare reflection
-    const shineX = (x / rect.width) * 100;
-    const shineY = (y / rect.height) * 100;
-    
-    setTilt({ x: tiltX, y: tiltY, shineX, shineY });
-  };
-
-  const handleMouseLeave = () => {
-    // Reset back to equilibrium
-    setTilt({ x: 0, y: 0, shineX: 50, shineY: 50 });
-  };
-
-  return { tilt, cardRef, handleMouseMove, handleMouseLeave };
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-// ─── Apple Premium Frosted Dynamic Fluid Background ──────────────────────
-function AppleBackground() {
-  return (
-    <div className="absolute inset-0 -z-10 overflow-hidden bg-[#070709]">
-      {/* Animated fluid blur mesh gradients */}
-      <div className="absolute -top-[20%] -left-[30%] w-[100%] h-[100%] rounded-full bg-[#1b253b]/30 blur-[130px] animate-float-1" />
-      <div className="absolute -bottom-[20%] -right-[20%] w-[90%] h-[90%] rounded-full bg-[#152e25]/30 blur-[120px] animate-float-2" />
-      <div className="absolute top-[35%] left-[20%] w-[70%] h-[70%] rounded-full bg-[#271536]/25 blur-[140px] animate-float-3" />
-      
-      {/* Subtle organic light ray */}
-      <div className="absolute top-0 right-1/4 w-[2px] h-[70vh] bg-gradient-to-b from-white/[0.04] to-transparent blur-[1px]" />
-    </div>
-  );
+@keyframes slideLeft {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
-// ─── Apple Sans-Serif tracked Logo ───────────────────────────────────────
-function AppleAetherLogo() {
-  return (
-    <span className="text-xl font-bold tracking-tight text-white select-none bg-gradient-to-r from-white via-zinc-300 to-zinc-500 bg-clip-text text-transparent font-sans">
-      Aether
-    </span>
-  );
+@keyframes pulse-accent {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 
-// ─── Apple Activity concentric rings widget ──────────────────────────────
-function AppleSummaryWidget({ 
-  goalsCount, 
-  goalsPct, 
-  habitsCount, 
-  habitsPct, 
-  deadlinesCount, 
-  deadlinesPct,
-  activeTab,
-  setActiveTab
-}: {
-  goalsCount: number;
-  goalsPct: number;
-  habitsCount: number;
-  habitsPct: number;
-  deadlinesCount: number;
-  deadlinesPct: number;
-  activeTab: string;
-  setActiveTab: (tab: "deadlines" | "goals" | "habits") => void;
-}) {
-  const radius1 = 48; // Goals (Outer ring)
-  const radius2 = 36; // Habits (Middle ring)
-  const radius3 = 24; // Deadlines (Inner ring)
+@keyframes scan-line {
+  0% { transform: translateY(-200px); opacity: 0.2; }
+  50% { opacity: 0.6; }
+  100% { transform: translateY(800px); opacity: 0.2; }
+}
+
+@keyframes border-breathe {
+  0%, 100% { border-color: rgba(232,255,71,0.3); }
+  50% { border-color: rgba(232,255,71,0.85); }
+}
+
+@keyframes cursor-blink {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+.anim-fade-in {
+  animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.anim-slide-up {
+  opacity: 0;
+  animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.anim-slide-left {
+  opacity: 0;
+  animation: slideLeft 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+`;
+
+// ─── COUNT-UP ANIMATION ──────────────────────────────────────────────────
+function useCountUp(target: number, duration = 1200) {
+  const [value, setValue] = useState(0);
   
-  const circ1 = 2 * Math.PI * radius1;
-  const circ2 = 2 * Math.PI * radius2;
-  const circ3 = 2 * Math.PI * radius3;
+  useEffect(() => {
+    let start: number | null = null;
+    const step = (timestamp: number) => {
+      if (!start) start = timestamp;
+      const progress = Math.min((timestamp - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+      setValue(Math.round(eased * target));
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [target, duration]);
   
-  const offset1 = circ1 - (Math.max(goalsPct, 3) / 100) * circ1;
-  const offset2 = circ2 - (Math.max(habitsPct, 3) / 100) * circ2;
-  const offset3 = circ3 - (Math.max(deadlinesPct, 3) / 100) * circ3;
-
-  return (
-    <div className="w-full p-6 rounded-[32px] border border-white/[0.05] bg-zinc-900/30 backdrop-blur-2xl flex items-center justify-between gap-5 relative overflow-hidden select-none hover:bg-zinc-800/25 transition-all duration-500 shadow-xl group">
-      {/* Glare background reflections */}
-      <div className="absolute top-0 right-0 w-36 h-36 bg-blue-500/5 rounded-full blur-[70px] pointer-events-none transition-all duration-700 group-hover:scale-125" />
-      <div className="absolute bottom-0 left-0 w-36 h-36 bg-emerald-500/5 rounded-full blur-[70px] pointer-events-none transition-all duration-700 group-hover:scale-125" />
-      
-      {/* Summary data */}
-      <div className="flex-1 space-y-4 z-10">
-        <div>
-          <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest font-sans flex items-center gap-1">
-            <Sparkles size={9} className="text-zinc-400 animate-pulse" />
-            Aether Dashboard
-          </span>
-          <h2 className="text-lg font-bold tracking-tight text-white/95 font-sans mt-0.5">Focus Summary</h2>
-        </div>
-        
-        <div className="space-y-2.5">
-          {/* Goals */}
-          <div 
-            onClick={() => setActiveTab("goals")}
-            className={`flex items-center justify-between cursor-pointer py-1 px-2.5 rounded-xl transition-all duration-300 ${
-              activeTab === "goals" 
-                ? "bg-[#007AFF]/10 border border-[#007AFF]/25 scale-102" 
-                : "border border-transparent opacity-75 hover:opacity-100 hover:bg-white/[0.03]"
-            }`}
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-2 h-2 rounded-full bg-gradient-to-r from-[#007AFF] to-[#5856D6]" />
-              <span className="text-xs text-zinc-300 font-medium font-sans truncate">Goals Progress</span>
-            </div>
-            <span className="text-xs font-bold text-zinc-100 font-sans ml-2 shrink-0">{Math.round(goalsPct)}%</span>
-          </div>
-
-          {/* Habits */}
-          <div 
-            onClick={() => setActiveTab("habits")}
-            className={`flex items-center justify-between cursor-pointer py-1 px-2.5 rounded-xl transition-all duration-300 ${
-              activeTab === "habits" 
-                ? "bg-[#30D158]/10 border border-[#30D158]/25 scale-102" 
-                : "border border-transparent opacity-75 hover:opacity-100 hover:bg-white/[0.03]"
-            }`}
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-2 h-2 rounded-full bg-[#30D158]" />
-              <span className="text-xs text-zinc-300 font-medium font-sans truncate">Habits Streak</span>
-            </div>
-            <span className="text-xs font-bold text-zinc-100 font-sans ml-2 shrink-0">{Math.round(habitsPct)}%</span>
-          </div>
-
-          {/* Deadlines */}
-          <div 
-            onClick={() => setActiveTab("deadlines")}
-            className={`flex items-center justify-between cursor-pointer py-1 px-2.5 rounded-xl transition-all duration-300 ${
-              activeTab === "deadlines" 
-                ? "bg-[#FF453A]/10 border border-[#FF453A]/25 scale-102" 
-                : "border border-transparent opacity-75 hover:opacity-100 hover:bg-white/[0.03]"
-            }`}
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-2 h-2 rounded-full bg-[#FF453A]" />
-              <span className="text-xs text-zinc-300 font-medium font-sans truncate">Deadlines Met</span>
-            </div>
-            <span className="text-xs font-bold text-zinc-100 font-sans ml-2 shrink-0">{Math.round(deadlinesPct)}%</span>
-          </div>
-        </div>
-      </div>
-      
-      {/* Interactive Rings SVG */}
-      <div className="relative shrink-0 flex items-center justify-center z-10 w-28 h-28 select-none">
-        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
-          {/* Tracks */}
-          <circle cx="60" cy="60" r={radius1} fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="6.5" />
-          <circle cx="60" cy="60" r={radius2} fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="6.5" />
-          <circle cx="60" cy="60" r={radius3} fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="6.5" />
-          
-          {/* Active Rings */}
-          <circle 
-            cx="60" 
-            cy="60" 
-            r={radius1} 
-            fill="none" 
-            stroke="url(#apple-goals-grad)" 
-            strokeWidth="7" 
-            strokeDasharray={circ1} 
-            strokeDashoffset={offset1}
-            strokeLinecap="round"
-            className="transition-all duration-1000 ease-out"
-          />
-          <circle 
-            cx="60" 
-            cy="60" 
-            r={radius2} 
-            fill="none" 
-            stroke="#30D158" 
-            strokeWidth="7" 
-            strokeDasharray={circ2} 
-            strokeDashoffset={offset2}
-            strokeLinecap="round"
-            className="transition-all duration-1000 ease-out"
-          />
-          <circle 
-            cx="60" 
-            cy="60" 
-            r={radius3} 
-            fill="none" 
-            stroke="#FF453A" 
-            strokeWidth="7" 
-            strokeDasharray={circ3} 
-            strokeDashoffset={offset3}
-            strokeLinecap="round"
-            className="transition-all duration-1000 ease-out"
-          />
-          
-          {/* Gradients */}
-          <defs>
-            <linearGradient id="apple-goals-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#007AFF" />
-              <stop offset="100%" stopColor="#5856D6" />
-            </linearGradient>
-          </defs>
-        </svg>
-        
-        {/* Core dynamic logo marker */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <Activity className="w-4 h-4 text-white/50 animate-pulse duration-[2.5s]" />
-        </div>
-      </div>
-    </div>
-  );
+  return value;
 }
 
-// ─── Apple Refened Goal Card with 3D Tilt ───────────────────────────────
-interface AppleGoalCardProps {
-  goal: Goal;
-  onTap: (goal: Goal) => void;
-  onEditTap: (goal: Goal, e: React.MouseEvent) => void;
-  onMoveUp?: (e: React.MouseEvent) => void;
-  onMoveDown?: (e: React.MouseEvent) => void;
-  isFirst?: boolean;
-  isLast?: boolean;
-}
-
-function AppleGoalCard({ 
-  goal, 
-  onTap, 
-  onEditTap,
-  onMoveUp,
-  onMoveDown,
-  isFirst = false,
-  isLast = false
-}: AppleGoalCardProps) {
-  const { deleteGoal, pendingGoalIds } = useGoalsStore();
-  const isPending = pendingGoalIds.has(goal.id);
-  const displayPercent = useCountUp(goal.progressPercent || 0, 900);
-  const [showMenu, setShowMenu] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  const { tilt, cardRef, handleMouseMove, handleMouseLeave } = useCardTilt();
-
+// ─── COUNTDOWN TIMER ─────────────────────────────────────────────────────
+function useCountdown(targetDate: Date) {
+  const [timeLeft, setTimeLeft] = useState({ d: 0, h: 0, m: 0, s: 0 });
+  
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setShowMenu(false);
-      }
-    }
-    if (showMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showMenu]);
-
-  const handleMenuToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowMenu(!showMenu);
-  };
-
-  const handleEditClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowMenu(false);
-    onEditTap(goal, e);
-  };
-
-  const handleDeleteClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowMenu(false);
-    setShowDeleteConfirm(true);
-  };
-
-  const handleConfirmDelete = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowDeleteConfirm(false);
-    try {
-      await deleteGoal(goal.id);
-    } catch (err) {
-      console.error("Failed to delete goal", err);
-    }
-  };
-
-  return (
-    <div
-      ref={cardRef}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      onClick={() => !isPending && !showDeleteConfirm && onTap(goal)}
-      className={`group relative flex flex-col justify-between w-full min-h-[145px] p-5 rounded-[28px] cursor-pointer select-none overflow-visible border border-white/[0.05] ${
-        isPending ? "opacity-60 pointer-events-none" : ""
-      }`}
-      style={{
-        transform: `perspective(1000px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) scale3d(1.015, 1.015, 1.015)`,
-        transition: "transform 0.15s ease-out, background 0.3s, shadow 0.3s",
-        background: `radial-gradient(circle at ${tilt.shineX}% ${tilt.shineY}%, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0) 65%), rgba(28,28,30,0.35)`,
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        boxShadow: tilt.x !== 0 ? "0 20px 40px rgba(0,0,0,0.4)" : "0 10px 30px rgba(0,0,0,0.2)"
-      }}
-    >
-      {/* iOS Action Alert Style Modal */}
-      {showDeleteConfirm && (
-        <div
-          className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-[28px] bg-[#1c1c1e]/95 border border-white/10 p-5 animate-fade-in"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <AlertTriangle size={18} className="text-red-400" />
-          <p className="text-xs text-zinc-300 text-center leading-relaxed font-sans px-2">
-            Delete Goal <span className="text-white font-semibold">&ldquo;{goal.title}&rdquo;</span>?<br />
-            <span className="text-zinc-500 mt-1 block">This action cannot be undone.</span>
-          </p>
-          <div className="flex items-center gap-2 w-full mt-2">
-            <button
-              onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(false); }}
-              className="flex-1 py-2 text-xs font-medium text-zinc-400 bg-zinc-800 rounded-xl hover:bg-zinc-700 active:scale-95 transition-all"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleConfirmDelete}
-              className="flex-1 py-2 text-xs font-medium text-white bg-red-600 rounded-xl hover:bg-red-500 active:scale-95 transition-all"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Header tags and menus */}
-      <div className="flex items-center justify-between gap-4 mb-3 z-10">
-        <div className="flex flex-wrap items-center gap-1.5 max-w-[80%]">
-          {goal.tags.slice(0, 2).map((tag) => (
-            <span
-              key={tag}
-              className="px-3 py-0.5 text-[9px] font-sans font-bold text-zinc-400 bg-zinc-800/40 rounded-full border border-white/5 uppercase tracking-wider"
-            >
-              {tag.toLowerCase()}
-            </span>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-          {/* Reorder Buttons inside rounded capsule */}
-          {(onMoveUp || onMoveDown) && (
-            <div className="flex items-center bg-zinc-800/30 border border-white/5 rounded-full p-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-              <button
-                disabled={isFirst}
-                onClick={onMoveUp}
-                className={`p-1.5 rounded-full transition-all ${
-                  isFirst ? "text-zinc-700 opacity-20 pointer-events-none" : "text-zinc-400 hover:text-white"
-                }`}
-              >
-                <ChevronUp size={11} />
-              </button>
-              <div className="w-[1px] h-3.5 bg-white/5 mx-0.5" />
-              <button
-                disabled={isLast}
-                onClick={onMoveDown}
-                className={`p-1.5 rounded-full transition-all ${
-                  isLast ? "text-zinc-700 opacity-20 pointer-events-none" : "text-zinc-400 hover:text-white"
-                }`}
-              >
-                <ChevronDown size={11} />
-              </button>
-            </div>
-          )}
-
-          {isPending ? (
-            <div className="w-4 h-4 border-2 border-zinc-700 border-t-white rounded-full animate-spin shrink-0 ml-1" />
-          ) : (
-            <div className="relative" ref={menuRef}>
-              <button
-                onClick={handleMenuToggle}
-                className={`p-1.5 text-zinc-500 hover:text-white rounded-full transition-colors ${
-                  showMenu ? "text-white bg-zinc-855" : ""
-                }`}
-              >
-                <MoreHorizontal size={14} />
-              </button>
-
-              {/* Action Dropdown Menu */}
-              {showMenu && (
-                <div className="absolute right-0 top-7 z-30 w-36 p-1.5 bg-[#2c2c2e]/90 border border-white/10 rounded-2xl shadow-xl backdrop-blur-md animate-fade-in">
-                  <button
-                    onClick={handleEditClick}
-                    className="w-full flex items-center gap-2 px-2.5 py-2 text-[11px] font-sans font-medium text-zinc-200 hover:text-white hover:bg-white/10 rounded-xl transition-all text-left"
-                  >
-                    <Edit2 size={10} />
-                    <span>Edit Goal</span>
-                  </button>
-                  <div className="w-full h-[1px] bg-white/5 my-1" />
-                  <button
-                    onClick={handleDeleteClick}
-                    className="w-full flex items-center gap-2 px-2.5 py-2 text-[11px] font-sans font-medium text-red-400 hover:bg-red-500/10 rounded-xl transition-all text-left"
-                  >
-                    <Trash2 size={10} />
-                    <span>Delete</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Goal Title */}
-      <div className="flex-1 flex flex-col justify-start mb-3.5 z-10">
-        <h2 className="text-[15px] font-bold tracking-tight text-white/95 line-clamp-1 leading-snug font-sans">
-          {goal.title}
-        </h2>
-      </div>
-
-      {/* Progress tracking */}
-      <div className="space-y-2 z-10">
-        <div className="flex items-center justify-between select-none">
-          <span className="text-[9px] font-sans text-zinc-500 uppercase tracking-widest font-bold">
-            Goal Progress
-          </span>
-          <span className="text-white font-sans text-xs font-bold bg-white/[0.04] px-2 py-0.5 border border-white/5 rounded-md shadow-sm">
-            {displayPercent}%
-          </span>
-        </div>
-
-        {/* Apple Rounded Progress bar with subtle light ray sheen */}
-        <div className="w-full h-[7px] bg-zinc-800/40 rounded-full overflow-hidden border border-white/[0.02]">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-[#007AFF] to-[#5856D6] transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] relative"
-            style={{ width: `${goal.progressPercent || 0}%` }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse duration-[2.5s]" />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Apple Premium Habit Card with 3D Tilt ─────────────────────────────
-interface AppleHabitCardProps {
-  habit: Habit;
-  onTap: (habit: Habit) => void;
-  onEditTap: (habit: Habit) => void;
-  entranceDelay?: number;
-}
-
-function AppleHabitCard({ habit, onTap, onEditTap, entranceDelay = 0 }: AppleHabitCardProps) {
-  const { deleteHabit, logCompletion, pendingHabitIds } = useHabitsStore();
-  const isPending = pendingHabitIds.has(habit.id);
-  const [showMenu, setShowMenu] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showRipple, setShowRipple] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  const { tilt, cardRef, handleMouseMove, handleMouseLeave } = useCardTilt();
-
-  useEffect(() => {
-    if (!showMenu) return;
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setShowMenu(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [showMenu]);
-
-  const IconComponent = (habit.icon && HABIT_ICONS[habit.icon as keyof typeof HABIT_ICONS]) || Activity;
-  const completionsToday = habit.completionsToday ?? 0;
-  const dailyTarget = habit.daily_target;
-  const isFullyComplete = completionsToday >= dailyTarget;
-  const progressPct = Math.min((completionsToday / dailyTarget) * 100, 100);
-  const streak = habit.streak ?? 0;
-
-  const logMap = React.useMemo(() => {
-    const map = new Map<string, number>();
-    (habit.logs ?? []).forEach((l) => map.set(l.log_date, l.completions));
-    return map;
-  }, [habit.logs]);
-
-  const gridCells = React.useMemo(() => {
-    const cells: {
-      dayIndex: number;
-      state: "complete" | "partial" | "empty";
-      dateStr: string;
-      completions: number;
-    }[] = [];
-
-    const ROWS = 5;
-    const COLS = 20;
-
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
-        const dayIndex = c * ROWS + r;
-        const daysAgo = 99 - dayIndex;
-        const dateStr = dateStrForOffset(daysAgo);
-        const completions = logMap.get(dateStr) ?? 0;
-
-        let state: "complete" | "partial" | "empty";
-        if (completions >= dailyTarget) state = "complete";
-        else if (completions > 0) state = "partial";
-        else state = "empty";
-
-        cells.push({ dayIndex, state, dateStr, completions });
-      }
-    }
-    return cells;
-  }, [logMap, dailyTarget]);
-
-  const handleCheck = useCallback(
-    async (e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (isPending) return;
-      
-      const wasIncomplete = completionsToday < dailyTarget;
-      const willComplete = completionsToday + 1 >= dailyTarget;
-      if (wasIncomplete && willComplete) {
-        setShowRipple(true);
-        setTimeout(() => setShowRipple(false), 500);
-      }
-      await logCompletion(habit.id);
-    },
-    [isPending, completionsToday, dailyTarget, habit.id, logCompletion]
-  );
-
-  const handleConfirmDelete = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowDeleteConfirm(false);
-    try {
-      await deleteHabit(habit.id);
-    } catch {
-      // Done
-    }
-  };
-
-  return (
-    <div
-      ref={cardRef}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      onClick={() => !isPending && !showDeleteConfirm && onTap(habit)}
-      className={`group relative flex flex-col justify-between w-full p-5 rounded-[28px] cursor-pointer select-none overflow-visible border border-white/[0.05] ${
-        isPending ? "opacity-60 pointer-events-none" : ""
-      }`}
-      style={{
-        transform: `perspective(1000px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) scale3d(1.015, 1.015, 1.015)`,
-        transition: "transform 0.15s ease-out, background 0.3s, shadow 0.3s",
-        background: `radial-gradient(circle at ${tilt.shineX}% ${tilt.shineY}%, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0) 65%), rgba(28,28,30,0.35)`,
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        boxShadow: tilt.x !== 0 ? "0 20px 40px rgba(0,0,0,0.4)" : "0 10px 30px rgba(0,0,0,0.2)"
-      }}
-    >
-      {/* Delete confirmation iOS Alert */}
-      {showDeleteConfirm && (
-        <div
-          className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-[28px] bg-[#1c1c1e]/95 border border-white/10 p-5 animate-fade-in"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <AlertTriangle size={20} className="text-red-400" />
-          <p className="text-xs text-zinc-300 text-center leading-relaxed font-sans px-2">
-            Delete Habit <span className="text-white font-semibold">&ldquo;{habit.title}&rdquo;</span>?<br />
-            <span className="text-zinc-500 mt-1 block">This action cannot be undone.</span>
-          </p>
-          <div className="flex items-center gap-2 w-full mt-2">
-            <button
-              onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(false); }}
-              className="flex-1 py-2 text-xs font-medium text-zinc-400 bg-zinc-800 rounded-xl hover:bg-zinc-700 active:scale-95 transition-all"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleConfirmDelete}
-              className="flex-1 py-2 text-xs font-medium text-white bg-red-600 rounded-xl hover:bg-red-500 active:scale-95 transition-all"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Header Info */}
-      <div className="flex items-center justify-between gap-3 mb-3.5 relative z-10">
-        <div className="flex items-center gap-2.5">
-          {/* Apple-Style Accent Rounded Icon Square */}
-          <div className="p-2.5 rounded-2xl border flex items-center justify-center shrink-0 bg-blue-500/10 border-blue-500/20 text-[#007AFF]">
-            <IconComponent size={15} strokeWidth={2.5} />
-          </div>
-
-          <div className="flex flex-col">
-            <h3 className="text-[15px] font-bold tracking-tight text-white line-clamp-1 leading-snug font-sans">
-              {habit.title}
-            </h3>
-            <p className="text-[10px] font-sans text-zinc-500">
-              {completionsToday} / {dailyTarget} completed today
-            </p>
-          </div>
-        </div>
-
-        {/* Action checks & dropdowns */}
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={handleCheck}
-            disabled={isPending}
-            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 active:scale-90 ${
-              isFullyComplete
-                ? "bg-[#30D158] text-white shadow-[0_0_12px_rgba(48,209,88,0.2)]"
-                : "border-2 border-zinc-700 bg-zinc-850 text-zinc-500 hover:text-zinc-300 hover:border-zinc-500"
-            }`}
-          >
-            {isFullyComplete ? (
-              <Check size={14} strokeWidth={4} />
-            ) : (
-              <Flame
-                size={13}
-                strokeWidth={2.5}
-                className={streak > 0 ? "text-orange-450" : ""}
-              />
-            )}
-          </button>
-
-          {/* Context Options */}
-          <div className="relative" ref={menuRef}>
-            <button
-              onClick={(e) => { e.stopPropagation(); setShowMenu((s) => !s); }}
-              className={`p-1.5 text-zinc-500 hover:text-white rounded-full transition-colors ${showMenu ? "text-white bg-zinc-805" : ""}`}
-            >
-              <MoreHorizontal size={14} />
-            </button>
-
-            {showMenu && (
-              <div className="absolute right-0 top-7 z-30 w-36 p-1.5 bg-[#2c2c2e]/90 border border-white/10 rounded-2xl shadow-xl backdrop-blur-md animate-fade-in">
-                <button
-                  onClick={(e) => { e.stopPropagation(); setShowMenu(false); onTap(habit); }}
-                  className="w-full flex items-center gap-2 px-2.5 py-2 text-[11px] font-sans font-medium text-zinc-200 hover:text-white hover:bg-white/10 rounded-xl transition-all text-left"
-                >
-                  <Activity size={10} className="text-[#007AFF]" />
-                  <span>Analytics</span>
-                </button>
-                <div className="w-full h-[1px] bg-white/5 my-1" />
-                <button
-                  onClick={(e) => { e.stopPropagation(); setShowMenu(false); onEditTap(habit); }}
-                  className="w-full flex items-center gap-2 px-2.5 py-2 text-[11px] font-sans font-medium text-zinc-200 hover:text-white hover:bg-white/10 rounded-xl transition-all text-left"
-                >
-                  <Edit2 size={10} />
-                  <span>Edit Habit</span>
-                </button>
-                <div className="w-full h-[1px] bg-white/5 my-1" />
-                <button
-                  onClick={(e) => { e.stopPropagation(); setShowMenu(false); setShowDeleteConfirm(true); }}
-                  className="w-full flex items-center gap-2 px-2.5 py-2 text-[11px] font-sans font-medium text-red-400 hover:bg-red-500/10 rounded-xl transition-all text-left"
-                >
-                  <Trash2 size={10} />
-                  <span>Delete</span>
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Fitness-style Log Grid (Glowing shimmers on completion) */}
-      <div className="mb-3.5 overflow-hidden z-10">
-        <div
-          className="grid gap-[3px] w-full"
-          style={{ gridTemplateColumns: `repeat(20, minmax(0, 1fr))` }}
-        >
-          {gridCells.map((cell) => {
-            const label = `${friendlyDate(cell.dateStr)} · ${cell.completions}/${dailyTarget} completions`;
-            if (cell.state === "complete") {
-              return (
-                <div
-                  key={`day-${cell.dayIndex}`}
-                  className="w-full aspect-square rounded-[3px] bg-[#30D158] relative overflow-hidden transition-all duration-300 shadow-[0_0_8px_rgba(48,209,88,0.2)]"
-                  title={label}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full animate-shimmer-fast" />
-                </div>
-              );
-            }
-            if (cell.state === "partial") {
-              return (
-                <div
-                  key={`day-${cell.dayIndex}`}
-                  className="w-full aspect-square rounded-[3px] bg-[#30D158]/35 border border-[#30D158]/20 transition-all duration-300"
-                  title={label}
-                />
-              );
-            }
-            return (
-              <div
-                key={`day-${cell.dayIndex}`}
-                className="w-full aspect-square rounded-[3px] bg-white/[0.04] border border-white/[0.06] hover:border-zinc-700 transition-all duration-300"
-                title={label}
-              />
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Apple-style Progress Indicator bar */}
-      <div className="space-y-2 z-10">
-        <div className="w-full h-[5px] rounded-full overflow-hidden bg-zinc-800/60 border border-white/[0.02]">
-          <div
-            className="h-full rounded-full transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] bg-[#007AFF] relative"
-            style={{ width: `${progressPct}%` }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-pulse duration-[2.5s]" />
-          </div>
-        </div>
-
-        {/* Tags & Streaks */}
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {habit.tags && habit.tags.length > 0 ? (
-              habit.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="px-2.5 py-0.5 text-[9px] font-sans font-bold text-zinc-400 bg-zinc-800/40 rounded-full border border-white/5 uppercase tracking-wider"
-                >
-                  {tag.toLowerCase()}
-                </span>
-              ))
-            ) : (
-              <div className="px-2.5 py-0.5 text-[9px] font-sans text-zinc-500 flex items-center gap-1">
-                <span>Habit</span>
-              </div>
-            )}
-          </div>
-          <div
-            className={`text-[10px] font-sans shrink-0 flex items-center gap-1 font-bold ${
-              streak > 0 ? "text-orange-400" : "text-zinc-500"
-            }`}
-          >
-            {streak > 0 && (
-              <Flame size={11} strokeWidth={2.5} className="text-orange-400 shrink-0" />
-            )}
-            <span>
-              {streak} day streak
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Apple Premium Deadline Card with 3D Tilt ──────────────────────────
-interface AppleDeadlineCardProps {
-  deadline: Deadline;
-  onEditTap: (deadline: Deadline) => void;
-}
-
-function AppleDeadlineCard({ deadline, onEditTap }: AppleDeadlineCardProps) {
-  const { deleteDeadline, toggleDeadlineCompletion, pendingDeadlineIds } = useDeadlinesStore();
-  const isPending = pendingDeadlineIds.has(deadline.id);
-  const [showMenu, setShowMenu] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [timeRemainingText, setTimeRemainingText] = useState("");
-  const [urgency, setUrgency] = useState<"red" | "yellow" | "green">("green");
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  const { tilt, cardRef, handleMouseMove, handleMouseLeave } = useCardTilt();
-
-  useEffect(() => {
-    if (!showMenu) return;
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setShowMenu(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [showMenu]);
-
-  useEffect(() => {
-    const updateCountdown = () => {
-      const target = new Date(deadline.due_date).getTime();
-      const now = Date.now();
-      const diff = target - now;
-
+    const tick = () => {
+      const diff = targetDate.getTime() - Date.now();
       if (diff <= 0) {
-        setTimeRemainingText("Overdue");
-        setUrgency("red");
+        setTimeLeft({ d: 0, h: 0, m: 0, s: 0 });
         return;
       }
-
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const secs = Math.floor((diff % (1000 * 60)) / 1000);
-
-      let text = "";
-      if (days > 0) {
-        text += `${days}d ${hours}h`;
-      } else if (hours > 0) {
-        text += `${hours}h ${mins}m`;
-      } else {
-        text += `${mins}m ${secs}s`;
-      }
-      setTimeRemainingText(text);
-
-      if (diff < 1000 * 60 * 60 * 24) {
-        setUrgency("red");
-      } else if (diff < 1000 * 60 * 60 * 24 * 3) {
-        setUrgency("yellow");
-      } else {
-        setUrgency("green");
-      }
+      const d = Math.floor(diff / 86400000);
+      const h = Math.floor((diff % 86400000) / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTimeLeft({ d, h, m, s });
     };
-
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 1000);
-    return () => clearInterval(interval);
-  }, [deadline.due_date]);
-
-  const handleConfirmDelete = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowDeleteConfirm(false);
-    try {
-      await deleteDeadline(deadline.id);
-    } catch {
-      // Handled
-    }
-  };
-
-  const formattedDueDate = React.useMemo(() => {
-    const d = new Date(deadline.due_date);
-    return d.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  }, [deadline.due_date]);
-
-  const urgencyDotClass = {
-    red: "bg-[#FF453A] shadow-[0_0_8px_rgba(255,69,58,0.4)]",
-    yellow: "bg-[#FFD60A] shadow-[0_0_8px_rgba(255,214,10,0.3)]",
-    green: "bg-[#30D158] shadow-[0_0_8px_rgba(48,209,88,0.3)]",
-  }[urgency];
-
-  return (
-    <div
-      ref={cardRef}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      onClick={() => !isPending && !showDeleteConfirm && toggleDeadlineCompletion(deadline.id)}
-      className={`group relative flex flex-col justify-between w-full p-5 rounded-[28px] cursor-pointer select-none overflow-visible border border-white/[0.05] ${
-        isPending ? "opacity-60 pointer-events-none" : ""
-      } ${deadline.completed ? "opacity-50" : ""}`}
-      style={{
-        transform: `perspective(1000px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) scale3d(1.015, 1.015, 1.015)`,
-        transition: "transform 0.15s ease-out, background 0.3s, shadow 0.3s",
-        background: `radial-gradient(circle at ${tilt.shineX}% ${tilt.shineY}%, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0) 65%), rgba(28,28,30,0.35)`,
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        boxShadow: tilt.x !== 0 ? "0 20px 40px rgba(0,0,0,0.4)" : "0 10px 30px rgba(0,0,0,0.2)"
-      }}
-    >
-      {/* Delete confirmation iOS Style alert */}
-      {showDeleteConfirm && (
-        <div
-          className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-[28px] bg-[#1c1c1e]/95 border border-white/10 p-5 animate-fade-in"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <AlertTriangle size={20} className="text-red-400" />
-          <p className="text-xs text-zinc-300 text-center leading-relaxed font-sans px-2">
-            Delete Deadline <span className="text-white font-semibold">&ldquo;{deadline.title}&rdquo;</span>?<br />
-            <span className="text-zinc-500 mt-1 block">This action cannot be undone.</span>
-          </p>
-          <div className="flex items-center gap-2 w-full mt-2">
-            <button
-              onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(false); }}
-              className="flex-1 py-2 text-xs font-medium text-zinc-400 bg-zinc-800 rounded-xl hover:bg-zinc-700 active:scale-95 transition-all"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleConfirmDelete}
-              className="flex-1 py-2 text-xs font-medium text-white bg-red-600 rounded-xl hover:bg-red-500 active:scale-95 transition-all"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Header Row */}
-      <div className="flex items-start justify-between gap-3 mb-3.5 relative z-10">
-        <div className="flex items-center gap-3 min-w-0">
-          {/* iOS Circular Radio Toggle Button */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleDeadlineCompletion(deadline.id);
-            }}
-            disabled={isPending}
-            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 shrink-0 active:scale-90 ${
-              deadline.completed
-                ? "bg-[#30D158] border-transparent text-white"
-                : "border-zinc-700 bg-zinc-850 hover:border-zinc-500 text-transparent"
-            }`}
-          >
-            {deadline.completed && <Check size={12} strokeWidth={4} />}
-          </button>
-
-          <div className="flex flex-col min-w-0">
-            <h3
-              className={`text-[15px] font-bold tracking-tight text-white line-clamp-1 leading-snug font-sans ${
-                deadline.completed ? "line-through text-zinc-500" : ""
-              }`}
-            >
-              {deadline.title}
-            </h3>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <Clock size={11} className="text-zinc-500 shrink-0" />
-              <p className="text-[10px] font-sans text-zinc-500 shrink-0">
-                {formattedDueDate}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Options */}
-        <div className="relative" ref={menuRef} onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={() => setShowMenu((s) => !s)}
-            className={`p-1.5 text-zinc-500 hover:text-white rounded-full transition-colors ${
-              showMenu ? "text-white bg-zinc-805" : ""
-            }`}
-          >
-            <MoreHorizontal size={14} />
-          </button>
-
-          {showMenu && (
-            <div className="absolute right-0 top-7 z-30 w-36 p-1.5 bg-[#2c2c2e]/90 border border-white/10 rounded-2xl shadow-xl backdrop-blur-md animate-fade-in">
-              <button
-                onClick={() => {
-                  setShowMenu(false);
-                  onEditTap(deadline);
-                }}
-                className="w-full flex items-center gap-2 px-2.5 py-2 text-[11px] font-sans font-medium text-zinc-200 hover:text-white hover:bg-white/10 rounded-xl transition-all text-left"
-              >
-                <Edit2 size={10} />
-                <span>Edit Info</span>
-              </button>
-              <div className="w-full h-[1px] bg-white/5 my-1" />
-              <button
-                onClick={() => {
-                  setShowMenu(false);
-                  setShowDeleteConfirm(true);
-                }}
-                className="w-full flex items-center gap-2 px-2.5 py-2 text-[11px] font-sans font-medium text-red-400 hover:bg-red-500/10 rounded-xl transition-all text-left"
-              >
-                <Trash2 size={10} />
-                <span>Delete</span>
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Countdown Panel */}
-      <div className="flex items-center justify-between mt-1 bg-zinc-950/30 border border-white/5 p-3 rounded-2xl select-none z-10">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className={`w-2 h-2 rounded-full shrink-0 ${urgencyDotClass}`} />
-          <span className="text-[10px] uppercase font-sans tracking-widest text-zinc-500 font-bold shrink-0">
-            Time Left:
-          </span>
-        </div>
-        <span
-          className={`font-sans text-xs font-bold tracking-wide shrink-0 ${
-            deadline.completed
-              ? "text-zinc-500"
-              : urgency === "red"
-              ? "text-[#FF453A] animate-pulse"
-              : urgency === "yellow"
-              ? "text-[#FFD60A]"
-              : "text-[#30D158]"
-          }`}
-        >
-          {deadline.completed ? "Completed" : timeRemainingText}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// ─── Main Home Component ───────────────────────────────────────────────
-export default function Home() {
-  const { user } = useGoalsStore();
-
-  // Authenticate Gate
-  if (!user) {
-    return <AuthScreen />;
-  }
-
-  return (
-    <HabitStoreProvider user={user}>
-      <DeadlineStoreProvider user={user}>
-        <HomeContent />
-      </DeadlineStoreProvider>
-    </HabitStoreProvider>
-  );
-}
-
-function HomeContent() {
-  const { goals, loading, user: rawUser, logout, reorderGoals, syncError: goalsSyncError, clearSyncError: clearGoalsSyncError } = useGoalsStore();
-  const { habits, loading: habitsLoading, syncError: habitsSyncError, clearSyncError: clearHabitsSyncError } = useHabitsStore();
-  const { deadlines, loading: deadlinesLoading, syncError: deadlinesSyncError, clearSyncError: clearDeadlinesSyncError } = useDeadlinesStore();
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [targetDate]);
   
-  const user = rawUser!;
-  const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
-  const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
-  const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
-  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
-  const [editingDeadline, setEditingDeadline] = useState<Deadline | null>(null);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [showSearch, setShowSearch] = useState(false);
-  const [isHeaderCompressed, setIsHeaderCompressed] = useState(false);
-  const [isTabDocked, setIsTabDocked] = useState(false);
-  const sentinelRef = React.useRef<HTMLDivElement>(null);
-  const [activeTab, setActiveTab] = useState<"deadlines" | "goals" | "habits">("goals");
-  const [prevTab, setPrevTab] = useState<"deadlines" | "goals" | "habits">("goals");
-  const dragStartPos = React.useRef<{ x: number; y: number } | null>(null);
-  const progressRef = React.useRef(0);
-  const dragDirectionRef = React.useRef<"undecided" | "horizontal" | "vertical">("undecided");
-  const [isDraggingActive, setIsDraggingActive] = useState(false);
-  const [transitioning, setTransitioning] = useState(false);
+  return timeLeft;
+}
 
-  const pillRef = React.useRef<HTMLDivElement>(null);
-  const headerPillRef = React.useRef<HTMLDivElement>(null);
-  const trackRef = React.useRef<HTMLDivElement>(null);
-  const pageRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
-  const containerRef = React.useRef<HTMLDivElement>(null);
-
-  const activeTabRef = React.useRef(activeTab);
-  React.useEffect(() => {
-    activeTabRef.current = activeTab;
-  }, [activeTab]);
-
-  React.useEffect(() => {
-    setTransitioning(true);
-    const timer = setTimeout(() => {
-      setTransitioning(false);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [activeTab]);
-
-  const isTabCollapsed = (tab: "deadlines" | "goals" | "habits") => {
-    if (isDraggingActive) return false;
-    if (activeTab === tab) return false;
-    if (transitioning && prevTab === tab) return false;
-    return true;
-  };
-
-  const handleDragStart = (clientX: number, clientY: number) => {
-    dragStartPos.current = { x: clientX, y: clientY };
-    setIsDraggingActive(true);
-    progressRef.current = 0;
-    dragDirectionRef.current = "undecided";
-  };
-
-  const handleDragMove = (clientX: number, clientY: number) => {
-    if (!dragStartPos.current) return;
-    const diffX = dragStartPos.current.x - clientX;
-    const viewportWidth = typeof window !== "undefined" ? Math.min(window.innerWidth, 448) : 448;
-    let newProgress = -diffX / viewportWidth;
+// ─── CANVAS 1: NEURAL BACKGROUND ─────────────────────────────────────────
+function NeuralCanvas({ active }: { active: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
     
-    const activeTabVal = activeTabRef.current;
+    let running = true;
+    let width = canvas.width = canvas.offsetWidth;
+    let height = canvas.height = canvas.offsetHeight;
     
-    // Dampen out of bounds drags
-    if (activeTabVal === "deadlines" && newProgress > 0) {
-      newProgress = Math.pow(newProgress, 0.65) * 0.3;
-    } else if (activeTabVal === "habits" && newProgress < 0) {
-      newProgress = -Math.pow(Math.abs(newProgress), 0.65) * 0.3;
+    const nodeCount = 40;
+    const nodes: {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      phase: number;
+      phaseSpeed: number;
+    }[] = [];
+    
+    for (let i = 0; i < nodeCount; i++) {
+      nodes.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - 0.5) * 0.4,
+        vy: (Math.random() - 0.5) * 0.4,
+        phase: Math.random() * Math.PI * 2,
+        phaseSpeed: 0.02 + Math.random() * 0.03
+      });
     }
     
-    newProgress = Math.max(-1, Math.min(1, newProgress));
-    progressRef.current = newProgress;
-
-    // Viewport sliding track translation
-    if (trackRef.current) {
-      const activeIndex = activeTabVal === "deadlines" ? 0 : activeTabVal === "goals" ? 1 : 2;
-      const leftPx = -activeIndex * viewportWidth + (newProgress * viewportWidth);
-      trackRef.current.style.left = `${leftPx}px`;
-      trackRef.current.style.transition = "none";
-    }
-
-    // Sliding control pill tracking
-    const tabIndices = { deadlines: 0, goals: 1, habits: 2 };
-    const currentIndex = tabIndices[activeTabVal];
-    const baseLeft = currentIndex * 33.333;
-    const baseRight = (2 - currentIndex) * 33.333;
+    let activeIndices = [0, 1, 2];
+    const intervalId = setInterval(() => {
+      activeIndices = [
+        Math.floor(Math.random() * nodeCount),
+        Math.floor(Math.random() * nodeCount),
+        Math.floor(Math.random() * nodeCount)
+      ];
+    }, 2000);
     
-    let currentLeft = baseLeft;
-    let currentRight = baseRight;
-
-    if (newProgress < 0) {
-      const lag = Math.pow(Math.abs(newProgress), 1.6) * -1;
-      const lead = Math.pow(Math.abs(newProgress), 0.75) * -1;
-      currentLeft = baseLeft - lag * 33.333;
-      currentRight = baseRight + lead * 33.333;
-    } else {
-      const lead = Math.pow(newProgress, 0.75);
-      const lag = Math.pow(newProgress, 1.6);
-      currentLeft = baseLeft - lead * 33.333;
-      currentRight = baseRight + lag * 33.333;
-    }
-    
-    currentLeft = Math.max(0, Math.min(66.666, currentLeft));
-    currentRight = Math.max(0, Math.min(66.666, currentRight));
-    
-    [pillRef.current, headerPillRef.current].forEach((pillEl) => {
-      if (!pillEl) return;
-      pillEl.style.left = `${currentLeft}%`;
-      pillEl.style.right = `${currentRight}%`;
-      pillEl.style.transition = "none";
+    let frameId: number;
+    const draw = () => {
+      if (!running) return;
+      ctx.clearRect(0, 0, width, height);
       
-      const innerPill = pillEl.querySelector('.bg-[#636366]/50');
-      if (innerPill) {
-        (innerPill as HTMLElement).style.transform = `scaleY(${1 - Math.abs(newProgress) * 0.12})`;
-        (innerPill as HTMLElement).style.transition = "none";
-      }
-    });
-
-    // Dynamic Card Parallax transition scaling
-    const activeIndex = activeTabVal === "deadlines" ? 0 : activeTabVal === "goals" ? 1 : 2;
-    const pages = ["deadlines", "goals", "habits"] as const;
-    pages.forEach((tabName, idx) => {
-      const pageEl = pageRefs.current[tabName];
-      if (pageEl) {
-        const d = (idx - activeIndex) + newProgress;
-        const clampedD = Math.max(-1, Math.min(1, d));
-        const absD = Math.abs(clampedD);
+      // Update nodes coordinates
+      nodes.forEach((n) => {
+        n.x += n.vx;
+        n.y += n.vy;
+        n.phase += n.phaseSpeed;
         
-        if (absD < 1) {
-          const scale = 1 - 0.08 * absD;
-          const opacity = 1 - absD;
-          const translateX = clampedD * -20;
+        if (n.x < 0 || n.x > width) n.vx *= -1;
+        if (n.y < 0 || n.y > height) n.vy *= -1;
+      });
+      
+      // Connect nodes
+      for (let i = 0; i < nodeCount; i++) {
+        for (let j = i + 1; j < nodeCount; j++) {
+          const n1 = nodes[i];
+          const n2 = nodes[j];
+          const dx = n1.x - n2.x;
+          const dy = n1.y - n2.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
           
-          pageEl.style.transform = `scale(${scale}) translateX(${translateX}px)`;
-          pageEl.style.opacity = `${opacity}`;
-          pageEl.style.transition = "none";
-        } else {
-          pageEl.style.transform = `scale(0.92) translateX(${clampedD * -20}px)`;
-          pageEl.style.opacity = "0";
-          pageEl.style.transition = "none";
-        }
-      }
-    });
-  };
-
-  const handleDragEnd = (clientX: number, clientY: number) => {
-    if (!dragStartPos.current) return;
-    setIsDraggingActive(false);
-    
-    const diffX = dragStartPos.current.x - clientX;
-    const threshold = 50; 
-    const activeTabVal = activeTabRef.current;
-    let targetTab = activeTabVal;
-    
-    if (diffX > threshold) {
-      if (activeTabVal === "deadlines") {
-        targetTab = "goals";
-      } else if (activeTabVal === "goals") {
-        targetTab = "habits";
-      }
-    } else if (diffX < -threshold) {
-      if (activeTabVal === "habits") {
-        targetTab = "goals";
-      } else if (activeTabVal === "goals") {
-        targetTab = "deadlines";
-      }
-    }
-
-    if (trackRef.current) {
-      const activeIndex = targetTab === "deadlines" ? 0 : targetTab === "goals" ? 1 : 2;
-      trackRef.current.style.transition = "left 500ms cubic-bezier(0.16, 1, 0.3, 1)";
-      trackRef.current.style.left = `${-activeIndex * 100}%`;
-    }
-
-    const targetIndex = targetTab === "deadlines" ? 0 : targetTab === "goals" ? 1 : 2;
-    [pillRef.current, headerPillRef.current].forEach((pillEl) => {
-      if (!pillEl) return;
-      pillEl.style.transition = "left 300ms cubic-bezier(0.16, 1, 0.3, 1), right 300ms cubic-bezier(0.16, 1, 0.3, 1)";
-      pillEl.style.left = `${targetIndex * 33.333}%`;
-      pillEl.style.right = `${(2 - targetIndex) * 33.333}%`;
-      
-      const innerPill = pillEl.querySelector('.bg-[#636366]/50');
-      if (innerPill) {
-        (innerPill as HTMLElement).style.transition = "transform 300ms ease-out";
-        (innerPill as HTMLElement).style.transform = "";
-      }
-    });
-
-    const pages = ["deadlines", "goals", "habits"] as const;
-    pages.forEach((tabName, idx) => {
-      const pageEl = pageRefs.current[tabName];
-      if (pageEl) {
-        pageEl.style.transition = "transform 450ms cubic-bezier(0.16, 1, 0.3, 1), opacity 450ms cubic-bezier(0.16, 1, 0.3, 1)";
-        if (idx === targetIndex) {
-          pageEl.style.transform = "scale(1) translateX(0px)";
-          pageEl.style.opacity = "1";
-        } else {
-          const d = idx - targetIndex;
-          pageEl.style.transform = `scale(0.92) translateX(${d * -20}px)`;
-          pageEl.style.opacity = "0";
-        }
-      }
-    });
-    
-    if (targetTab !== activeTabVal) {
-      setPrevTab(activeTabVal);
-      setActiveTab(targetTab);
-    }
-    
-    dragStartPos.current = null;
-    progressRef.current = 0;
-  };
-
-  const getTabStyle = (tab: "deadlines" | "goals" | "habits") => {
-    const tabIndices = { deadlines: 0, goals: 1, habits: 2 };
-    const currentIndex = tabIndices[activeTab];
-    const targetIndex = tabIndices[tab];
-    const d = targetIndex - currentIndex;
-    
-    if (activeTab === tab) {
-      return {
-        opacity: 1,
-        transform: "scale(1) translateX(0px)",
-        transition: isDraggingActive ? "none" : "transform 450ms cubic-bezier(0.16, 1, 0.3, 1), opacity 450ms cubic-bezier(0.16, 1, 0.3, 1)"
-      };
-    }
-    
-    return {
-      opacity: 0,
-      transform: `scale(0.92) translateX(${d * -20}px)`,
-      transition: isDraggingActive ? "none" : "transform 450ms cubic-bezier(0.16, 1, 0.3, 1), opacity 450ms cubic-bezier(0.16, 1, 0.3, 1)"
-    };
-  };
-
-  React.useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const onTouchStart = (e: TouchEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.closest("[data-modal-sheet]")) return;
-      if (target.closest(".touch-pan-x")) return;
-      handleDragStart(e.touches[0].clientX, e.touches[0].clientY);
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (!dragStartPos.current) return;
-      
-      const clientX = e.touches[0].clientX;
-      const clientY = e.touches[0].clientY;
-      const diffX = dragStartPos.current.x - clientX;
-      const diffY = dragStartPos.current.y - clientY;
-
-      if (dragDirectionRef.current === "undecided") {
-        const threshold = 6;
-        if (Math.abs(diffX) > threshold || Math.abs(diffY) > threshold) {
-          if (Math.abs(diffX) > Math.abs(diffY) * 1.1) {
-            dragDirectionRef.current = "horizontal";
-          } else {
-            dragDirectionRef.current = "vertical";
-            setIsDraggingActive(false);
+          if (dist < 120) {
+            const opacity = (1 - dist / 120) * 0.15;
+            const isActiveLink = activeIndices.includes(i) || activeIndices.includes(j);
+            ctx.strokeStyle = isActiveLink ? `rgba(232, 255, 71, ${opacity * 1.6})` : `rgba(255, 255, 255, ${opacity * 0.6})`;
+            ctx.lineWidth = isActiveLink ? 1.2 : 0.6;
+            ctx.beginPath();
+            ctx.moveTo(n1.x, n1.y);
+            ctx.lineTo(n2.x, n2.y);
+            ctx.stroke();
           }
         }
       }
-
-      if (dragDirectionRef.current === "horizontal") {
-        e.preventDefault();
-        handleDragMove(clientX, clientY);
-      }
+      
+      // Draw individual nodes
+      nodes.forEach((n, idx) => {
+        const pulse = 2.2 + Math.sin(n.phase) * 1.3;
+        const isActive = activeIndices.includes(idx);
+        
+        ctx.fillStyle = isActive ? "#e8ff47" : "rgba(255, 255, 255, 0.35)";
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, isActive ? pulse + 0.8 : pulse, 0, Math.PI * 2);
+        ctx.fill();
+        
+        if (isActive) {
+          ctx.strokeStyle = "rgba(232, 255, 71, 0.2)";
+          ctx.lineWidth = 0.8;
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, pulse + 5, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      });
+      
+      frameId = requestAnimationFrame(draw);
     };
+    
+    draw();
+    
+    const handleResize = () => {
+      if (!canvas) return;
+      width = canvas.width = canvas.offsetWidth;
+      height = canvas.height = canvas.offsetHeight;
+    };
+    window.addEventListener("resize", handleResize);
+    
+    return () => {
+      running = false;
+      cancelAnimationFrame(frameId);
+      clearInterval(intervalId);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [active]);
+  
+  return <canvas ref={canvasRef} className="w-full h-full block bg-black" />;
+}
 
-    const onTouchEnd = (e: TouchEvent) => {
-      if (dragStartPos.current) {
-        if (dragDirectionRef.current === "horizontal") {
-          handleDragEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+// ─── CANVAS 2: ORBITAL BACKGROUND ────────────────────────────────────────
+function OrbitalCanvas({ active }: { active: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    
+    let running = true;
+    let width = canvas.width = canvas.offsetWidth;
+    let height = canvas.height = canvas.offsetHeight;
+    
+    const orbits = [
+      { radius: 45, speed: 0.007, dots: 4, dir: 1 },
+      { radius: 75, speed: 0.005, dots: 5, dir: -1 },
+      { radius: 105, speed: 0.003, dots: 6, dir: 1 }
+    ];
+    
+    let angleOffset = 0;
+    
+    let frameId: number;
+    const draw = () => {
+      if (!running) return;
+      ctx.clearRect(0, 0, width, height);
+      
+      const cx = width / 2;
+      const cy = height / 2;
+      
+      angleOffset += 0.01;
+      
+      // Central precision targets
+      ctx.strokeStyle = "#e8ff47";
+      ctx.lineWidth = 0.8;
+      
+      ctx.beginPath();
+      ctx.moveTo(cx - 16, cy); ctx.lineTo(cx + 16, cy);
+      ctx.moveTo(cx, cy - 16); ctx.lineTo(cx, cy + 16);
+      ctx.stroke();
+      
+      ctx.fillStyle = "#e8ff47";
+      ctx.beginPath();
+      ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.strokeStyle = "rgba(232, 255, 71, 0.25)";
+      ctx.beginPath();
+      ctx.arc(cx, cy, 18, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Rotating orbits
+      orbits.forEach((orbit) => {
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
+        ctx.lineWidth = 0.8;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.arc(cx, cy, orbit.radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        for (let i = 0; i < orbit.dots; i++) {
+          const angle = (i / orbit.dots) * Math.PI * 2 + angleOffset * orbit.speed * 220 * orbit.dir;
+          const dotX = cx + Math.cos(angle) * orbit.radius;
+          const dotY = cy + Math.sin(angle) * orbit.radius;
+          
+          ctx.fillStyle = i === 0 ? "#e8ff47" : "rgba(255, 255, 255, 0.4)";
+          ctx.beginPath();
+          ctx.arc(dotX, dotY, i === 0 ? 3.5 : 2.2, 0, Math.PI * 2);
+          ctx.fill();
+          
+          if (i === 0) {
+            ctx.strokeStyle = "rgba(232, 255, 71, 0.3)";
+            ctx.lineWidth = 0.6;
+            ctx.beginPath();
+            ctx.arc(dotX, dotY, 6.5, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        }
+      });
+      
+      frameId = requestAnimationFrame(draw);
+    };
+    
+    draw();
+    
+    const handleResize = () => {
+      if (!canvas) return;
+      width = canvas.width = canvas.offsetWidth;
+      height = canvas.height = canvas.offsetHeight;
+    };
+    window.addEventListener("resize", handleResize);
+    
+    return () => {
+      running = false;
+      cancelAnimationFrame(frameId);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [active]);
+  
+  return <canvas ref={canvasRef} className="w-full h-full block bg-black" />;
+}
+
+// ─── CANVAS 3: CONSTELLATION BACKGROUND ──────────────────────────────────
+function ConstellationCanvas({ active }: { active: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    
+    let running = true;
+    let width = canvas.width = canvas.offsetWidth;
+    let height = canvas.height = canvas.offsetHeight;
+    
+    const particles: {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      baseVx: number;
+      baseVy: number;
+    }[] = [];
+    
+    const particleCount = 80;
+    for (let i = 0; i < particleCount; i++) {
+      const vx = (Math.random() - 0.5) * 0.3;
+      const vy = (Math.random() - 0.5) * 0.3;
+      particles.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx,
+        vy,
+        baseVx: vx,
+        baseVy: vy
+      });
+    }
+    
+    let mouseX = -9999;
+    let mouseY = -9999;
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      mouseX = e.clientX - rect.left;
+      mouseY = e.clientY - rect.top;
+    };
+    
+    const handleMouseLeave = () => {
+      mouseX = -9999;
+      mouseY = -9999;
+    };
+    
+    canvas.addEventListener("mousemove", handleMouseMove);
+    canvas.addEventListener("mouseleave", handleMouseLeave);
+    
+    let frameId: number;
+    const draw = () => {
+      if (!running) return;
+      ctx.clearRect(0, 0, width, height);
+      
+      particles.forEach((p) => {
+        if (mouseX !== -9999) {
+          const dx = mouseX - p.x;
+          const dy = mouseY - p.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist < 150) {
+            const force = (1 - dist / 150) * 0.15;
+            p.vx += (dx / dist) * force * 0.25;
+            p.vy += (dy / dist) * force * 0.25;
+          } else {
+            p.vx = p.vx * 0.95 + p.baseVx * 0.05;
+            p.vy = p.vy * 0.95 + p.baseVy * 0.05;
+          }
         } else {
-          setIsDraggingActive(false);
-          dragStartPos.current = null;
-          progressRef.current = 0;
+          p.vx = p.vx * 0.95 + p.baseVx * 0.05;
+          p.vy = p.vy * 0.95 + p.baseVy * 0.05;
+        }
+        
+        p.x += p.vx;
+        p.y += p.vy;
+        
+        if (p.x < 0) p.x = width;
+        if (p.x > width) p.x = 0;
+        if (p.y < 0) p.y = height;
+        if (p.y > height) p.y = 0;
+      });
+      
+      // Draw lines
+      for (let i = 0; i < particleCount; i++) {
+        for (let j = i + 1; j < particleCount; j++) {
+          const p1 = particles[i];
+          const p2 = particles[j];
+          const dx = p1.x - p2.x;
+          const dy = p1.y - p2.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist < 70) {
+            ctx.strokeStyle = `rgba(232, 255, 71, ${(1 - dist / 70) * 0.15})`;
+            ctx.lineWidth = 0.5;
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+          }
         }
       }
-    };
-
-    container.addEventListener("touchstart", onTouchStart, { passive: false });
-    container.addEventListener("touchmove", onTouchMove, { passive: false });
-    container.addEventListener("touchend", onTouchEnd, { passive: false });
-
-    return () => {
-      container.removeEventListener("touchstart", onTouchStart);
-      container.removeEventListener("touchmove", onTouchMove);
-      container.removeEventListener("touchend", onTouchEnd);
-    };
-  }, []);
-
-  const cardRectsRef = React.useRef<Record<string, DOMRect>>({});
-  const prevGoalsRef = React.useRef<Goal[]>([]);
-  const isReorderingRef = React.useRef(false);
-  const tagsRef = React.useRef<HTMLDivElement>(null);
-  const introducedIdsRef = React.useRef<Set<string>>(new Set());
-
-  const allTags = React.useMemo(() => {
-    const uniqueTags = new Set(
-      goals
-        .flatMap((g) => g.tags || [])
-        .map((t) => t.trim().toLowerCase())
-        .filter(Boolean)
-    );
-    return Array.from(uniqueTags).sort();
-  }, [goals]);
-
-  const allHabitTags = React.useMemo(() => {
-    const uniqueTags = new Set(
-      habits
-        .flatMap((h) => h.tags || [])
-        .map((t) => t.trim().toLowerCase())
-        .filter(Boolean)
-    );
-    return Array.from(uniqueTags).sort();
-  }, [habits]);
-
-  const tagsToDisplay = activeTab === "habits" ? allHabitTags : allTags;
-
-  React.useEffect(() => {
-    setSelectedTag(null);
-  }, [activeTab]);
-
-  const filteredGoals = React.useMemo(() => {
-    return goals.filter((g) => {
-      const matchesSearch = g.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        g.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
       
-      const matchesTag = !selectedTag || g.tags.some(t => t.toLowerCase() === selectedTag.toLowerCase());
-
-      let matchesTab = true;
-      if (activeTab === "deadlines") {
-        matchesTab = g.tags.some(t => t.toLowerCase() === "deadline") || g.title.toLowerCase().includes("deadline");
-      } else if (activeTab === "habits") {
-        matchesTab = false;
-      } else if (activeTab === "goals") {
-        matchesTab = !g.tags.some(t => t.toLowerCase() === "habit") && 
-                     !g.tags.some(t => t.toLowerCase() === "deadline") && 
-                     !g.title.toLowerCase().includes("deadline");
-      }
-
-      return matchesSearch && matchesTag && matchesTab;
-    });
-  }, [goals, searchQuery, selectedTag, activeTab]);
-
-  const measureCards = () => {
-    const elements = document.querySelectorAll("[data-drag-id]");
-    const rects: Record<string, DOMRect> = {};
-    elements.forEach((el) => {
-      const id = el.getAttribute("data-drag-id");
-      if (id) {
-        rects[id] = el.getBoundingClientRect();
-      }
-    });
-    cardRectsRef.current = rects;
-  };
-
-  const animateCards = () => {
-    const elements = document.querySelectorAll("[data-drag-id]") as NodeListOf<HTMLElement>;
-    const movedElements: Array<{ el: HTMLElement }> = [];
-
-    elements.forEach((el) => {
-      const id = el.getAttribute("data-drag-id");
-      if (!id) return;
-      const firstRect = cardRectsRef.current[id];
-      if (!firstRect) return;
-
-      const lastRect = el.getBoundingClientRect();
-      const deltaX = firstRect.left - lastRect.left;
-      const deltaY = firstRect.top - lastRect.top;
-
-      if (deltaX !== 0 || deltaY !== 0) {
-        el.style.transition = "none";
-        el.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
-        movedElements.push({ el });
-      }
-    });
-
-    if (movedElements.length === 0) return;
-
-    void document.body.offsetHeight;
-
-    requestAnimationFrame(() => {
-      movedElements.forEach(({ el }) => {
-        el.style.transition = "transform 380ms cubic-bezier(0.16, 1, 0.3, 1)";
-        el.style.transform = "translate(0px, 0px)";
+      // Draw particles
+      particles.forEach((p) => {
+        ctx.fillStyle = "rgba(232, 255, 71, 0.6)";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+        ctx.fill();
       });
-
-      setTimeout(() => {
-        movedElements.forEach(({ el }) => {
-          el.style.transition = "";
-          el.style.transform = "";
-        });
-      }, 380);
-    });
-  };
-
-  React.useEffect(() => {
-    if (!user) return;
-    if (activeTab === "habits") {
-      habits.forEach((h) => introducedIdsRef.current.add(h.id));
-    } else {
-      filteredGoals.forEach((g) => introducedIdsRef.current.add(g.id));
-    }
-  });
-
-  useIsomorphicLayoutEffect(() => {
-    if (isReorderingRef.current && prevGoalsRef.current.length > 0) {
-      animateCards();
-    }
-    prevGoalsRef.current = goals;
-    isReorderingRef.current = false;
-  }, [goals]);
-
-  React.useEffect(() => {
-    const handleScroll = () => {
-      const scrollY = window.scrollY;
-      setIsHeaderCompressed(scrollY > 20);
-
-      const sentinel = sentinelRef.current;
-      if (sentinel) {
-        const rect = sentinel.getBoundingClientRect();
-        setIsTabDocked(rect.top <= 56);
-      } else {
-        setIsTabDocked(scrollY > 110);
-      }
+      
+      frameId = requestAnimationFrame(draw);
     };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
-
+    
+    draw();
+    
+    const handleResize = () => {
+      if (!canvas) return;
+      width = canvas.width = canvas.offsetWidth;
+      height = canvas.height = canvas.offsetHeight;
+    };
+    window.addEventListener("resize", handleResize);
+    
     return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, []);
-
-  React.useEffect(() => {
-    const el = tagsRef.current;
-    if (!el) return;
-
-    let isDown = false;
-    let startX = 0;
-    let scrollLeft = 0;
-    let isDragging = false;
-
-    const onMouseDown = (e: MouseEvent) => {
-      isDown = true;
-      startX = e.pageX - el.offsetLeft;
-      scrollLeft = el.scrollLeft;
-      isDragging = false;
-    };
-
-    const onMouseLeave = () => {
-      isDown = false;
-    };
-
-    const onMouseUp = () => {
-      if (isDragging) {
-        const preventClick = (e: MouseEvent) => {
-          e.stopImmediatePropagation();
-          el.removeEventListener("click", preventClick, true);
-        };
-        el.addEventListener("click", preventClick, true);
+      running = false;
+      cancelAnimationFrame(frameId);
+      if (canvas) {
+        canvas.removeEventListener("mousemove", handleMouseMove);
+        canvas.removeEventListener("mouseleave", handleMouseLeave);
       }
-      isDown = false;
+      window.removeEventListener("resize", handleResize);
     };
+  }, [active]);
+  
+  return <canvas ref={canvasRef} className="w-full h-full block bg-black" />;
+}
 
-    const onMouseMove = (e: MouseEvent) => {
-      if (!isDown) return;
-      const x = e.pageX - el.offsetLeft;
-      const walk = (x - startX) * 1.5;
-      if (Math.abs(walk) > 5) {
-        isDragging = true;
+// ─── CANVAS 4: FLOW FIELD BACKGROUND ─────────────────────────────────────
+function FlowFieldCanvas({ active }: { active: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    
+    let running = true;
+    let width = canvas.width = canvas.offsetWidth;
+    let height = canvas.height = canvas.offsetHeight;
+    
+    const gridCols = 16;
+    const gridRows = 8;
+    
+    let time = 0;
+    
+    let frameId: number;
+    const draw = () => {
+      if (!running) return;
+      ctx.clearRect(0, 0, width, height);
+      
+      time += 0.005;
+      
+      const cellWidth = width / gridCols;
+      const cellHeight = height / gridRows;
+      
+      for (let r = 0; r < gridRows; r++) {
+        for (let c = 0; c < gridCols; c++) {
+          const cx = c * cellWidth + cellWidth / 2;
+          const cy = r * cellHeight + cellHeight / 2;
+          
+          const noiseVal = Math.sin(c * 0.3 + time) * Math.cos(r * 0.4 - time * 1.5) * Math.PI * 2;
+          
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate(noiseVal);
+          
+          const angleNorm = (noiseVal + Math.PI * 2) % (Math.PI * 2);
+          const ratio = Math.abs(Math.sin(angleNorm));
+          
+          // Interpolate arrow color from dim white to accent #e8ff47
+          ctx.strokeStyle = `rgba(${Math.round(255 - (255 - 232) * ratio)}, ${Math.round(255 - (255 - 255) * ratio)}, ${Math.round(255 - (255 - 71) * ratio)}, ${0.1 + ratio * 0.65})`;
+          ctx.lineWidth = 1;
+          
+          ctx.beginPath();
+          ctx.moveTo(-6, 0);
+          ctx.lineTo(6, 0);
+          ctx.lineTo(3, -2);
+          ctx.moveTo(6, 0);
+          ctx.lineTo(3, 2);
+          ctx.stroke();
+          
+          ctx.restore();
+        }
       }
-      el.scrollLeft = scrollLeft - walk;
+      
+      frameId = requestAnimationFrame(draw);
     };
-
-    el.addEventListener("mousedown", onMouseDown);
-    el.addEventListener("mouseleave", onMouseLeave);
-    el.addEventListener("mouseup", onMouseUp);
-    el.addEventListener("mousemove", onMouseMove);
-
+    
+    draw();
+    
+    const handleResize = () => {
+      if (!canvas) return;
+      width = canvas.width = canvas.offsetWidth;
+      height = canvas.height = canvas.offsetHeight;
+    };
+    window.addEventListener("resize", handleResize);
+    
     return () => {
-      el.removeEventListener("mousedown", onMouseDown);
-      el.removeEventListener("mouseleave", onMouseLeave);
-      el.removeEventListener("mouseup", onMouseUp);
-      el.removeEventListener("mousemove", onMouseMove);
+      running = false;
+      cancelAnimationFrame(frameId);
+      window.removeEventListener("resize", handleResize);
     };
-  }, [goals]);
+  }, [active]);
+  
+  return <canvas ref={canvasRef} className="w-full h-full block bg-black" />;
+}
 
-  const handleCardTap = (goal: Goal) => {
-    setSelectedGoalId(goal.id);
-  };
+// ─── HERO STAT CELL COMPONENT ────────────────────────────────────────────
+function HeroStatCell({ 
+  label, 
+  value, 
+  sub, 
+  active, 
+  onClick 
+}: { 
+  label: string; 
+  value: number; 
+  sub: string; 
+  active: boolean; 
+  onClick: () => void 
+}) {
+  const animatedValue = useCountUp(value);
+  const formattedVal = String(animatedValue).padStart(2, "0");
+  
+  return (
+    <div 
+      onClick={onClick}
+      className={`flex-1 p-4 cursor-pointer select-none transition-all duration-300 border-r border-white/5 last:border-r-0 ${
+        active 
+          ? "bg-[#e8ff47]/5 border-l-[3px] border-l-[#e8ff47]" 
+          : "hover:bg-white/[0.02] border-l-[3px] border-l-transparent"
+      }`}
+    >
+      <span className="text-[10px] uppercase tracking-widest text-[#888888] font-light block select-none">
+        {label}
+      </span>
+      <span className="text-5xl font-bold tracking-tight text-white block mt-2.5 tabular-nums select-none">
+        {formattedVal}
+      </span>
+      <span className={`text-[10px] font-medium block mt-1.5 select-none ${active ? "text-[#e8ff47]" : "text-[#444444]"}`}>
+        {sub}
+      </span>
+    </div>
+  );
+}
 
-  const handleEditTap = (goal: Goal, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEditingGoal(goal);
-    setIsFormOpen(true);
-  };
+// ─── SEGMENTED PROGRESS BAR COMPONENT ────────────────────────────────────
+function SegmentedBar({ progress, segments = 20 }: { progress: number; segments?: number }) {
+  const filled = Math.round((progress / 100) * segments);
+  return (
+    <div className="flex gap-[3.5px] items-center select-none">
+      {Array.from({ length: segments }).map((_, i) => (
+        <div
+          key={i}
+          className="h-3 w-[7px] rounded-[1px] transition-all duration-300"
+          style={{
+            backgroundColor: i < filled ? "#e8ff47" : "rgba(255,255,255,0.06)",
+            boxShadow: i < filled ? "0 0 4px rgba(232,255,71,0.25)" : "none"
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
-  const handleEditHabitTap = (habit: Habit) => {
-    setEditingHabit(habit);
-    setIsFormOpen(true);
-  };
-
-  const handleEditDeadlineTap = (deadline: Deadline) => {
-    setEditingDeadline(deadline);
-    setIsFormOpen(true);
-  };
-
-  const handleAddTap = () => {
-    setEditingGoal(null);
-    setEditingHabit(null);
-    setEditingDeadline(null);
-    setIsFormOpen(true);
-  };
-
-  const handleModalEditTrigger = (goal: Goal) => {
-    setSelectedGoalId(null);
-    setEditingGoal(goal);
-    setIsFormOpen(true);
-  };
-
-  const handleMoveUp = (idx: number) => {
-    if (idx <= 0) return;
-    measureCards();
-    isReorderingRef.current = true;
-    reorderGoals(idx, idx - 1);
-  };
-
-  const handleMoveDown = (idx: number) => {
-    if (idx >= filteredGoals.length - 1) return;
-    measureCards();
-    isReorderingRef.current = true;
-    reorderGoals(idx, idx + 1);
-  };
-
-  const renderPageContent = (type: "deadlines" | "goals" | "habits") => {
-    if (type === "habits") {
-      const pageHabits = habits.filter((h) => {
-        const matchesSearch = h.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (h.tags || []).some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
-        const matchesTag = !selectedTag || (h.tags || []).some(t => t.toLowerCase() === selectedTag.toLowerCase());
-        return matchesSearch && matchesTag;
-      });
-
-      if (habitsLoading) {
-        return (
-          <div className="flex flex-col items-center justify-center py-20 space-y-4">
-            <div className="w-8 h-8 border-2 border-zinc-800 border-t-white rounded-full animate-spin" />
-            <span className="text-[10px] font-sans font-semibold tracking-widest text-zinc-500 uppercase animate-pulse">
-              Loading Ledger
-            </span>
-          </div>
-        );
-      }
-
-      if (pageHabits.length === 0) {
-        return (
-          <div className="text-center py-20 px-4 border border-dashed border-zinc-800/80 rounded-3xl select-none space-y-3 bg-zinc-950/20 backdrop-blur-md">
-            <p className="text-xs text-zinc-400 font-light font-sans">
-              No habits tracked in this ledger.
-            </p>
-            <button
-              onClick={handleAddTap}
-              className="px-4 py-2 border border-white/5 bg-zinc-900 text-[10px] font-sans font-semibold tracking-wider text-zinc-200 hover:text-white rounded-xl transition-all"
+// ─── GOAL CARD COMPONENT ─────────────────────────────────────────────────
+function GoalCardComponent({ 
+  title, 
+  progress, 
+  tags, 
+  delta, 
+  tasks 
+}: { 
+  title: string; 
+  progress: number; 
+  tags: string[]; 
+  delta: number; 
+  tasks: { done: number; total: number } 
+}) {
+  const isHighProgress = progress > 50;
+  
+  return (
+    <div 
+      className="p-4 bg-[#111111] border border-white/5 hover:border-white/10 hover:bg-[#1a1a1a]/40 transition-all duration-300 flex flex-col justify-between min-h-[92px] relative group"
+      style={{
+        borderLeft: isHighProgress ? "2.5px solid #e8ff47" : "2.5px solid rgba(255,255,255,0.06)"
+      }}
+    >
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <h3 className="text-xs font-bold tracking-wide text-[#f5f5f5] uppercase font-mono group-hover:text-[#e8ff47] transition-colors select-none">
+          ▸ {title}
+        </h3>
+        <div className="flex gap-1 shrink-0 select-none">
+          {tags.map((tag) => (
+            <span 
+              key={tag} 
+              className="px-2 py-0.5 text-[8px] font-bold text-[#888888] border border-white/5 rounded-full uppercase"
             >
-              Add a Habit
-            </button>
-          </div>
-        );
-      }
-
-      return (
-        <div className="grid grid-cols-1 gap-4">
-          {pageHabits.map((habit, idx) => {
-            return (
-              <div
-                key={habit.id}
-                data-drag-id={habit.id}
-              >
-                <AppleHabitCard
-                  habit={habit}
-                  onTap={(h) => setSelectedHabitId(h.id)}
-                  onEditTap={handleEditHabitTap}
-                  entranceDelay={idx * 70}
-                />
-              </div>
-            );
-          })}
-        </div>
-      );
-    }
-
-    if (type === "deadlines") {
-      const pageDeadlines = deadlines.filter((d) => {
-        const matchesSearch = d.title.toLowerCase().includes(searchQuery.toLowerCase());
-        return matchesSearch;
-      });
-
-      if (deadlinesLoading) {
-        return (
-          <div className="flex flex-col items-center justify-center py-20 space-y-4">
-            <div className="w-8 h-8 border-2 border-zinc-800 border-t-white rounded-full animate-spin" />
-            <span className="text-[10px] font-sans font-semibold tracking-widest text-zinc-500 uppercase animate-pulse">
-              Loading Ledger
+              {tag}
             </span>
-          </div>
-        );
-      }
-
-      if (pageDeadlines.length === 0) {
-        return (
-          <div className="text-center py-20 px-4 border border-dashed border-zinc-800/80 rounded-3xl select-none space-y-3 bg-zinc-950/20 backdrop-blur-md">
-            <p className="text-xs text-zinc-400 font-light font-sans">
-              No active deadlines recorded.
-            </p>
-            <button
-              onClick={handleAddTap}
-              className="px-4 py-2 border border-white/5 bg-zinc-900 text-[10px] font-sans font-semibold tracking-wider text-zinc-200 hover:text-white rounded-xl transition-all"
-            >
-              Add a Deadline
-            </button>
-          </div>
-        );
-      }
-
-      return (
-        <div className="grid grid-cols-1 gap-4">
-          {pageDeadlines.map((deadline) => (
-            <AppleDeadlineCard
-              key={deadline.id}
-              deadline={deadline}
-              onEditTap={handleEditDeadlineTap}
-            />
           ))}
         </div>
-      );
-    }
-
-    const pageGoals = goals.filter((g) => {
-      const matchesSearch = g.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        g.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
-      const matchesTag = !selectedTag || g.tags.some(t => t.toLowerCase() === selectedTag.toLowerCase());
-
-      let matchesTab = true;
-      if (type === "goals") {
-        matchesTab = !g.tags.some(t => t.toLowerCase() === "habit") && 
-                     !g.tags.some(t => t.toLowerCase() === "deadline") && 
-                     !g.title.toLowerCase().includes("deadline");
-      }
-
-      return matchesSearch && matchesTag && matchesTab;
-    });
-
-    if (loading) {
-      return (
-        <div className="flex flex-col items-center justify-center py-20 space-y-4">
-          <div className="w-8 h-8 border-2 border-zinc-800 border-t-white rounded-full animate-spin" />
-          <span className="text-[10px] font-sans font-semibold tracking-widest text-zinc-500 uppercase animate-pulse">
-            Loading Ledger
-          </span>
-        </div>
-      );
-    }
-
-    if (pageGoals.length === 0) {
-      return (
-        <div className="text-center py-20 px-4 border border-dashed border-zinc-800/80 rounded-3xl select-none space-y-3 bg-zinc-950/20 backdrop-blur-md">
-          <p className="text-xs text-zinc-400 font-light font-sans">
-            No active goals in this category.
-          </p>
-          <button
-            onClick={handleAddTap}
-            className="px-4 py-2 border border-white/5 bg-zinc-900 text-[10px] font-sans font-semibold tracking-wider text-zinc-200 hover:text-white rounded-xl transition-all"
-          >
-            Add a Goal
-          </button>
-        </div>
-      );
-    }
-
-    const canReorder = type === "goals" && !searchQuery && !selectedTag;
-
-    return (
-      <div className="grid grid-cols-1 gap-4">
-        {pageGoals.map((goal, idx) => {
-          return (
-            <div
-              key={goal.id}
-              data-drag-id={goal.id}
-            >
-              <AppleGoalCard
-                goal={goal}
-                onTap={handleCardTap}
-                onEditTap={handleEditTap}
-                onMoveUp={canReorder ? (e) => { e.stopPropagation(); handleMoveUp(idx); } : undefined}
-                onMoveDown={canReorder ? (e) => { e.stopPropagation(); handleMoveDown(idx); } : undefined}
-                isFirst={idx === 0}
-                isLast={idx === pageGoals.length - 1}
-              />
-            </div>
-          );
-        })}
       </div>
-    );
-  };
 
-  const renderTabs = (isForHeader: boolean) => {
-    const tabIndices = { deadlines: 0, goals: 1, habits: 2 };
-    const currentIndex = tabIndices[activeTab];
-    const prevIndex = tabIndices[prevTab];
-    const progress = progressRef.current;
-    
-    let leftStyle = `${currentIndex * 33.333}%`;
-    let rightStyle = `${(2 - currentIndex) * 33.333}%`;
-    let transitionStyle = currentIndex > prevIndex
-      ? "right 320ms cubic-bezier(0.16, 1, 0.3, 1), left 380ms cubic-bezier(0.16, 1, 0.3, 1) 40ms"
-      : currentIndex < prevIndex
-        ? "left 320ms cubic-bezier(0.16, 1, 0.3, 1), right 380ms cubic-bezier(0.16, 1, 0.3, 1) 40ms"
-        : "left 300ms ease-out, right 300ms ease-out";
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex-1">
+          <SegmentedBar progress={progress} segments={20} />
+        </div>
         
-    if (isDraggingActive) {
-      const baseLeft = currentIndex * 33.333;
-      const baseRight = (2 - currentIndex) * 33.333;
-      
-      let currentLeft = baseLeft;
-      let currentRight = baseRight;
-
-      if (progress < 0) {
-        const lag = Math.pow(Math.abs(progress), 1.6) * -1;
-        const lead = Math.pow(Math.abs(progress), 0.75) * -1;
-        currentLeft = baseLeft - lag * 33.333;
-        currentRight = baseRight + lead * 33.333;
-      } else {
-        const lead = Math.pow(progress, 0.75);
-        const lag = Math.pow(progress, 1.6);
-        currentLeft = baseLeft - lead * 33.333;
-        currentRight = baseRight + lag * 33.333;
-      }
-      
-      currentLeft = Math.max(0, Math.min(66.666, currentLeft));
-      currentRight = Math.max(0, Math.min(66.666, currentRight));
-      
-      leftStyle = `${currentLeft}%`;
-      rightStyle = `${currentRight}%`;
-      transitionStyle = "none";
-    }
-    
-    return (
-      <div className="relative flex w-full h-full select-none">
-        {/* iOS style sliding segmented indicator pill */}
-        <div 
-          ref={isForHeader ? headerPillRef : pillRef}
-          className="absolute inset-y-0"
-          style={{
-            left: leftStyle,
-            right: rightStyle,
-            transition: transitionStyle
-          }}
-        >
-          <div className="w-full h-full p-0.5">
-            <div 
-              className="w-full h-full bg-[#636366]/50 border border-white/[0.05] rounded-xl shadow origin-center transition-transform duration-100 ease-out" 
-              style={{
-                transform: isDraggingActive 
-                  ? `scaleY(${1 - Math.abs(progress) * 0.12})` 
-                  : undefined
-              }}
-            />
-          </div>
+        <div className="flex items-center gap-3 shrink-0 select-none">
+          <span className="text-xs font-bold text-white tabular-nums">{progress}%</span>
+          <span className="text-[10px] text-[#444444] font-medium uppercase">{tasks.done}/{tasks.total} Tasks</span>
+          <span className="text-[10px] text-[#e8ff47] font-bold tabular-nums">↑+{delta}%</span>
         </div>
+      </div>
+    </div>
+  );
+}
 
-        {[
-          { id: "deadlines" as const, label: "Deadlines" },
-          { id: "goals" as const, label: "Goals" },
-          { id: "habits" as const, label: "Habits" }
-        ].map((item) => {
-          const isActive = activeTab === item.id;
+// ─── HABIT ROW COMPONENT ─────────────────────────────────────────────────
+function HabitRow({ 
+  title, 
+  target, 
+  logs, 
+  streak,
+  rate 
+}: { 
+  title: string; 
+  target: number; 
+  logs: number[]; 
+  streak: number;
+  rate: number;
+}) {
+  return (
+    <div className="space-y-2.5 py-3.5 border-b border-white/5 last:border-b-0">
+      <div className="flex justify-between items-center select-none">
+        <span className="text-xs font-bold text-white tracking-wide uppercase font-sans">
+          {title}
+        </span>
+        <span className="text-[9px] text-[#888888] tracking-widest font-light font-mono">
+          TARGET: {target}/DAY
+        </span>
+      </div>
+
+      {/* 30 Day grid squares */}
+      <div className="flex gap-[3.5px] overflow-hidden select-none">
+        {logs.map((val, idx) => {
+          let cellStyle = "bg-[#1a1a1a] border border-white/5"; 
+          if (val === 1) {
+            cellStyle = "bg-[#e8ff47]";
+          } else if (val === 0.5) {
+            cellStyle = "bg-[#e8ff47]/25";
+          }
+          
           return (
-            <button
-              key={item.id}
-              onClick={() => {
-                setPrevTab(activeTab);
-                setActiveTab(item.id);
-              }}
-              className={`flex-1 py-1.5 text-xs font-sans font-semibold rounded-xl transition-colors duration-300 relative z-10 ${
-                isActive 
-                  ? "text-white font-bold" 
-                  : "text-zinc-500 hover:text-zinc-300"
-              }`}
-            >
-              {item.label}
-            </button>
+            <div 
+              key={idx} 
+              className={`flex-1 aspect-square rounded-[1px] ${cellStyle} transition-all duration-300 hover:scale-110 cursor-crosshair`}
+              title={`DAY -${30 - 1 - idx} // STATUS: ${val === 1 ? "TARGET MET" : val === 0.5 ? "PARTIAL" : "INCOMPLETE"}`}
+            />
           );
         })}
       </div>
-    );
-  };
 
-  // ─── Live Dynamic Rings Summary Math ────────────────────────────────────
-  const goalsPct = React.useMemo(() => {
-    const activeGoals = goals.filter(g => !g.tags.some(t => t.toLowerCase() === "habit" || t.toLowerCase() === "deadline") && !g.title.toLowerCase().includes("deadline"));
-    return activeGoals.length > 0 
-      ? (activeGoals.reduce((sum, g) => sum + (g.progressPercent || 0), 0) / activeGoals.length) 
-      : 0;
-  }, [goals]);
+      <div className="flex justify-between items-center text-[9px] font-sans tracking-widest text-[#888888] font-light select-none">
+        <span>STREAK: <strong className="text-white font-bold">{streak} DAYS</strong></span>
+        <span>RATE: <strong className="text-[#e8ff47] font-bold">{rate}%</strong></span>
+      </div>
+    </div>
+  );
+}
 
-  const habitsPct = React.useMemo(() => {
-    return habits.length > 0
-      ? (habits.reduce((sum, h) => sum + (h.completionsToday ?? 0) / h.daily_target, 0) / habits.length) * 100
-      : 0;
-  }, [habits]);
+// ─── DEADLINE ROW COMPONENT ──────────────────────────────────────────────
+function DeadlineRow({ 
+  index, 
+  priority, 
+  title, 
+  dueDate,
+  totalDuration
+}: { 
+  index: number; 
+  priority: "CRITICAL" | "HIGH" | "NOMINAL"; 
+  title: string; 
+  dueDate: Date;
+  totalDuration: number;
+}) {
+  const timeLeft = useCountdown(dueDate);
+  const formattedIndex = String(index).padStart(2, "0");
+  
+  const now = Date.now();
+  const timeTotal = totalDuration;
+  const timeRemaining = dueDate.getTime() - now;
+  const progressPercent = Math.max(0, Math.min(100, ((timeTotal - timeRemaining) / timeTotal) * 100));
 
-  const deadlinesPct = React.useMemo(() => {
-    const completedDeadlines = deadlines.filter(d => d.completed).length;
-    return deadlines.length > 0
-      ? (completedDeadlines / deadlines.length) * 100
-      : 0;
-  }, [deadlines]);
+  const isOverdue = timeRemaining <= 0;
 
-  const syncError = goalsSyncError || habitsSyncError;
-  const handleClearSyncError = () => {
-    if (goalsSyncError) clearGoalsSyncError();
-    if (habitsSyncError) clearHabitsSyncError();
-  };
+  const badgeColors = {
+    CRITICAL: "bg-[#ff4444] text-black font-bold",
+    HIGH: "bg-[#e8ff47] text-black font-bold",
+    NOMINAL: "bg-[#1a1a1a] text-[#888888]",
+  }[priority];
+
+  const timerText = isOverdue
+    ? "00d 00h 00m 00s"
+    : `${String(timeLeft.d).padStart(2, "0")}d ${String(timeLeft.h).padStart(2, "0")}h ${String(timeLeft.m).padStart(2, "0")}m ${String(timeLeft.s).padStart(2, "0")}s`;
 
   return (
     <div 
-      ref={containerRef}
-      className="min-h-screen text-white md:max-w-md md:mx-auto md:shadow-2xl md:border-x md:border-zinc-900 pb-28 relative flex flex-col font-sans overflow-hidden"
-      style={{ zIndex: 1 }}
+      className={`p-3 bg-[#111111] border border-white/5 hover:translate-x-0.5 transition-all duration-300 flex items-center justify-between gap-4 font-mono select-none ${
+        isOverdue ? "bg-[#ff4444]/5 border-l-[3.5px] border-l-[#ff4444]" : ""
+      }`}
     >
-      {/* Dynamic Keyframe Animations for Fluid Blobs */}
-      <style dangerouslySetInnerHTML={{__html: `
-        @keyframes float-blob-1 {
-          0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
-          33% { transform: translate(45px, -60px) scale(1.15) rotate(120deg); }
-          66% { transform: translate(-30px, 30px) scale(0.9) rotate(240deg); }
-        }
-        @keyframes float-blob-2 {
-          0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
-          33% { transform: translate(-50px, 40px) scale(0.9) rotate(-120deg); }
-          66% { transform: translate(40px, -45px) scale(1.1) rotate(-240deg); }
-        }
-        @keyframes float-blob-3 {
-          0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
-          33% { transform: translate(30px, 45px) scale(1.05) rotate(60deg); }
-          66% { transform: translate(-40px, -30px) scale(0.95) rotate(180deg); }
-        }
-        @keyframes shimmer-sweep {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-        .animate-float-1 {
-          animation: float-blob-1 16s ease-in-out infinite alternate;
-        }
-        .animate-float-2 {
-          animation: float-blob-2 20s ease-in-out infinite alternate;
-        }
-        .animate-float-3 {
-          animation: float-blob-3 24s ease-in-out infinite alternate;
-        }
-        .animate-shimmer-fast {
-          animation: shimmer-sweep 2s infinite linear;
-        }
-      `}} />
+      <div className="flex items-center gap-3 min-w-0">
+        <span className="text-[10px] text-[#444444] tracking-wider shrink-0 tabular-nums">
+          {formattedIndex}
+        </span>
+        <span className={`px-2 py-0.5 text-[8px] uppercase tracking-wider rounded-md shrink-0 font-bold ${badgeColors}`}>
+          {priority}
+        </span>
+        <span className="text-xs text-white font-medium truncate max-w-[130px] sm:max-w-none">
+          {title}
+        </span>
+      </div>
 
-      {/* Premium Apple Frosted Dynamic background */}
-      <AppleBackground />
-      
-      {/* Dynamic Header */}
-      <header className={`fixed top-0 left-0 right-0 mx-auto z-40 w-full md:max-w-md bg-[#1c1c1e]/60 backdrop-blur-xl transition-all duration-300 ease-out flex flex-col justify-between overflow-hidden ${
-        isTabDocked
-          ? "h-24 border-b border-white/[0.06] shadow-lg"
-          : isHeaderCompressed
-            ? "h-14 border-b border-transparent shadow-none"
-            : "h-[76px] border-b border-white/[0.04] shadow-none"
-      }`}>
-        <div className={`w-full flex items-center justify-between px-6 select-none transition-all duration-300 ${
-          isHeaderCompressed || isTabDocked ? "h-14" : "h-[76px]"
-        }`}>
-          <div className={`flex items-center gap-2 select-none transition-transform duration-300 ease-out origin-left ${
-            isHeaderCompressed || isTabDocked ? "scale-[0.91]" : "scale-100"
-          }`}>
-            <AppleAetherLogo />
-          </div>
-
-          <div className={`flex items-center gap-1 transition-transform duration-300 ease-out origin-right ${
-            isHeaderCompressed || isTabDocked ? "scale-[0.91]" : "scale-100"
-          }`}>
-            <span className="text-[10px] font-sans font-medium text-zinc-500 hidden sm:inline-block mr-1.5">
-              {user === "guest" ? "Guest Sandbox" : user.email?.split("@")[0]}
-            </span>
-            <button
-              onClick={() => {
-                setShowSearch(!showSearch);
-                if (showSearch) {
-                  setSearchQuery("");
-                }
-              }}
-              className={`p-2 rounded-full transition-all ${
-                showSearch 
-                  ? "text-white bg-zinc-805" 
-                  : "text-zinc-500 hover:text-white hover:bg-zinc-800/40"
-              }`}
-              aria-label="Toggle Search"
-            >
-              <Search size={15} />
-            </button>
-
-            <button
-              onClick={() => logout()}
-              className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800/40 rounded-full transition-all"
-              aria-label="Logout"
-            >
-              <LogOut size={15} />
-            </button>
-          </div>
-        </div>
-
-        {/* Nested Tabs inside the Header for seamless blur */}
-        <div className={`px-6 pb-2 w-full transition-all duration-300 ease-out ${
-          isTabDocked ? "opacity-100 translate-y-0 h-10 visible" : "opacity-0 -translate-y-2 h-0 invisible pointer-events-none"
-        }`}>
-          {renderTabs(true)}
-        </div>
-      </header>
-
-      {/* Main Container */}
-      <main className="flex-1 px-6 pt-24 pb-6 space-y-6">
-        {/* Sentinel to detect when tab hits header */}
-        <div ref={sentinelRef} className="h-[1px] w-full pointer-events-none -mb-[1px]" />
-
-        {/* Jaw-dropping Apple Concentric Rings Summary Widget */}
-        {!isHeaderCompressed && !isTabDocked && (
-          <div className="animate-fade-in">
-            <AppleSummaryWidget
-              goalsCount={goals.filter(g => !g.tags.some(t => t.toLowerCase() === "habit" || t.toLowerCase() === "deadline") && !g.title.toLowerCase().includes("deadline")).length}
-              goalsPct={goalsPct}
-              habitsCount={habits.length}
-              habitsPct={habitsPct}
-              deadlinesCount={deadlines.filter(d => !d.completed).length}
-              deadlinesPct={deadlinesPct}
-              activeTab={activeTab}
-              setActiveTab={(tab) => {
-                setPrevTab(activeTab);
-                setActiveTab(tab);
-              }}
-            />
-          </div>
-        )}
-
-        {/* Navigation Tabs (Deadlines, Goals, Habits) with Morphing Pill Switcher */}
-        <div 
-          className={`sticky top-[55px] z-30 flex select-none shrink-0 overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-            isTabDocked
-              ? "opacity-0 pointer-events-none scale-[0.96]"
-              : "opacity-100 scale-100 rounded-2xl border border-white/[0.04] bg-[#1c1c1e]/85 p-1 w-full"
-          }`}
-          style={{ marginTop: 0 }}
-        >
-          {renderTabs(false)}
-        </div>
-
-        {/* Search Bar (Spotlight Style) */}
-        {showSearch && (
-          <div className="relative animate-fade-in px-0.5">
-            <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
-            <input
-              type="text"
-              autoFocus
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search..."
-              className="w-full pl-10 pr-4 py-2.5 bg-[#1c1c1e]/80 border border-white/[0.05] rounded-2xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white/10 transition-colors animate-fade-in"
-            />
-          </div>
-        )}
-
-        {/* Tag Filters Row */}
-        {tagsToDisplay.length > 0 && (
+      <div className="flex items-center gap-3 shrink-0">
+        <span className={`text-[10px] font-bold tabular-nums ${isOverdue ? "text-[#ff4444] animate-pulse" : "text-[#888888]"}`}>
+          {timerText}
+        </span>
+        
+        {/* Progress Countdown Bar */}
+        <div className="w-16 h-1.5 bg-[#1a1a1a] rounded-[1px] overflow-hidden hidden sm:flex shrink-0">
           <div 
-            ref={tagsRef}
-            className="flex items-center gap-2 overflow-x-auto pb-3 -mx-6 px-6 touch-pan-x flex-nowrap shrink-0 pointer-events-auto select-none cursor-grab active:cursor-grabbing scrollbar-none"
-            onTouchStart={(e) => e.stopPropagation()}
-            onTouchMove={(e) => e.stopPropagation()}
-            onTouchEnd={(e) => e.stopPropagation()}
+            className={`h-full rounded-[1px] transition-all duration-1000 ${isOverdue ? "bg-[#ff4444]" : "bg-[#e8ff47]"}`}
+            style={{ width: `${isOverdue ? 100 : progressPercent}%` }}
+          />
+        </div>
+
+        {isOverdue && (
+          <span className="text-[9px] font-bold text-[#ff4444] tracking-widest shrink-0 animate-pulse">
+            OVERDUE
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── MOCK DATA ───────────────────────────────────────────────────────────
+const MOCK_GOALS = [
+  {
+    title: 'CODE EXECUTION VISUALIZER',
+    progress: 67,
+    tags: ['DEV', 'FRONT-END'],
+    delta: 14,
+    tasks: { done: 4, total: 6 }
+  },
+  {
+    title: 'JOB APPLICATIONS',
+    progress: 33,
+    tags: ['CAREER', 'OUTREACH'],
+    delta: 25,
+    tasks: { done: 2, total: 9 }
+  },
+  {
+    title: 'THESIS PUBLICATION',
+    progress: 20,
+    tags: ['ACADEMIC', 'RESEARCH'],
+    delta: 8,
+    tasks: { done: 1, total: 5 }
+  },
+];
+
+// Generate stable habit logs seeded consistently
+const generateHabitLogs = (streak: number, rate: number, days = 30) => {
+  return Array.from({ length: days }, (_, i) => {
+    const daysAgo = days - 1 - i;
+    if (daysAgo < streak) return 1; // Completed
+    
+    // Stable pseudo-random wave values
+    const val = Math.sin(i * 2.7 + rate);
+    if (val > (1 - rate)) return 1;
+    if (val > (0.6 - rate)) return 0.5; // Partial
+    return 0; // Incomplete
+  });
+};
+
+const MOCK_HABITS = [
+  {
+    title: 'DEEP WORK SESSIONS',
+    target: 3,
+    completionsToday: 2,
+    streak: 12,
+    rate: 84,
+    logs: generateHabitLogs(12, 0.84),
+  },
+  {
+    title: 'DSA PRACTICE',
+    target: 1,
+    completionsToday: 1,
+    streak: 18,
+    rate: 91,
+    logs: generateHabitLogs(18, 0.91),
+  },
+  {
+    title: 'PHYSICAL TRAINING',
+    target: 1,
+    completionsToday: 0,
+    streak: 7,
+    rate: 71,
+    logs: generateHabitLogs(7, 0.71),
+  },
+];
+
+const MOCK_DEADLINES = [
+  {
+    title: 'CV SUBMISSION',
+    priority: 'CRITICAL' as const,
+    dueDate: new Date(Date.now() + 4 * 60 * 60 * 1000), // 4 hours from now
+    totalDuration: 7 * 24 * 60 * 60 * 1000, 
+  },
+  {
+    title: 'BRAIN STATION APPLICATION',
+    priority: 'HIGH' as const,
+    dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days
+    totalDuration: 7 * 24 * 60 * 60 * 1000,
+  },
+  {
+    title: 'CODE VISUALIZER MVP',
+    priority: 'NOMINAL' as const,
+    dueDate: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000), // 12 days
+    totalDuration: 14 * 24 * 60 * 60 * 1000,
+  },
+];
+
+// ─── MAIN STANDALONE TEST PAGE ───────────────────────────────────────────
+export default function TestPage() {
+  const [activeCellTab, setActiveCellTab] = useState<"goals" | "habits" | "deadlines">("goals");
+  const [activeCanvas, setActiveCanvas] = useState<"NEURAL" | "ORBITAL" | "CONSTELLATION" | "FLOW FIELD">("NEURAL");
+  
+  return (
+    <div className="min-h-screen bg-black text-white relative flex flex-col justify-between overflow-hidden selection:bg-[#e8ff47] selection:text-black">
+      {/* Custom Styles and Font Inject */}
+      <style dangerouslySetInnerHTML={{ __html: CSS_STYLE_BLOCK }} />
+      
+      {/* Precision grid scanning line overlay */}
+      <div className="absolute inset-x-0 top-0 h-[1.5px] bg-[#e8ff47]/15 blur-[0.5px] pointer-events-none z-50 animate-[scan-line_4.5s_linear_infinite]" />
+      
+      {/* Standalone Simulator Frame Container */}
+      <div className="w-full md:max-w-md md:mx-auto md:shadow-2xl md:border-x md:border-white/5 min-h-screen relative flex flex-col justify-between bg-black z-10 pb-20">
+        
+        {/* 1. HEADER BAR */}
+        <header className="py-4 px-5 border-b border-white/5 flex items-center justify-between select-none anim-fade-in shrink-0">
+          <a 
+            href="/"
+            className="flex items-center gap-1 text-[10px] text-[#888888] hover:text-[#e8ff47] transition-colors tracking-widest font-mono uppercase font-bold"
           >
-            <button
-              onClick={() => setSelectedTag(null)}
-              className={`py-1.5 px-4 text-[10px] font-sans font-bold rounded-full border transition-all duration-300 active:scale-95 shrink-0 ${
-                !selectedTag
-                  ? "bg-white text-black border-transparent shadow-md scale-102"
-                  : "bg-zinc-900/60 text-zinc-400 border-white/[0.05] hover:text-white"
-              }`}
-            >
-              {activeTab === "habits" ? "All Habits" : activeTab === "deadlines" ? "All Deadlines" : "All Goals"}
-            </button>
-            {tagsToDisplay.map((tag) => {
-              const isActive = selectedTag?.toLowerCase() === tag.toLowerCase();
+            <ArrowLeft size={10} className="stroke-[3]" />
+            Back
+          </a>
+          
+          <span className="text-[10px] text-white tracking-[0.2em] font-mono font-bold">
+            AETHER / TEST.EXE
+          </span>
+          
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[9px] text-[#e8ff47] font-bold tracking-widest font-mono">
+              STATUS: LIVE
+            </span>
+            <span className="w-1.5 h-1.5 rounded-full bg-[#e8ff47] animate-[pulse-accent_1.4s_infinite]" />
+          </div>
+        </header>
+
+        {/* 2. HERO STATS ROW */}
+        <section className="border-b border-white/5 flex anim-slide-up shrink-0 [animation-delay:100ms]">
+          <HeroStatCell
+            label="Goals"
+            value={6}
+            sub="+2 this wk"
+            active={activeCellTab === "goals"}
+            onClick={() => setActiveCellTab("goals")}
+          />
+          <HeroStatCell
+            label="Habits"
+            value={12}
+            sub="84% rate"
+            active={activeCellTab === "habits"}
+            onClick={() => setActiveCellTab("habits")}
+          />
+          <HeroStatCell
+            label="Deadlines"
+            value={3}
+            sub="2 overdue"
+            active={activeCellTab === "deadlines"}
+            onClick={() => setActiveCellTab("deadlines")}
+          />
+        </section>
+
+        {/* 3. LIVE CANVAS BACKGROUND PREVIEW STRIP */}
+        <section className="border-b border-white/5 py-4 px-5 space-y-3 anim-slide-up shrink-0 [animation-delay:250ms]">
+          <div className="flex gap-1 overflow-x-auto select-none scrollbar-none justify-between border border-white/5 p-1 bg-[#080808]">
+            {(["NEURAL", "ORBITAL", "CONSTELLATION", "FLOW FIELD"] as const).map((canvasType) => {
+              const isSelected = activeCanvas === canvasType;
               return (
                 <button
-                  key={tag}
-                  onClick={() => setSelectedTag(isActive ? null : tag)}
-                  className={`py-1.5 px-4 text-[10px] font-sans font-bold rounded-full border transition-all duration-300 shrink-0 active:scale-95 ${
-                    isActive
-                      ? "bg-white text-black border-transparent shadow-md scale-102"
-                      : "bg-zinc-900/60 text-zinc-400 border-white/[0.05] hover:text-white"
+                  key={canvasType}
+                  onClick={() => setActiveCanvas(canvasType)}
+                  className={`flex-1 py-1.5 text-[9px] font-bold uppercase tracking-widest transition-all ${
+                    isSelected
+                      ? "bg-[#e8ff47] text-black"
+                      : "text-[#888888] hover:text-white"
                   }`}
                 >
-                  {tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase()}
+                  {canvasType}
                 </button>
               );
             })}
           </div>
-        )}
-
-        {/* Viewport Slider Track */}
-        <div className="w-full overflow-hidden py-2 -my-2 relative">
-          <div 
-            ref={trackRef}
-            className="flex w-[300%] relative"
-            style={{
-              left: (() => {
-                const activeIndex = activeTab === "deadlines" ? 0 : activeTab === "goals" ? 1 : 2;
-                return `${-activeIndex * 100}%`;
-              })(),
-              transition: isDraggingActive 
-                ? "none" 
-                : "left 500ms cubic-bezier(0.16, 1, 0.3, 1)"
-            }}
-          >
-            {/* Page 1: Deadlines */}
-            <div 
-              ref={(el) => { pageRefs.current["deadlines"] = el; }}
-              className={`w-1/3 shrink-0 ${isTabCollapsed("deadlines") ? "h-0 overflow-hidden" : ""}`}
-              style={getTabStyle("deadlines")}
-            >
-              {renderPageContent("deadlines")}
-            </div>
-
-            {/* Page 2: Goals */}
-            <div 
-              ref={(el) => { pageRefs.current["goals"] = el; }}
-              className={`w-1/3 shrink-0 ${isTabCollapsed("goals") ? "h-0 overflow-hidden" : ""}`}
-              style={getTabStyle("goals")}
-            >
-              {renderPageContent("goals")}
-            </div>
-
-            {/* Page 3: Habits */}
-            <div 
-              ref={(el) => { pageRefs.current["habits"] = el; }}
-              className={`w-1/3 shrink-0 ${isTabCollapsed("habits") ? "h-0 overflow-hidden" : ""}`}
-              style={getTabStyle("habits")}
-            >
-              {renderPageContent("habits")}
-            </div>
+          
+          {/* Canvas container frame */}
+          <div className="w-full h-[200px] border border-white/5 relative bg-black overflow-hidden select-none">
+            {activeCanvas === "NEURAL" && <NeuralCanvas active={activeCanvas === "NEURAL"} />}
+            {activeCanvas === "ORBITAL" && <OrbitalCanvas active={activeCanvas === "ORBITAL"} />}
+            {activeCanvas === "CONSTELLATION" && <ConstellationCanvas active={activeCanvas === "CONSTELLATION"} />}
+            {activeCanvas === "FLOW FIELD" && <FlowFieldCanvas active={activeCanvas === "FLOW FIELD"} />}
+            
+            {/* Visual target reticle box overlay */}
+            <div className="absolute inset-0 border border-white/5 pointer-events-none" />
+            <div className="absolute top-2 left-2 w-3 h-3 border-t border-l border-white/10 pointer-events-none" />
+            <div className="absolute top-2 right-2 w-3 h-3 border-t border-r border-white/10 pointer-events-none" />
+            <div className="absolute bottom-2 left-2 w-3 h-3 border-b border-l border-white/10 pointer-events-none" />
+            <div className="absolute bottom-2 right-2 w-3 h-3 border-b border-r border-white/10 pointer-events-none" />
           </div>
-        </div>
-      </main>
+        </section>
 
-      {/* Global Sync Error Banner */}
-      {syncError && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 animate-slide-up w-full max-w-sm px-6 pointer-events-none">
-          <div className="flex items-center justify-between p-4 bg-red-950/90 border border-red-900 rounded-lg shadow-2xl backdrop-blur-md pointer-events-auto">
-            <span className="text-[11px] font-sans tracking-wide text-red-200">
-              {syncError}
+        {/* 4. GOAL CARDS — REDESIGNED */}
+        <section className="py-5 px-5 space-y-3.5 anim-slide-up [animation-delay:350ms]">
+          <div className="flex items-center justify-between select-none">
+            <span className="text-[10px] font-bold text-[#888888] uppercase tracking-widest font-mono">
+              // ACTIVE GOALS SYSTEM
             </span>
-            <button
-              onClick={handleClearSyncError}
-              className="ml-4 p-1 text-red-400 hover:text-white transition-colors"
-              aria-label="Dismiss Error"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
+            <span className="text-[9px] text-[#444444] font-mono">
+              TOTAL: {MOCK_GOALS.length} ACTIVE
+            </span>
           </div>
-        </div>
-      )}
+          
+          <div className="flex flex-col gap-3">
+            {MOCK_GOALS.map((goal, idx) => (
+              <div 
+                key={goal.title} 
+                className="anim-slide-left"
+                style={{ animationDelay: `${400 + idx * 80}ms` }}
+              >
+                <GoalCardComponent
+                  title={goal.title}
+                  progress={goal.progress}
+                  tags={goal.tags}
+                  delta={goal.delta}
+                  tasks={goal.tasks}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
 
-      {/* Floating Bottom Add Goal Trigger Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-[#070709] via-[#070709]/80 to-transparent py-6 flex justify-center pointer-events-none">
-        <button
-          onClick={handleAddTap}
-          className="pointer-events-auto relative flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-[#007AFF] to-[#5856D6] text-white text-xs font-semibold rounded-full shadow-lg hover:brightness-110 hover:scale-[1.03] active:scale-[0.97] transition-all duration-300"
-          aria-label={activeTab === "deadlines" ? "Add New Deadline" : activeTab === "habits" ? "Add New Habit" : "Add New Goal"}
-        >
-          <Plus size={15} strokeWidth={2.5} />
-          <span>
-            {activeTab === "deadlines"
-              ? "New Deadline"
-              : activeTab === "habits"
-              ? "New Habit"
-              : "New Goal"}
-          </span>
-        </button>
+        {/* 5. HABIT GRID — REDESIGNED */}
+        <section className="py-5 px-5 border-t border-white/5 anim-slide-up [animation-delay:550ms]">
+          <div className="flex items-center justify-between select-none mb-3">
+            <span className="text-[10px] font-bold text-[#888888] uppercase tracking-widest font-mono">
+              HABIT MATRIX // LAST 30 DAYS
+            </span>
+            <span className="text-[9px] text-[#444444] font-mono">
+              MATRIX STATE: ACTIVE
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-2.5">
+            {MOCK_HABITS.map((habit) => (
+              <HabitRow
+                key={habit.title}
+                title={habit.title}
+                target={habit.target}
+                logs={habit.logs}
+                streak={habit.streak}
+                rate={habit.rate}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* 6. DEADLINE TICKER */}
+        <section className="py-5 px-5 border-t border-white/5 anim-slide-up [animation-delay:700ms]">
+          <div className="flex items-center justify-between select-none mb-3">
+            <span className="text-[10px] font-bold text-[#888888] uppercase tracking-widest font-mono">
+              DEADLINE QUEUE // SORTED BY URGENCY
+            </span>
+            <span className="text-[9px] text-red-500 font-mono animate-pulse">
+              QUEUE CHECKED
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-2.5">
+            {MOCK_DEADLINES.map((deadline, idx) => (
+              <DeadlineRow
+                key={deadline.title}
+                index={idx + 1}
+                priority={deadline.priority}
+                title={deadline.title}
+                dueDate={deadline.dueDate}
+                totalDuration={deadline.totalDuration}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* 7. SYSTEM FOOTER */}
+        <footer className="py-4 border-t border-white/5 text-center anim-slide-up [animation-delay:900ms] shrink-0 mt-8">
+          <div className="text-[9px] font-mono font-light tracking-widest text-[#444444] select-none uppercase space-y-1">
+            <p>
+              AETHER GOALS v0.1.0 · HASIN ISHRAK · BRACU 2026
+            </p>
+            <p>
+              SYSTEM IN <span className="text-[#e8ff47] font-bold animate-[pulse-accent_1.4s_infinite]">[SANDBOX MODE]</span>
+            </p>
+          </div>
+        </footer>
+
       </div>
-
-      {/* Full Screen Sliding Modals */}
-      {selectedGoalId && (
-        <GoalDetailModal
-          goalId={selectedGoalId}
-          onClose={() => setSelectedGoalId(null)}
-          onEditTap={handleModalEditTrigger}
-        />
-      )}
-
-      {selectedHabitId && (() => {
-        const habit = habits.find((h) => h.id === selectedHabitId);
-        return habit ? (
-          <HabitAnalyticsModal
-            habit={habit}
-            onClose={() => setSelectedHabitId(null)}
-          />
-        ) : null;
-      })()}
-
-      {isFormOpen && (
-        (() => {
-          if (activeTab === "habits" || editingHabit) {
-            return (
-              <HabitFormModal
-                editHabit={editingHabit}
-                onClose={() => {
-                  setIsFormOpen(false);
-                  setEditingHabit(null);
-                }}
-              />
-            );
-          }
-
-          if (activeTab === "deadlines" || editingDeadline) {
-            return (
-              <DeadlineFormModal
-                editDeadline={editingDeadline}
-                onClose={() => {
-                  setIsFormOpen(false);
-                  setEditingDeadline(null);
-                }}
-              />
-            );
-          }
-
-          return (
-            <GoalFormModal
-              editGoal={editingGoal}
-              onClose={() => {
-                setIsFormOpen(false);
-                setEditingGoal(null);
-              }}
-            />
-          );
-        })()
-      )}
     </div>
   );
 }
