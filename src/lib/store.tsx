@@ -140,6 +140,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       const dbConfigured = isSupabaseConfigured();
       if (dbConfigured && user && user !== "guest") {
+        // ── Authenticated path: 100% Supabase only. No localStorage reads. ──
         const client = getSupabaseClient();
         const { data: goalsData, error: goalsError } = await client
           .from("goals")
@@ -158,116 +159,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
           const assembledGoals: Goal[] = (goalsData as Goal[]).map((g) => {
             const goalSubtasks = (subtasksData as Subtask[] || []).filter((s) => s.goal_id === g.id);
-            return calculateGoalMetrics({
-              ...g,
-              subtasks: goalSubtasks,
-            });
+            return calculateGoalMetrics({ ...g, subtasks: goalSubtasks });
           });
 
           setGoals(assembledGoals);
         } else {
-          // goalsData is empty (0 rows). This can happen in two cases:
-          //   A) First-ever login — user needs seed data
-          //   B) User deliberately deleted all their goals — we must NOT re-seed
-          //
-          // We disambiguate using the SEEDED flag in localStorage.
+          // Supabase returned 0 goals.
+          // Only seed if this user has never been seeded before.
           const seededKey = `${STORAGE_KEYS.SEEDED}_${user.id}`;
-          const alreadySeeded = localStorage.getItem(seededKey);
-
-          if (alreadySeeded) {
-            // Case B: User cleared all their goals — respect that, show empty state.
+          if (localStorage.getItem(seededKey)) {
+            // User deliberately deleted everything — respect it.
             setGoals([]);
           } else {
-            // Case A: First time for this user — check if there's local guest data to migrate.
-            const localGoalsRaw = localStorage.getItem(STORAGE_KEYS.GOALS);
-            const localSubtasksRaw = localStorage.getItem(STORAGE_KEYS.SUBTASKS);
-
-            let goalsCorrupt = false;
-            if (localGoalsRaw) {
-              try {
-                const parsed = JSON.parse(localGoalsRaw);
-                if (!Array.isArray(parsed)) goalsCorrupt = true;
-              } catch {
-                goalsCorrupt = true;
-              }
-            }
-            if (goalsCorrupt) {
-              setSyncError("Local goals data is corrupt.");
-            }
-
-            const parsedGoals = safeParseArray<Goal>(localGoalsRaw, []);
-            const parsedSubtasks = safeParseArray<Subtask>(localSubtasksRaw, []);
-
-            if (localGoalsRaw !== null && !goalsCorrupt && parsedGoals.length > 0) {
-              // Migrate guest localStorage data into Supabase
-              const goalIdMap: Record<string, string> = {};
-              parsedGoals.forEach(g => { goalIdMap[g.id] = createId("goal"); });
-              
-              const goalsToInsert = parsedGoals.map(g => ({
-                id: goalIdMap[g.id],
-                user_id: user.id,
-                title: g.title,
-                tags: g.tags,
-                created_at: g.created_at,
-                sort_order: g.sort_order,
-              }));
-
-              const { error: syncGError } = await client.from("goals").insert(goalsToInsert);
-              if (syncGError) {
-                setSyncError(`Migration failed (goals): ${syncGError.message}`);
-                throw syncGError;
-              }
-
-              const subtaskIdMap: Record<string, string> = {};
-              const validSubtasks = parsedSubtasks.filter((subtask) => goalIdMap[subtask.goal_id]);
-              if (validSubtasks.length > 0) {
-                const subtasksToInsert = validSubtasks.map(s => {
-                  const newSubtaskId = createId("subtask");
-                  subtaskIdMap[s.id] = newSubtaskId;
-                  return {
-                    id: newSubtaskId,
-                    goal_id: goalIdMap[s.goal_id],
-                    title: s.title,
-                    is_complete: s.is_complete,
-                    sort_order: s.sort_order || 0
-                  };
-                });
-                const { error: syncSError } = await client.from("subtasks").insert(subtasksToInsert);
-                if (syncSError) {
-                  await client.from("goals").delete().in("id", goalsToInsert.map(g => g.id));
-                  setSyncError(`Migration failed (subtasks): ${syncSError.message}`);
-                  throw syncSError;
-                }
-              }
-
-              // Mark seeded BEFORE wiping localStorage
-              localStorage.setItem(seededKey, "1");
-              localStorage.removeItem(STORAGE_KEYS.GOALS);
-              localStorage.removeItem(STORAGE_KEYS.SUBTASKS);
-
-              const assembledGoals = parsedGoals.map((g) => {
-                const goalSubtasks = parsedSubtasks.filter((s) => s.goal_id === g.id);
-                return calculateGoalMetrics({
-                  ...g,
-                  id: goalIdMap[g.id],
-                  user_id: user.id,
-                  subtasks: goalSubtasks.map(s => ({
-                    ...s,
-                    id: subtaskIdMap[s.id] || s.id,
-                    goal_id: goalIdMap[s.goal_id]
-                  }))
-                });
-              }).sort((a, b) => a.sort_order - b.sort_order);
-              setGoals(assembledGoals);
-            } else {
-              // No local data — seed with demo data
-              await seedDataToSupabase(user.id);
-              // Mark as seeded after seedDataToSupabase completes
-              localStorage.setItem(seededKey, "1");
-            }
+            // Brand new user — give them demo data.
+            await seedDataToSupabase(user.id);
+            localStorage.setItem(seededKey, "1");
           }
         }
       } else {
+        // ── Guest / offline path: localStorage only ──
         const localGoalsRaw = localStorage.getItem(STORAGE_KEYS.GOALS);
         const localSubtasksRaw = localStorage.getItem(STORAGE_KEYS.SUBTASKS);
 
@@ -280,9 +190,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             goalsCorrupt = true;
           }
         }
-        if (goalsCorrupt) {
-          setSyncError("Local goals data is corrupt.");
-        }
+        if (goalsCorrupt) setSyncError("Local goals data is corrupt.");
 
         const parsedGoals = safeParseArray<Goal>(localGoalsRaw, []);
         const parsedSubtasks = safeParseArray<Subtask>(localSubtasksRaw, []);
@@ -290,32 +198,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (localGoalsRaw !== null && !goalsCorrupt) {
           const assembledGoals = parsedGoals.map((g) => {
             const goalSubtasks = parsedSubtasks.filter((s) => s.goal_id === g.id);
-            return calculateGoalMetrics({
-              ...g,
-              subtasks: goalSubtasks,
-            });
+            return calculateGoalMetrics({ ...g, subtasks: goalSubtasks });
           }).sort((a, b) => a.sort_order - b.sort_order);
-
           setGoals(assembledGoals);
         } else if (localGoalsRaw === null && !localStorage.getItem(STORAGE_KEYS.SEEDED)) {
-          // First time guest user — seed with demo data
+          // First time guest — seed demo data
           const { goals: seedGoals, subtasks: seedSubtasks } = getInitialSeedData();
-          
           localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(seedGoals));
           localStorage.setItem(STORAGE_KEYS.SUBTASKS, JSON.stringify(seedSubtasks));
           localStorage.setItem(STORAGE_KEYS.SEEDED, "1");
-
           const assembledGoals = seedGoals.map((g) => {
             const goalSubtasks = seedSubtasks.filter((s) => s.goal_id === g.id);
-            return calculateGoalMetrics({
-              ...g,
-              subtasks: goalSubtasks,
-            });
+            return calculateGoalMetrics({ ...g, subtasks: goalSubtasks });
           }).sort((a, b) => a.sort_order - b.sort_order);
-
           setGoals(assembledGoals);
         } else {
-          // User deliberately cleared all goals — show empty state
           setGoals([]);
         }
       }
@@ -338,8 +235,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const client = getSupabaseClient();
         const { data: { subscription: sub } } = client.auth.onAuthStateChange((_event, session) => {
           if (session?.user) {
-            setUser(session.user);
+            // Wipe stale guest localStorage data on login — Supabase is the source of truth
+            localStorage.removeItem(STORAGE_KEYS.GOALS);
+            localStorage.removeItem(STORAGE_KEYS.SUBTASKS);
             localStorage.setItem(STORAGE_KEYS.USER, "authenticated");
+            setUser(session.user);
           } else {
             const localUser = localStorage.getItem(STORAGE_KEYS.USER);
             if (localUser !== "guest") {
