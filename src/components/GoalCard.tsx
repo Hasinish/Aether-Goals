@@ -87,8 +87,10 @@ export default function GoalCard({
       onClick={() => !isPending && !showDeleteConfirm && onTap(goal)}
       onMouseLeave={() => setShowMenu(false)}
       className={`group relative flex flex-col justify-between w-full min-h-[160px] p-4 rounded-lg cursor-pointer select-none overflow-visible ${
-        isPending || showDeleteConfirm
+        isPending
           ? "bg-white/20 border border-white/30 opacity-70 pointer-events-none backdrop-blur-[12px]"
+          : showDeleteConfirm
+          ? "bg-white/20 border border-white/30 opacity-70 backdrop-blur-[12px]"
           : "border-sweep-card"
       }`}
     >
