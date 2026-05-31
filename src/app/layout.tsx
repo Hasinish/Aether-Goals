@@ -19,6 +19,11 @@ export const metadata: Metadata = {
   title: "Aether Goals",
   description: "Minimalist dark PWA goal tracker with segmented progress indicators.",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon-192.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
