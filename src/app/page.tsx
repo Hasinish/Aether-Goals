@@ -2866,9 +2866,6 @@ function DashboardContent() {
         WebkitFontSmoothing: "antialiased",
         MozOsxFontSmoothing: "grayscale"
       }}>
-        {/* Mock Status Bar */}
-        <StatusBar />
-
         {/* Main Content */}
         <div style={{ padding: "0 20px" }}>
           {/* Header section trigger profile -> settings */}
