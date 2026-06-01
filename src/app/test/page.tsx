@@ -9,6 +9,7 @@ import AuthScreen from "@/components/AuthScreen";
 import { HabitStoreProvider, useHabitsStore } from "@/lib/habitStore";
 import { DeadlineStoreProvider, useDeadlinesStore } from "@/lib/deadlineStore";
 import { Goal, Habit, Deadline, Subtask, HabitLog } from "@/lib/types";
+import { useBottomSheetDrag } from "@/hooks/useBottomSheetDrag";
 
 
 // ─── HOOKS ────────────────────────────────────────────────────────────────────
@@ -2118,27 +2119,12 @@ function DetailDrawer({ activeDrawer, onClose, onEditTap }: DetailDrawerProps) {
   const { habits, logCompletion } = useHabitsStore();
   const { deadlines, toggleDeadlineCompletion } = useDeadlinesStore();
 
-  // Touch drag-to-dismiss states
-  const [dragY, setDragY] = React.useState(0);
-  const dragStart = React.useRef<number | null>(null);
+  const sheetRef = React.useRef<HTMLDivElement | null>(null);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    dragStart.current = e.touches[0].clientY;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (dragStart.current === null) return;
-    const dy = Math.max(0, e.touches[0].clientY - dragStart.current);
-    setDragY(dy);
-  };
-
-  const handleTouchEnd = () => {
-    if (dragY > 120) {
-      onClose();
-    }
-    setDragY(0);
-    dragStart.current = null;
-  };
+  useBottomSheetDrag({
+    sheetRef,
+    onClose,
+  });
 
   React.useEffect(() => {
     if (activeDrawer) {
@@ -2284,16 +2270,15 @@ function DetailDrawer({ activeDrawer, onClose, onEditTap }: DetailDrawerProps) {
           backdropFilter: "blur(8px)",
           WebkitBackdropFilter: "blur(8px)",
           zIndex: 999,
-          opacity: animate ? Math.max(0, 1 - dragY / 300) : 0,
-          transition: dragY > 0 ? "none" : "opacity 300ms ease",
+          opacity: animate ? 1 : 0,
+          transition: "opacity 300ms ease",
         }}
       />
 
       {/* Drawer Sheet Container */}
       <div 
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
+        ref={sheetRef}
+        className={`drawer-sheet ${animate ? 'open' : ''}`}
         style={{
           position: "fixed",
           bottom: 0,
@@ -2307,9 +2292,6 @@ function DetailDrawer({ activeDrawer, onClose, onEditTap }: DetailDrawerProps) {
           borderRadius: "28px 28px 0 0",
           padding: "16px 24px 34px",
           zIndex: 1000,
-          transform: animate ? `translateY(${dragY}px)` : 'translateY(100%)',
-          transition: dragY > 0 ? 'none' : 'transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1)',
-          opacity: animate ? Math.max(0, 1 - dragY / 300) : 0,
           boxShadow: "0 -8px 32px rgba(0,0,0,0.5)",
         }}
       >
@@ -2849,6 +2831,16 @@ function DashboardContent() {
         @keyframes pillIn {
           from { opacity: 0.5; transform: scale(0.85); }
           to   { opacity: 1;   transform: scale(1); }
+        }
+
+        .drawer-sheet {
+          transform: translateY(100%);
+          opacity: 0;
+          transition: transform 380ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 250ms ease;
+        }
+        .drawer-sheet.open {
+          transform: translateY(0);
+          opacity: 1;
         }
       `}</style>
 

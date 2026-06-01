@@ -2296,6 +2296,7 @@ function DetailDrawer({ activeDrawer, onClose, onEditTap }: DetailDrawerProps) {
       {/* Drawer Sheet Container */}
       <div 
         ref={sheetRef}
+        className={`drawer-sheet ${animate ? 'open' : ''}`}
         style={{
           position: "fixed",
           bottom: 0,
@@ -2309,9 +2310,6 @@ function DetailDrawer({ activeDrawer, onClose, onEditTap }: DetailDrawerProps) {
           borderRadius: "28px 28px 0 0",
           padding: "16px 24px 34px",
           zIndex: 1000,
-          transform: animate ? 'translateY(0)' : 'translateY(100%)',
-          transition: 'transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1)',
-          opacity: animate ? 1 : 0,
           boxShadow: "0 -8px 32px rgba(0,0,0,0.5)",
         }}
       >
@@ -2851,6 +2849,16 @@ function DashboardContent() {
         @keyframes pillIn {
           from { opacity: 0.5; transform: scale(0.85); }
           to   { opacity: 1;   transform: scale(1); }
+        }
+
+        .drawer-sheet {
+          transform: translateY(100%);
+          opacity: 0;
+          transition: transform 380ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 250ms ease;
+        }
+        .drawer-sheet.open {
+          transform: translateY(0);
+          opacity: 1;
         }
       `}</style>
 
