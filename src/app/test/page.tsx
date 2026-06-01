@@ -1997,7 +1997,7 @@ function AddItemSheet({ onClose, onCreate, editItem }: AddItemSheetProps) {
 
 function SettingsSheet({ onNav }: { onNav: (id: string) => void }) {
   const toast = useToast();
-  const [syncEnabled, setSyncEnabled] = React.useState(true);
+  const { logout } = useGoalsStore();
 
   const settingsItems = [
     {
@@ -2013,14 +2013,26 @@ function SettingsSheet({ onNav }: { onNav: (id: string) => void }) {
       onClick: () => toast('Color themes coming soon!', 'info'),
     },
     {
-      title: "App Syncing",
-      subtitle: syncEnabled ? "Saving to localStorage" : "Sync disabled",
-      action: syncEnabled ? "ON" : "OFF",
-      actionColor: syncEnabled ? 'var(--ac)' : 'var(--t3)',
+      title: "Cloud Database",
+      subtitle: "Synchronized with Supabase Cloud",
+      action: "ONLINE",
+      actionColor: 'var(--ok)',
       onClick: () => {
-        const next = !syncEnabled;
-        setSyncEnabled(next);
-        toast(next ? 'Sync enabled' : 'Sync disabled', next ? 'success' : 'error');
+        toast('Supabase cloud connection is active', 'success');
+      },
+    },
+    {
+      title: "Sign Out",
+      subtitle: "Sign out of your session securely",
+      action: "Exit",
+      actionColor: 'var(--danger)',
+      onClick: async () => {
+        try {
+          await logout();
+          toast('Logged out successfully', 'success');
+        } catch (e) {
+          toast('Logout failed', 'error');
+        }
       },
     },
     {

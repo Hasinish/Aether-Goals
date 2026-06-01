@@ -4,17 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { Goal, Subtask } from "./types";
 import { getInitialSeedData } from "./seed";
 import { getSupabaseClient, isSupabaseConfigured } from "./supabase";
-import { STORAGE_KEYS } from "./constants";
 import { User } from "@supabase/supabase-js";
-const safeParseArray = <T,>(raw: string | null, fallback: T[] = []): T[] => {
-  if (!raw) return fallback;
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : fallback;
-  } catch {
-    return fallback;
-  }
-};
 
 export const createId = (prefix = "id"): string => {
   if (
@@ -51,7 +41,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [user, setUser] = useState<User | "guest" | null>(null);
-  const [isOfflineMode, setIsOfflineMode] = useState<boolean>(true);
+  const [isOfflineMode, setIsOfflineMode] = useState<boolean>(false);
   
   // Track concurrent pending goals
   const [pendingGoalIds, setPendingGoalIds] = useState<Set<string>>(new Set());
@@ -165,56 +155,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setGoals(assembledGoals);
         } else {
           // Supabase returned 0 goals.
-          // Only seed if this user has never been seeded before.
-          const seededKey = `${STORAGE_KEYS.SEEDED}_${user.id}`;
-          if (localStorage.getItem(seededKey)) {
+          // Only seed if this user has never been seeded before (using cloud user metadata).
+          const isSeeded = user.user_metadata?.seeded === true;
+          if (isSeeded) {
             // User deliberately deleted everything — respect it.
             setGoals([]);
           } else {
             // Brand new user — give them demo data.
             await seedDataToSupabase(user.id);
-            localStorage.setItem(seededKey, "1");
+            const { data: updateData } = await client.auth.updateUser({
+              data: { seeded: true }
+            });
+            if (updateData?.user) {
+              setUser(updateData.user);
+            }
           }
         }
       } else {
-        // ── Guest / offline path: localStorage only ──
-        const localGoalsRaw = localStorage.getItem(STORAGE_KEYS.GOALS);
-        const localSubtasksRaw = localStorage.getItem(STORAGE_KEYS.SUBTASKS);
-
-        let goalsCorrupt = false;
-        if (localGoalsRaw) {
-          try {
-            const parsed = JSON.parse(localGoalsRaw);
-            if (!Array.isArray(parsed)) goalsCorrupt = true;
-          } catch {
-            goalsCorrupt = true;
-          }
-        }
-        if (goalsCorrupt) setSyncError("Local goals data is corrupt.");
-
-        const parsedGoals = safeParseArray<Goal>(localGoalsRaw, []);
-        const parsedSubtasks = safeParseArray<Subtask>(localSubtasksRaw, []);
-
-        if (localGoalsRaw !== null && !goalsCorrupt) {
-          const assembledGoals = parsedGoals.map((g) => {
-            const goalSubtasks = parsedSubtasks.filter((s) => s.goal_id === g.id);
-            return calculateGoalMetrics({ ...g, subtasks: goalSubtasks });
-          }).sort((a, b) => a.sort_order - b.sort_order);
-          setGoals(assembledGoals);
-        } else if (localGoalsRaw === null && !localStorage.getItem(STORAGE_KEYS.SEEDED)) {
-          // First time guest — seed demo data
-          const { goals: seedGoals, subtasks: seedSubtasks } = getInitialSeedData();
-          localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(seedGoals));
-          localStorage.setItem(STORAGE_KEYS.SUBTASKS, JSON.stringify(seedSubtasks));
-          localStorage.setItem(STORAGE_KEYS.SEEDED, "1");
-          const assembledGoals = seedGoals.map((g) => {
-            const goalSubtasks = seedSubtasks.filter((s) => s.goal_id === g.id);
-            return calculateGoalMetrics({ ...g, subtasks: goalSubtasks });
-          }).sort((a, b) => a.sort_order - b.sort_order);
-          setGoals(assembledGoals);
-        } else {
-          setGoals([]);
-        }
+        setGoals([]);
       }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
@@ -226,7 +184,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     const dbConfigured = isSupabaseConfigured();
-    setIsOfflineMode(!dbConfigured);
+    setIsOfflineMode(false);
 
     let subscription: { unsubscribe: () => void } | null = null;
 
@@ -235,16 +193,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const client = getSupabaseClient();
         const { data: { subscription: sub } } = client.auth.onAuthStateChange((_event, session) => {
           if (session?.user) {
-            // Wipe stale guest localStorage data on login — Supabase is the source of truth
-            localStorage.removeItem(STORAGE_KEYS.GOALS);
-            localStorage.removeItem(STORAGE_KEYS.SUBTASKS);
-            localStorage.setItem(STORAGE_KEYS.USER, "authenticated");
             setUser(session.user);
           } else {
-            const localUser = localStorage.getItem(STORAGE_KEYS.USER);
-            if (localUser !== "guest") {
-              setUser(null);
-            }
+            setUser(null);
           }
         });
         subscription = sub;
@@ -261,19 +212,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (session?.user) {
             setUser(session.user);
           } else {
-            const localUser = localStorage.getItem(STORAGE_KEYS.USER);
-            if (localUser === "guest") {
-              setUser("guest");
-            }
+            setUser(null);
           }
         } catch {
-          setIsOfflineMode(true);
+          setIsOfflineMode(false);
         }
       } else {
-        const localUser = localStorage.getItem(STORAGE_KEYS.USER);
-        if (localUser === "guest") {
-          setUser("guest");
-        }
+        setUser(null);
       }
     };
 
@@ -291,24 +236,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [fetchData]);
 
   const loginAsGuest = () => {
-    setUser("guest");
-    localStorage.setItem(STORAGE_KEYS.USER, "guest");
+    // No-op: Guest mode is completely removed.
   };
 
   const logout = async () => {
-    if (!isOfflineMode) {
-      try {
-        const client = getSupabaseClient();
-        const { error } = await client.auth.signOut();
-        if (error) throw error;
-      } catch (e) {
-        const errMsg = e instanceof Error ? e.message : String(e);
-        setSyncError(`Logout failed: ${errMsg}`);
-        return; // Don't wipe UI session if DB logout fails
-      }
+    try {
+      const client = getSupabaseClient();
+      const { error } = await client.auth.signOut();
+      if (error) throw error;
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : String(e);
+      setSyncError(`Logout failed: ${errMsg}`);
+      return; // Don't wipe UI session if DB logout fails
     }
     setUser(null);
-    localStorage.removeItem(STORAGE_KEYS.USER);
   };
 
   const addGoal = async (title: string, tags: string[], subtaskTitles: string[]) => {
@@ -340,7 +281,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addPendingId(newGoalId);
 
     try {
-      if (!isOfflineMode && user && user !== "guest") {
+      if (user && user !== "guest") {
         const client = getSupabaseClient();
         const { error: gError } = await client.from("goals").insert({
           id: newGoal.id,
@@ -361,17 +302,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
         }
       } else {
-        const localGoals = localStorage.getItem(STORAGE_KEYS.GOALS);
-        const localSubtasks = localStorage.getItem(STORAGE_KEYS.SUBTASKS);
-
-        const parsedGoals = safeParseArray<Goal>(localGoals, []);
-        const parsedSubtasks = safeParseArray<Subtask>(localSubtasks, []);
-
-        parsedGoals.unshift(newGoal);
-        parsedSubtasks.push(...newSubtasks);
-
-        localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(parsedGoals));
-        localStorage.setItem(STORAGE_KEYS.SUBTASKS, JSON.stringify(parsedSubtasks));
+        throw new Error("User must be authenticated to create a goal.");
       }
     } catch (e) {
       setGoals((current) => current.filter((goal) => goal.id !== newGoal.id));
@@ -416,7 +347,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
 
     try {
-      if (!isOfflineMode && user && user !== "guest") {
+      if (user && user !== "guest") {
         const client = getSupabaseClient();
         
         const originalSubtasks = goalToUpdate?.subtasks || [];
@@ -443,24 +374,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         if (error) throw error;
       } else {
-        const localGoals = localStorage.getItem(STORAGE_KEYS.GOALS);
-        const localSubtasks = localStorage.getItem(STORAGE_KEYS.SUBTASKS);
-
-        const parsedGoals = safeParseArray<Goal>(localGoals, []);
-        let parsedSubtasks = safeParseArray<Subtask>(localSubtasks, []);
-
-        const updatedGoals = parsedGoals.map((g) => {
-          if (g.id === goalId) {
-            return { ...g, title, tags };
-          }
-          return g;
-        });
-
-        parsedSubtasks = parsedSubtasks.filter((s) => s.goal_id !== goalId);
-        parsedSubtasks.push(...updatedSubtasks);
-
-        localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(updatedGoals));
-        localStorage.setItem(STORAGE_KEYS.SUBTASKS, JSON.stringify(parsedSubtasks));
+        throw new Error("User must be authenticated to update a goal.");
       }
     } catch (e) {
       if (goalToUpdate) {
@@ -484,7 +398,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setGoals((prev) => prev.filter((g) => g.id !== goalId));
 
     try {
-      if (!isOfflineMode && user && user !== "guest") {
+      if (user && user !== "guest") {
         const client = getSupabaseClient();
         const { data, error: gError } = await client.from("goals").delete().eq("id", goalId).select();
         if (gError) throw gError;
@@ -492,17 +406,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           throw new Error("Delete blocked by Row Level Security (RLS). Please ensure you have a DELETE policy configured for the 'goals' table.");
         }
       } else {
-        const localGoals = localStorage.getItem(STORAGE_KEYS.GOALS);
-        const localSubtasks = localStorage.getItem(STORAGE_KEYS.SUBTASKS);
-
-        const parsedGoals = safeParseArray<Goal>(localGoals, []);
-        const parsedSubtasks = safeParseArray<Subtask>(localSubtasks, []);
-
-        const updatedGoals = parsedGoals.filter((g) => g.id !== goalId);
-        const updatedSubtasks = parsedSubtasks.filter((s) => s.goal_id !== goalId);
-
-        localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(updatedGoals));
-        localStorage.setItem(STORAGE_KEYS.SUBTASKS, JSON.stringify(updatedSubtasks));
+        throw new Error("User must be authenticated to delete a goal.");
       }
     } catch (e) {
       if (goalToDelete && originalIndex !== -1) {
@@ -567,7 +471,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     try {
-      if (!isOfflineMode && user && user !== "guest") {
+      if (user && user !== "guest") {
         const client = getSupabaseClient();
         const { data, error: upErr } = await client
           .from("subtasks")
@@ -580,17 +484,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           throw new Error("Update did not affect any rows. Subtask may have been deleted.");
         }
       } else {
-        const localSubtasks = localStorage.getItem(STORAGE_KEYS.SUBTASKS);
-        if (localSubtasks !== null) {
-          const parsedSubtasks = safeParseArray<Subtask>(localSubtasks, []);
-          const updated = parsedSubtasks.map((s) => {
-            if (s.id === subtaskId) {
-              return { ...s, is_complete: newIsComplete };
-            }
-            return s;
-          });
-          localStorage.setItem(STORAGE_KEYS.SUBTASKS, JSON.stringify(updated));
-        }
+        throw new Error("User must be authenticated to toggle a subtask.");
       }
     } catch (e) {
       if (targetGoalId) {
@@ -634,7 +528,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setGoals(reordered);
 
     try {
-      if (!isOfflineMode && user && user !== "guest") {
+      if (user && user !== "guest") {
         const client = getSupabaseClient();
         const updatePromises = reordered.map((g) =>
           client
@@ -652,7 +546,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
         }
       } else {
-        localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(reordered));
+        throw new Error("User must be authenticated to reorder goals.");
       }
     } catch (e) {
       setGoals(previousGoals);

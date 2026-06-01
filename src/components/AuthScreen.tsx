@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useGoalsStore } from "../lib/store";
 import { getSupabaseClient, isSupabaseConfigured } from "../lib/supabase";
 import { ArrowRight, KeyRound, Mail, ShieldAlert, Download } from "lucide-react";
 import ConstellationBackground from "./ConstellationBackground";
@@ -16,7 +15,6 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export default function AuthScreen() {
-  const { loginAsGuest } = useGoalsStore();
   const [mounted, setMounted] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,7 +26,6 @@ export default function AuthScreen() {
   const isDbReady = isSupabaseConfigured();
 
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isInstallable, setIsInstallable] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -40,7 +37,6 @@ export default function AuthScreen() {
     
     if (earlyPrompt) {
       setDeferredPrompt(earlyPrompt);
-      setIsInstallable(true);
     }
 
     // 2. Custom event listener to capture prompts flowing post-mount
@@ -51,7 +47,6 @@ export default function AuthScreen() {
       
       if (captured) {
         setDeferredPrompt(captured);
-        setIsInstallable(true);
       }
     };
 
@@ -61,22 +56,16 @@ export default function AuthScreen() {
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setIsInstallable(true);
     };
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
     const handleAppInstalled = () => {
       setDeferredPrompt(null);
-      setIsInstallable(false);
       setMessage("Aether Goals has been successfully installed as an app!");
     };
 
     window.addEventListener("appinstalled", handleAppInstalled);
-
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      setIsInstallable(false);
-    }
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
@@ -94,7 +83,6 @@ export default function AuthScreen() {
           setMessage("Initiated installation for Aether Goals...");
         }
         setDeferredPrompt(null);
-        setIsInstallable(false);
       } catch (err) {
         console.error("PWA install prompt failed:", err);
       }
@@ -129,7 +117,7 @@ export default function AuthScreen() {
     setError("");
 
     if (!isDbReady) {
-      setError("Supabase URL and API keys are missing. Please continue in Guest Mode.");
+      setError("Supabase URL and API keys are missing. Cloud connection is required to launch the application.");
       setLoading(false);
       return;
     }
@@ -177,114 +165,337 @@ export default function AuthScreen() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-between min-h-screen bg-black/70 backdrop-blur-xl text-white px-6 py-12 md:max-w-md md:mx-auto md:shadow-2xl md:border-x md:border-neutral-900 select-none animate-fade-in relative overflow-hidden">
-      <ConstellationBackground opacity={0.75} particleCount={150} fullscreen />
+    <div style={{
+      background: "var(--bg)",
+      minHeight: "100vh",
+      maxWidth: 390,
+      margin: "0 auto",
+      fontFamily: "'Plus Jakarta Sans', -apple-system, sans-serif",
+      position: "relative",
+      overflow: "hidden",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
+      padding: "24px 20px 48px",
+      WebkitFontSmoothing: "antialiased",
+      MozOsxFontSmoothing: "grayscale"
+    }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap');
+        
+        :root {
+          /* Backgrounds */
+          --bg:        #141414;
+          --card:      #1e1e1e;
+          --card-2:    #252525;
+          --card-3:    #2a2a2a;
+
+          /* Accent */
+          --ac:        #ccff00;
+          --ac-soft:   rgba(204,255,0,0.12);
+          --ac-mid:    rgba(204,255,0,0.35);
+
+          /* Text */
+          --t1:        #ffffff;
+          --t2:        #9a9a9a;
+          --t3:        #555555;
+
+          /* Borders */
+          --b1:        rgba(255,255,255,0.07);
+          --b2:        rgba(255,255,255,0.13);
+
+          /* Semantic */
+          --danger:    #ff5c5c;
+          --ok:        #4ade80;
+          --warn:      #fbbf24;
+        }
+
+        * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+        }
+
+        input::placeholder {
+          color: #555555;
+          opacity: 1;
+        }
+        
+        input:focus {
+          outline: none;
+          border-color: rgba(204, 255, 0, 0.4) !important;
+          box-shadow: 0 0 0 3px rgba(204, 255, 0, 0.08);
+        }
+
+        @keyframes fadeUp {
+          from {
+            opacity: 0;
+            transform: translateY(14px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
+
+      {/* Ambient background stars overlaid in dark theme */}
+      <ConstellationBackground opacity={0.45} particleCount={80} fullscreen={false} />
       
       {/* Decorative Top Accent / Clickable PWA Installer */}
-            <div className="w-full flex justify-center mt-8 bg-black/30 backdrop-blur-md rounded-lg p-2">
+      <div style={{
+        width: "100%",
+        display: "flex",
+        justifyContent: "center",
+        marginTop: 12,
+        animation: "fadeUp 0.6s ease both",
+        position: "relative",
+        zIndex: 10
+      }}>
         <button
           type="button"
           onClick={handlePwaInstallClick}
-          className="flex items-center gap-2 px-3.5 py-1.5 bg-neutral-900 border border-neutral-800 rounded-full cursor-pointer hover:bg-neutral-800 hover:border-neutral-700 active:scale-[0.97] transition-all duration-200 select-none outline-none focus-visible:ring-1 focus-visible:ring-neutral-700"
-          aria-label="Install Aether PWA App"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 20px",
+            background: "var(--card)",
+            border: "1px solid var(--b1)",
+            borderRadius: 100,
+            cursor: "pointer",
+            transition: "all 0.2s ease",
+            outline: "none",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)"
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.borderColor = "rgba(204, 255, 0, 0.3)";
+            e.currentTarget.style.transform = "translateY(-1px)";
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.borderColor = "var(--b1)";
+            e.currentTarget.style.transform = "translateY(0)";
+          }}
         >
-          <div className="w-2 h-2 rounded-full animate-breath-cyan-green" />
-          <span className="text-[10px] font-mono tracking-widest text-neutral-400 flex items-center">
-            AETHER
-            <span className="text-[8px] text-neutral-350 font-sans font-bold ml-1.5 opacity-80 tracking-normal normal-case">v1.0</span>
+          <div style={{
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            background: "var(--ac)",
+            boxShadow: "0 0 6px var(--ac)"
+          }} className="animate-breath-cyan-green" />
+          <span style={{
+            fontSize: 10,
+            fontFamily: "var(--font-geist-mono), monospace",
+            letterSpacing: "0.15em",
+            color: "var(--t2)",
+            fontWeight: 700
+          }}>
+            AETHER <span style={{ color: "var(--ac)" }}>v1.0</span>
           </span>
-          <Download size={10} className="text-emerald-400 shrink-0" />
+          <Download size={10} style={{ color: "var(--ac)" }} />
         </button>
       </div>
 
       {/* Main Title Area */}
-      <div className="text-center space-y-4 my-auto">
-        <div className="relative inline-block select-none mb-1">
-          {/* Solid Opaque Backdrop Text Layer to block constellation/stars */}
-          <span className="absolute inset-0 text-6xl font-black tracking-tighter uppercase text-black select-none pointer-events-none" aria-hidden="true">
+      <div style={{
+        textAlign: "center",
+        margin: "auto 0",
+        padding: "36px 0",
+        animation: "fadeUp 0.7s ease both",
+        position: "relative",
+        zIndex: 10
+      }}>
+        <div style={{ position: "relative", display: "inline-block", marginBottom: 8 }}>
+          <span className="absolute inset-0 text-6xl font-black tracking-tighter uppercase text-black select-none pointer-events-none" aria-hidden="true" style={{ fontSize: 56, letterSpacing: "-2px", lineHeight: 0.9 }}>
             AETHER
           </span>
-          {/* Shimmering Metallic Foreground Text Layer */}
-          <h1 className="relative text-6xl font-black tracking-tighter uppercase aether-logo-metallic-auto select-none">
+          <h1 style={{
+            fontSize: 56,
+            fontWeight: 900,
+            letterSpacing: "-2px",
+            textTransform: "uppercase",
+            lineHeight: 0.9
+          }} className="aether-logo-metallic-auto">
             AETHER
           </h1>
         </div>
-        <p className="text-xs text-neutral-200 font-light max-w-[260px] mx-auto leading-relaxed">
+        <p style={{
+          fontSize: 12,
+          color: "var(--t2)",
+          fontWeight: 400,
+          maxWidth: 240,
+          margin: "8px auto 0",
+          lineHeight: 1.5,
+          fontFamily: "'Plus Jakarta Sans', sans-serif"
+        }}>
           Premium, high-fidelity dark-mode goal tracker. Build discipline, measure milestones.
         </p>
       </div>
 
-      {/* Sign-In Forms / Options */}
-      <div className="w-full space-y-6 bg-neutral-900/40 backdrop-blur-sm rounded-xl p-4">
+      {/* Sign-In Forms / Options Bento Card */}
+      <div style={{
+        width: "100%",
+        background: "var(--card)",
+        border: "1px solid var(--b1)",
+        borderRadius: 28,
+        padding: "26px 22px",
+        boxShadow: "0 12px 40px rgba(0, 0, 0, 0.4)",
+        position: "relative",
+        zIndex: 10,
+        animation: "fadeUp 0.8s ease both"
+      }}>
         {/* Messages */}
         {message && (
-          <div className="p-4 border border-neutral-800 bg-neutral-950/60 backdrop-blur-md rounded-lg text-xs text-neutral-300 text-center leading-normal">
-            {message}
+          <div style={{
+            background: "rgba(74, 222, 128, 0.08)",
+            border: "1px solid rgba(74, 222, 128, 0.2)",
+            color: "var(--ok)",
+            padding: "12px 14px",
+            borderRadius: 14,
+            fontSize: 11,
+            fontWeight: 500,
+            textAlign: "center",
+            lineHeight: 1.4,
+            marginBottom: 16
+          }}>
+            ✓ {message}
           </div>
         )}
         {error && (
-          <div className="p-4 border border-red-950 bg-red-950/20 rounded-lg text-xs text-red-400 text-center leading-normal">
-            {error}
+          <div style={{
+            background: "rgba(255, 92, 92, 0.08)",
+            border: "1px solid rgba(255, 92, 92, 0.2)",
+            color: "var(--danger)",
+            padding: "12px 14px",
+            borderRadius: 14,
+            fontSize: 11,
+            fontWeight: 500,
+            textAlign: "center",
+            lineHeight: 1.4,
+            marginBottom: 16
+          }}>
+            ✗ {error}
           </div>
         )}
 
         {isDbReady ? (
-          <div className="space-y-4">
-            <form onSubmit={handleAuthSubmit} className="space-y-4">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="block text-[10px] uppercase font-mono tracking-widest text-neutral-300">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    disabled={loading}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email address..."
-                    className="w-full px-4 py-3 bg-neutral-900/30 border border-neutral-800 rounded-md text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors backdrop-blur-md"
-                  />
-                </div>
-
-                {isPasswordMode && (
-                  <div className="space-y-2 animate-fade-in">
-                    <label className="block text-[10px] uppercase font-mono tracking-widest text-neutral-300">
-                      Password
-                    </label>
-                    <input
-                      type="password"
-                      required
-                      disabled={loading}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter your password..."
-                      className="w-full px-4 py-3 bg-neutral-900/30 border border-neutral-800 rounded-md text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors backdrop-blur-md"
-                    />
-                  </div>
-                )}
-              </div>
-
-              <button
-                type="submit"
+          <form onSubmit={handleAuthSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{
+                fontSize: 9,
+                fontWeight: 700,
+                color: "var(--t2)",
+                textTransform: "uppercase",
+                letterSpacing: "0.12em"
+              }}>
+                Email Address
+              </label>
+              <input
+                type="email"
+                required
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 py-3.5 bg-white text-black font-semibold text-xs tracking-wider uppercase rounded-md hover:bg-neutral-200 transition-colors disabled:opacity-50"
-              >
-                <span>
-                  {loading
-                    ? "Authenticating..."
-                    : isPasswordMode
-                    ? isSignUp
-                      ? "Create Account"
-                      : "Sign In"
-                    : "Send Magic Link"}
-                </span>
-                {!loading && <ArrowRight size={14} />}
-              </button>
-            </form>
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email address..."
+                style={{
+                  width: "100%",
+                  padding: "14px 16px",
+                  background: "rgba(0, 0, 0, 0.2)",
+                  border: "1px solid var(--b1)",
+                  borderRadius: 14,
+                  fontSize: 13,
+                  color: "#ffffff",
+                  transition: "all 0.2s ease",
+                  fontFamily: "'Plus Jakarta Sans', sans-serif"
+                }}
+              />
+            </div>
 
-            {/* Mode Switchers */}
-            <div className="flex flex-col items-center gap-2 pt-2">
+            {isPasswordMode && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }} className="animate-fade-in">
+                <label style={{
+                  fontSize: 9,
+                  fontWeight: 700,
+                  color: "var(--t2)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.12em"
+                }}>
+                  Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  disabled={loading}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password..."
+                  style={{
+                    width: "100%",
+                    padding: "14px 16px",
+                    background: "rgba(0, 0, 0, 0.2)",
+                    border: "1px solid var(--b1)",
+                    borderRadius: 14,
+                    fontSize: 13,
+                    color: "#ffffff",
+                    transition: "all 0.2s ease",
+                    fontFamily: "'Plus Jakarta Sans', sans-serif"
+                  }}
+                />
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                padding: "15px 20px",
+                background: "var(--ac)",
+                color: "#000000",
+                border: "none",
+                borderRadius: 16,
+                fontSize: 12,
+                fontWeight: 800,
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                boxShadow: "0 6px 20px rgba(204, 255, 0, 0.25)"
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = "translateY(-1.5px)";
+                e.currentTarget.style.boxShadow = "0 8px 24px rgba(204, 255, 0, 0.35)";
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 6px 20px rgba(204, 255, 0, 0.25)";
+              }}
+            >
+              <span>
+                {loading
+                  ? "Authenticating..."
+                  : isPasswordMode
+                  ? isSignUp
+                    ? "Create Account"
+                    : "Sign In"
+                  : "Send Magic Link"}
+              </span>
+              {!loading && <ArrowRight size={14} />}
+            </button>
+
+            {/* Switchers */}
+            <div style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 8,
+              marginTop: 8
+            }}>
               <button
                 type="button"
                 onClick={() => {
@@ -292,19 +503,23 @@ export default function AuthScreen() {
                   setError("");
                   setMessage("");
                 }}
-                className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-mono text-neutral-300 hover:text-neutral-100 transition-colors"
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--ac)",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontFamily: "'Plus Jakarta Sans', sans-serif"
+                }}
               >
-                {isPasswordMode ? (
-                  <>
-                    <Mail size={12} />
-                    <span>Use Magic Link Login</span>
-                  </>
-                ) : (
-                  <>
-                    <KeyRound size={12} />
-                    <span>Use Password Login</span>
-                  </>
-                )}
+                {isPasswordMode ? <Mail size={12} /> : <KeyRound size={12} />}
+                <span>{isPasswordMode ? "Use Magic Link Login" : "Use Password Login"}</span>
               </button>
 
               {isPasswordMode && (
@@ -315,49 +530,60 @@ export default function AuthScreen() {
                     setError("");
                     setMessage("");
                   }}
-                  className="text-[9px] font-mono text-neutral-400 hover:text-neutral-200 underline transition-colors"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "var(--t2)",
+                    fontSize: 10,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                    fontFamily: "'Plus Jakarta Sans', sans-serif"
+                  }}
                 >
-                  {isSignUp
-                    ? "Already have an account? Sign In"
-                    : "Don't have an account? Sign Up"}
+                  {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
                 </button>
               )}
             </div>
-          </div>
+          </form>
         ) : (
-          <div className="p-4 border border-neutral-900 bg-neutral-950/50 rounded-lg space-y-2">
-            <div className="flex items-center gap-2 text-neutral-200">
-              <ShieldAlert size={14} className="text-neutral-350" />
-              <span className="text-[10px] uppercase font-mono tracking-wider font-semibold">Offline Sandbox Mode</span>
+          <div style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+            padding: "8px 0"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--danger)" }}>
+              <ShieldAlert size={16} style={{ flexShrink: 0 }} />
+              <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                Supabase Required
+              </span>
             </div>
-            <p className="text-[11px] text-neutral-300 leading-normal font-light">
-              Supabase connection is not initialized yet. Your goals will be saved locally on your device using browser LocalStorage. Syncing and backup will be disabled.
+            <p style={{
+              fontSize: 11,
+              color: "var(--t2)",
+              lineHeight: 1.5,
+              fontWeight: 400
+            }}>
+              Cloud connection is not configured. Please define your <code>NEXT_PUBLIC_SUPABASE_URL</code> and <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> in your environment variables to launch the application. Local storage fallback is disabled.
             </p>
           </div>
         )}
-
-        {/* Divider */}
-        <div className="relative flex items-center justify-center py-2">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-neutral-900"></div>
-          </div>
-          <span className="relative px-3 text-[9px] uppercase font-mono tracking-widest text-neutral-455 bg-black">
-            or
-          </span>
-        </div>
-
-        {/* Guest Access Option */}
-        <button
-          type="button"
-          onClick={loginAsGuest}
-          className="w-full py-3.5 border border-neutral-800 bg-neutral-950 text-neutral-300 font-semibold text-xs tracking-wider uppercase rounded-md hover:bg-neutral-900 hover:text-white transition-colors"
-        >
-          {isDbReady ? "Try as Guest (Offline)" : "Enter Workspace"}
-        </button>
       </div>
 
       {/* Footer Branding */}
-      <div className="mt-8 text-[9px] font-mono text-neutral-400">
+      <div style={{
+        textAlign: "center",
+        fontSize: 10,
+        color: "var(--t3)",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        fontWeight: 600,
+        marginTop: 24,
+        animation: "fadeUp 0.9s ease both",
+        position: "relative",
+        zIndex: 10
+      }}>
         Designed for absolute focus.
       </div>
     </div>

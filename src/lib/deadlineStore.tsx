@@ -6,11 +6,9 @@ import React, {
   useState,
   useEffect,
   useCallback,
-  useRef,
 } from "react";
 import { Deadline } from "./types";
-import { getSupabaseClient, isSupabaseConfigured } from "./supabase";
-import { STORAGE_KEYS } from "./constants";
+import { getSupabaseClient } from "./supabase";
 import { User } from "@supabase/supabase-js";
 import { getErrorMessage } from "./habitStore"; // Re-use error helper
 
@@ -29,16 +27,6 @@ interface DeadlineStoreContextProps {
 
 const DeadlineStoreContext = createContext<DeadlineStoreContextProps | undefined>(undefined);
 
-const safeParseArray = <T,>(raw: string | null, fallback: T[] = []): T[] => {
-  if (!raw) return fallback;
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : fallback;
-  } catch {
-    return fallback;
-  }
-};
-
 export const createDeadlineId = (): string => {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
@@ -55,7 +43,7 @@ export const DeadlineStoreProvider: React.FC<{
   const [pendingDeadlineIds, setPendingDeadlineIds] = useState<Set<string>>(new Set());
   const [syncError, setSyncError] = useState<string | null>(null);
   const clearSyncError = () => setSyncError(null);
-  const isOfflineMode = !isSupabaseConfigured();
+  const isOfflineMode = false;
 
   const addPending = useCallback(
     (id: string) => setPendingDeadlineIds((p) => new Set(p).add(id)),
@@ -83,16 +71,6 @@ export const DeadlineStoreProvider: React.FC<{
     return (data ?? []) as Deadline[];
   }, []);
 
-  // ── Fetch from localStorage ───────────────────────────────────────────────
-  const fetchFromLocal = useCallback((): Deadline[] => {
-    return safeParseArray<Deadline>(localStorage.getItem(STORAGE_KEYS.DEADLINES), []);
-  }, []);
-
-  // ── Persist to localStorage ───────────────────────────────────────────────
-  const persistLocal = useCallback((list: Deadline[]) => {
-    localStorage.setItem(STORAGE_KEYS.DEADLINES, JSON.stringify(list));
-  }, []);
-
   // ── Main fetch ────────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -100,8 +78,6 @@ export const DeadlineStoreProvider: React.FC<{
       let list: Deadline[] = [];
       if (!isOfflineMode && user && user !== "guest") {
         list = await fetchFromSupabase();
-      } else {
-        list = fetchFromLocal();
       }
       setDeadlines(list);
     } catch (e) {
@@ -110,7 +86,7 @@ export const DeadlineStoreProvider: React.FC<{
     } finally {
       setLoading(false);
     }
-  }, [user, isOfflineMode, fetchFromSupabase, fetchFromLocal]);
+  }, [user, isOfflineMode, fetchFromSupabase]);
 
   useEffect(() => {
     fetchData();
@@ -134,14 +110,12 @@ export const DeadlineStoreProvider: React.FC<{
       addPending(id);
 
       try {
-        if (!isOfflineMode && user && user !== "guest") {
+        if (user && user !== "guest") {
           const client = getSupabaseClient();
           const { error } = await client.from("deadlines").insert(newDeadline);
           if (error) throw error;
         } else {
-          const localList = fetchFromLocal();
-          localList.unshift(newDeadline);
-          persistLocal(localList);
+          throw new Error("User must be authenticated to create a deadline.");
         }
       } catch (e) {
         setDeadlines((prev) => prev.filter((d) => d.id !== id));
@@ -152,7 +126,7 @@ export const DeadlineStoreProvider: React.FC<{
         removePending(id);
       }
     },
-    [user, isOfflineMode, addPending, removePending, fetchFromLocal, persistLocal]
+    [user, addPending, removePending]
   );
 
   // ── updateDeadline ────────────────────────────────────────────────────────
@@ -167,7 +141,7 @@ export const DeadlineStoreProvider: React.FC<{
       addPending(id);
 
       try {
-        if (!isOfflineMode && user && user !== "guest") {
+        if (user && user !== "guest") {
           const client = getSupabaseClient();
           const { data, error } = await client
             .from("deadlines")
@@ -179,11 +153,7 @@ export const DeadlineStoreProvider: React.FC<{
             throw new Error("Update did not affect any rows. Deadline may have been deleted.");
           }
         } else {
-          const localList = fetchFromLocal();
-          const updated = localList.map((d) =>
-            d.id === id ? { ...d, title, due_date: dueDate, completed } : d
-          );
-          persistLocal(updated);
+          throw new Error("User must be authenticated to update a deadline.");
         }
       } catch (e) {
         if (prev) setDeadlines((prevList) => prevList.map((d) => (d.id === id ? prev : d)));
@@ -194,7 +164,7 @@ export const DeadlineStoreProvider: React.FC<{
         removePending(id);
       }
     },
-    [deadlines, user, isOfflineMode, addPending, removePending, fetchFromLocal, persistLocal]
+    [deadlines, user, addPending, removePending]
   );
 
   // ── deleteDeadline ────────────────────────────────────────────────────────
@@ -205,7 +175,7 @@ export const DeadlineStoreProvider: React.FC<{
       setDeadlines((prevList) => prevList.filter((d) => d.id !== id));
 
       try {
-        if (!isOfflineMode && user && user !== "guest") {
+        if (user && user !== "guest") {
           const client = getSupabaseClient();
           const { data, error } = await client.from("deadlines").delete().eq("id", id).select();
           if (error) throw error;
@@ -213,9 +183,7 @@ export const DeadlineStoreProvider: React.FC<{
             throw new Error("Delete blocked by Row Level Security (RLS). Please ensure you have a DELETE policy configured for the 'deadlines' table.");
           }
         } else {
-          const localList = fetchFromLocal();
-          const filtered = localList.filter((d) => d.id !== id);
-          persistLocal(filtered);
+          throw new Error("User must be authenticated to delete a deadline.");
         }
       } catch (e) {
         if (prev) setDeadlines((prevList) => [prev, ...prevList]);
@@ -226,7 +194,7 @@ export const DeadlineStoreProvider: React.FC<{
         removePending(id);
       }
     },
-    [deadlines, user, isOfflineMode, addPending, removePending, fetchFromLocal, persistLocal]
+    [deadlines, user, addPending, removePending]
   );
 
   // ── toggleDeadlineCompletion ──────────────────────────────────────────────

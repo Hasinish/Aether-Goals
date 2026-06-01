@@ -9,8 +9,7 @@ import React, {
   useRef,
 } from "react";
 import { Habit, HabitLog } from "./types";
-import { getSupabaseClient, isSupabaseConfigured } from "./supabase";
-import { STORAGE_KEYS } from "./constants";
+import { getSupabaseClient } from "./supabase";
 import { User } from "@supabase/supabase-js";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -32,16 +31,6 @@ export const createHabitId = (): string => {
     return crypto.randomUUID();
   }
   return `habit-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-};
-
-const safeParseArray = <T,>(raw: string | null, fallback: T[] = []): T[] => {
-  if (!raw) return fallback;
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : fallback;
-  } catch {
-    return fallback;
-  }
 };
 
 /** Returns today's date as "YYYY-MM-DD" in local time */
@@ -131,7 +120,7 @@ export const HabitStoreProvider: React.FC<{
   const [pendingHabitIds, setPendingHabitIds] = useState<Set<string>>(new Set());
   const [syncError, setSyncError] = useState<string | null>(null);
   const clearSyncError = () => setSyncError(null);
-  const isOfflineMode = !isSupabaseConfigured();
+  const isOfflineMode = false;
   const isReorderingRef = useRef(false);
 
   const addPending = useCallback(
@@ -186,31 +175,6 @@ export const HabitStoreProvider: React.FC<{
     return { rawHabits, logs };
   }, []);
 
-  // ── Fetch from localStorage ───────────────────────────────────────────────
-  const fetchFromLocal = useCallback((): {
-    rawHabits: Omit<Habit, "logs" | "completionsToday" | "streak">[];
-    logs: HabitLog[];
-  } => {
-    const rawHabits = safeParseArray<Omit<Habit, "logs" | "completionsToday" | "streak">>(
-      localStorage.getItem(STORAGE_KEYS.HABITS),
-      []
-    );
-    const logs = safeParseArray<HabitLog>(localStorage.getItem(STORAGE_KEYS.HABIT_LOGS), []);
-    return { rawHabits, logs };
-  }, []);
-
-  // ── Persist to localStorage ───────────────────────────────────────────────
-  const persistLocal = useCallback(
-    (
-      rawHabits: Omit<Habit, "logs" | "completionsToday" | "streak">[],
-      logs: HabitLog[]
-    ) => {
-      localStorage.setItem(STORAGE_KEYS.HABITS, JSON.stringify(rawHabits));
-      localStorage.setItem(STORAGE_KEYS.HABIT_LOGS, JSON.stringify(logs));
-    },
-    []
-  );
-
   // ── Main fetch ────────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -220,8 +184,6 @@ export const HabitStoreProvider: React.FC<{
 
       if (!isOfflineMode && user && user !== "guest") {
         ({ rawHabits, logs } = await fetchFromSupabase());
-      } else {
-        ({ rawHabits, logs } = fetchFromLocal());
       }
 
       setAllLogs(logs);
@@ -232,7 +194,7 @@ export const HabitStoreProvider: React.FC<{
     } finally {
       setLoading(false);
     }
-  }, [user, isOfflineMode, fetchFromSupabase, fetchFromLocal, buildHabits]);
+  }, [user, isOfflineMode, fetchFromSupabase, buildHabits]);
 
   useEffect(() => {
     fetchData();
@@ -266,7 +228,7 @@ export const HabitStoreProvider: React.FC<{
       addPending(id);
 
       try {
-        if (!isOfflineMode && user && user !== "guest") {
+        if (user && user !== "guest") {
           const client = getSupabaseClient();
           const { error } = await client.from("habits").insert({
             id: newRaw.id,
@@ -279,9 +241,7 @@ export const HabitStoreProvider: React.FC<{
           });
           if (error) throw error;
         } else {
-          const { rawHabits, logs } = fetchFromLocal();
-          rawHabits.unshift(newRaw);
-          persistLocal(rawHabits, logs);
+          throw new Error("User must be authenticated to create a habit.");
         }
       } catch (e) {
         setHabits((prev) => prev.filter((h) => h.id !== id));
@@ -292,7 +252,7 @@ export const HabitStoreProvider: React.FC<{
         removePending(id);
       }
     },
-    [habits, user, isOfflineMode, allLogs, addPending, removePending, fetchFromLocal, persistLocal]
+    [habits, user, allLogs, addPending, removePending]
   );
 
   // ── updateHabit ───────────────────────────────────────────────────────────
@@ -319,7 +279,7 @@ export const HabitStoreProvider: React.FC<{
       addPending(id);
 
       try {
-        if (!isOfflineMode && user && user !== "guest") {
+        if (user && user !== "guest") {
           const client = getSupabaseClient();
           const { data, error } = await client
             .from("habits")
@@ -331,11 +291,7 @@ export const HabitStoreProvider: React.FC<{
             throw new Error("Update did not affect any rows. Habit may have been deleted.");
           }
         } else {
-          const { rawHabits, logs } = fetchFromLocal();
-          const updated = rawHabits.map((h) =>
-            h.id === id ? { ...h, title, tags: dbTags, daily_target: dailyTarget } : h
-          );
-          persistLocal(updated, logs);
+          throw new Error("User must be authenticated to update a habit.");
         }
       } catch (e) {
         if (prev) setHabits((hs) => hs.map((h) => (h.id === id ? prev : h)));
@@ -346,7 +302,7 @@ export const HabitStoreProvider: React.FC<{
         removePending(id);
       }
     },
-    [habits, user, isOfflineMode, allLogs, addPending, removePending, fetchFromLocal, persistLocal]
+    [habits, user, allLogs, addPending, removePending]
   );
 
   // ── deleteHabit ───────────────────────────────────────────────────────────
@@ -359,7 +315,7 @@ export const HabitStoreProvider: React.FC<{
       setHabits((hs) => hs.filter((h) => h.id !== id));
 
       try {
-        if (!isOfflineMode && user && user !== "guest") {
+        if (user && user !== "guest") {
           const client = getSupabaseClient();
           const { data, error } = await client.from("habits").delete().eq("id", id).select();
           if (error) throw error;
@@ -367,11 +323,7 @@ export const HabitStoreProvider: React.FC<{
             throw new Error("Delete blocked by Row Level Security (RLS). Please ensure you have a DELETE policy configured for the 'habits' table.");
           }
         } else {
-          const { rawHabits, logs } = fetchFromLocal();
-          const updatedHabits = rawHabits.filter((h) => h.id !== id);
-          const updatedLogs = logs.filter((l) => l.habit_id !== id);
-          persistLocal(updatedHabits, updatedLogs);
-          setAllLogs((l) => l.filter((ll) => ll.habit_id !== id));
+          throw new Error("User must be authenticated to delete a habit.");
         }
       } catch (e) {
         if (prev) {
@@ -388,7 +340,7 @@ export const HabitStoreProvider: React.FC<{
         removePending(id);
       }
     },
-    [habits, user, isOfflineMode, addPending, removePending, fetchFromLocal, persistLocal]
+    [habits, user, addPending, removePending]
   );
 
   // ── logCompletion ─────────────────────────────────────────────────────────
@@ -439,11 +391,11 @@ export const HabitStoreProvider: React.FC<{
       });
 
       try {
-        if (!isOfflineMode && user && user !== "guest") {
+        if (user && user !== "guest") {
           const client = getSupabaseClient();
           if (newCompletions === 0) {
             // Delete the log row
-            const { data, error } = await client
+            const { error } = await client
               .from("habit_logs")
               .delete()
               .eq("habit_id", habitId)
@@ -467,20 +419,7 @@ export const HabitStoreProvider: React.FC<{
             }
           }
         } else {
-          const { rawHabits, logs } = fetchFromLocal();
-          const filteredLogs = logs.filter(
-            (l) => !(l.habit_id === habitId && l.log_date === today)
-          );
-          if (newCompletions > 0) {
-            filteredLogs.push({
-              id: `${habitId}-${today}`,
-              habit_id: habitId,
-              user_id: habit.user_id,
-              log_date: today,
-              completions: newCompletions,
-            });
-          }
-          persistLocal(rawHabits, filteredLogs);
+          throw new Error("User must be authenticated to log a habit completion.");
         }
       } catch (e) {
         // Revert optimistic update on error
@@ -489,7 +428,7 @@ export const HabitStoreProvider: React.FC<{
         await fetchData();
       }
     },
-    [habits, user, isOfflineMode, fetchFromLocal, persistLocal, fetchData]
+    [habits, user, fetchData]
   );
 
   // ── reorderHabits ─────────────────────────────────────────────────────────
@@ -506,7 +445,7 @@ export const HabitStoreProvider: React.FC<{
       setHabits(reordered);
 
       try {
-        if (!isOfflineMode && user && user !== "guest") {
+        if (user && user !== "guest") {
           const client = getSupabaseClient();
           const updatePromises = reordered.map((h) =>
             client
@@ -524,9 +463,7 @@ export const HabitStoreProvider: React.FC<{
             }
           }
         } else {
-          const { logs } = fetchFromLocal();
-          const rawHabits = reordered.map(({ logs: _l, completionsToday: _c, streak: _s, ...rest }) => rest);
-          persistLocal(rawHabits, logs);
+          throw new Error("User must be authenticated to reorder habits.");
         }
       } catch (e) {
         setHabits(previous);
@@ -536,7 +473,7 @@ export const HabitStoreProvider: React.FC<{
         isReorderingRef.current = false;
       }
     },
-    [habits, user, isOfflineMode, fetchFromLocal, persistLocal]
+    [habits, user]
   );
 
   const refreshHabits = useCallback(() => fetchData(), [fetchData]);
