@@ -321,11 +321,15 @@ export const HabitStoreProvider: React.FC<{
       try {
         if (!isOfflineMode && user && user !== "guest") {
           const client = getSupabaseClient();
-          const { error } = await client
+          const { data, error } = await client
             .from("habits")
             .update({ title, tags: dbTags, daily_target: dailyTarget })
-            .eq("id", id);
+            .eq("id", id)
+            .select();
           if (error) throw error;
+          if (!data || data.length === 0) {
+            throw new Error("Update did not affect any rows. Habit may have been deleted.");
+          }
         } else {
           const { rawHabits, logs } = fetchFromLocal();
           const updated = rawHabits.map((h) =>
@@ -439,14 +443,16 @@ export const HabitStoreProvider: React.FC<{
           const client = getSupabaseClient();
           if (newCompletions === 0) {
             // Delete the log row
-            await client
+            const { data, error } = await client
               .from("habit_logs")
               .delete()
               .eq("habit_id", habitId)
-              .eq("log_date", today);
+              .eq("log_date", today)
+              .select();
+            if (error) throw error;
           } else {
             // Upsert (insert or update)
-            const { error } = await client.from("habit_logs").upsert(
+            const { data, error } = await client.from("habit_logs").upsert(
               {
                 habit_id: habitId,
                 user_id: habit.user_id,
@@ -454,8 +460,11 @@ export const HabitStoreProvider: React.FC<{
                 completions: newCompletions,
               },
               { onConflict: "habit_id,log_date" }
-            );
+            ).select();
             if (error) throw error;
+            if (!data || data.length === 0) {
+              throw new Error("Upsert did not affect any rows.");
+            }
           }
         } else {
           const { rawHabits, logs } = fetchFromLocal();
@@ -499,18 +508,21 @@ export const HabitStoreProvider: React.FC<{
       try {
         if (!isOfflineMode && user && user !== "guest") {
           const client = getSupabaseClient();
-          const { error } = await client.from("habits").upsert(
-            reordered.map((h) => ({
-              id: h.id,
-              user_id: h.user_id,
-              title: h.title,
-              tags: h.tags,
-              daily_target: h.daily_target,
-              sort_order: h.sort_order,
-              created_at: h.created_at,
-            }))
+          const updatePromises = reordered.map((h) =>
+            client
+              .from("habits")
+              .update({ sort_order: h.sort_order })
+              .eq("id", h.id)
+              .eq("user_id", user.id)
+              .select()
           );
-          if (error) throw error;
+          const results = await Promise.all(updatePromises);
+          for (const res of results) {
+            if (res.error) throw res.error;
+            if (!res.data || res.data.length === 0) {
+              throw new Error("Update did not affect any rows. A habit may have been deleted.");
+            }
+          }
         } else {
           const { logs } = fetchFromLocal();
           const rawHabits = reordered.map(({ logs: _l, completionsToday: _c, streak: _s, ...rest }) => rest);

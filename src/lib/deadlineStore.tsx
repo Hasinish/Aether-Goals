@@ -169,11 +169,15 @@ export const DeadlineStoreProvider: React.FC<{
       try {
         if (!isOfflineMode && user && user !== "guest") {
           const client = getSupabaseClient();
-          const { error } = await client
+          const { data, error } = await client
             .from("deadlines")
             .update({ title, due_date: dueDate, completed })
-            .eq("id", id);
+            .eq("id", id)
+            .select();
           if (error) throw error;
+          if (!data || data.length === 0) {
+            throw new Error("Update did not affect any rows. Deadline may have been deleted.");
+          }
         } else {
           const localList = fetchFromLocal();
           const updated = localList.map((d) =>

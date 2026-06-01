@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 
 interface UseBottomSheetDragProps {
   sheetRef: React.RefObject<HTMLDivElement | null>;
-  scrollRef: React.RefObject<HTMLElement | null>;
+  scrollRef?: React.RefObject<HTMLElement | null>;
   onClose: () => void;
   closeThreshold?: number;
   ignoreSelector?: string;
@@ -13,7 +13,7 @@ export function useBottomSheetDrag({
   scrollRef,
   onClose,
   closeThreshold = 90,
-  ignoreSelector = 'button, input, select, textarea, a, [role="button"], [role="checkbox"], [data-subtask-grip="true"],[data-no-sheet-drag="true"]',
+  ignoreSelector = '[data-subtask-grip="true"], [data-no-sheet-drag="true"]',
 }: UseBottomSheetDragProps) {
   const onCloseRef = useRef(onClose);
   useEffect(() => {
@@ -37,6 +37,19 @@ export function useBottomSheetDrag({
     let lastTime = 0;
     let velocity = 0;
     let isDraggingGesture = false;
+    let activeScrollEl: HTMLElement | null = null;
+
+    // Helper to find scrollable parent container dynamically
+    const getScrollParent = (node: HTMLElement | null): HTMLElement | null => {
+      if (!node || node === sheet) return null;
+      if (node.scrollHeight > node.clientHeight + 1) {
+        const style = window.getComputedStyle(node);
+        if (style.overflowY === "auto" || style.overflowY === "scroll") {
+          return node;
+        }
+      }
+      return getScrollParent(node.parentElement);
+    };
 
     const onTouchStart = (e: TouchEvent) => {
       const target = e.target as HTMLElement | null;
@@ -47,8 +60,9 @@ export function useBottomSheetDrag({
       }
 
       isDraggingGesture = true;
-      const scrollEl = scrollRef.current;
-      const insideScroll = scrollEl && scrollEl.contains(target);
+      // Dynamically resolve the scrollable element if not explicitly provided
+      activeScrollEl = scrollRef?.current || getScrollParent(target);
+      const insideScroll = !!activeScrollEl;
 
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
@@ -83,7 +97,6 @@ export function useBottomSheetDrag({
 
       const deltaY = y - startY;
       const deltaX = x - startX;
-      const scrollEl = scrollRef.current;
 
       if (mode === "undecided") {
         const absDeltaY = Math.abs(deltaY);
@@ -91,7 +104,7 @@ export function useBottomSheetDrag({
 
         if (absDeltaY > 8 || absDeltaX > 8) {
           if (absDeltaY > absDeltaX) {
-            if (deltaY > 0 && (!scrollEl || scrollEl.scrollTop <= 1)) {
+            if (deltaY > 0 && (!activeScrollEl || activeScrollEl.scrollTop <= 1)) {
               mode = "sheet";
               startY = y;
               wasDragging = false;
@@ -104,12 +117,12 @@ export function useBottomSheetDrag({
           }
         } else {
           // Preemptively block native scroll/bounce initiation on any down drag at top
-          if (deltaY > 0 && (!scrollEl || scrollEl.scrollTop <= 1) && e.cancelable) {
+          if (deltaY > 0 && (!activeScrollEl || activeScrollEl.scrollTop <= 1) && e.cancelable) {
             e.preventDefault();
           }
         }
       } else if (mode === "scroll") {
-        if (scrollEl && scrollEl.scrollTop <= 1 && frameDelta > 0) {
+        if (activeScrollEl && activeScrollEl.scrollTop <= 1 && frameDelta > 0) {
           mode = "sheet";
           startY = y; // Reset startY to drag smoothly from 0
           wasDragging = false;
@@ -153,6 +166,7 @@ export function useBottomSheetDrag({
       }
       mode = "undecided";
       currentDrag = 0;
+      activeScrollEl = null;
     };
 
     // --- Mouse/Pointer dragging states ---
@@ -164,6 +178,7 @@ export function useBottomSheetDrag({
     let pointerLastY = 0;
     let pointerLastTime = 0;
     let pointerVelocity = 0;
+    let pointerActiveScrollEl: HTMLElement | null = null;
 
     const onPointerDown = (e: PointerEvent) => {
       if (e.pointerType === "touch") return; // Touch handled by native touch listeners
@@ -177,8 +192,8 @@ export function useBottomSheetDrag({
       }
 
       pointerActive = true;
-      const scrollEl = scrollRef.current;
-      const insideScroll = scrollEl && scrollEl.contains(target);
+      pointerActiveScrollEl = scrollRef?.current || getScrollParent(target);
+      const insideScroll = !!pointerActiveScrollEl;
 
       pointerStartX = e.clientX;
       pointerStartY = e.clientY;
@@ -219,7 +234,6 @@ export function useBottomSheetDrag({
 
       const deltaY = y - pointerStartY;
       const deltaX = x - pointerStartX;
-      const scrollEl = scrollRef.current;
 
       if (pointerMode === "undecided") {
         const absDeltaY = Math.abs(deltaY);
@@ -227,7 +241,7 @@ export function useBottomSheetDrag({
 
         if (absDeltaY > 8 || absDeltaX > 8) {
           if (absDeltaY > absDeltaX) {
-            if (deltaY > 0 && (!scrollEl || scrollEl.scrollTop <= 1)) {
+            if (deltaY > 0 && (!pointerActiveScrollEl || pointerActiveScrollEl.scrollTop <= 1)) {
               pointerMode = "sheet";
               pointerStartY = y;
               wasDragging = false;
@@ -240,7 +254,7 @@ export function useBottomSheetDrag({
           }
         }
       } else if (pointerMode === "scroll") {
-        if (scrollEl && scrollEl.scrollTop <= 1 && frameDelta > 0) {
+        if (pointerActiveScrollEl && pointerActiveScrollEl.scrollTop <= 1 && frameDelta > 0) {
           pointerMode = "sheet";
           pointerStartY = y; // Reset startY to drag sheet smoothly from 0
           wasDragging = false;
@@ -287,6 +301,7 @@ export function useBottomSheetDrag({
       }
       pointerMode = "undecided";
       pointerCurrentDrag = 0;
+      pointerActiveScrollEl = null;
     };
 
     // --- Click suppression capture handler ---

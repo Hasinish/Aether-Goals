@@ -569,12 +569,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       if (!isOfflineMode && user && user !== "guest") {
         const client = getSupabaseClient();
-        const { error: upErr } = await client
+        const { data, error: upErr } = await client
           .from("subtasks")
           .update({ is_complete: newIsComplete })
-          .eq("id", subtaskId);
+          .eq("id", subtaskId)
+          .select();
 
         if (upErr) throw upErr;
+        if (!data || data.length === 0) {
+          throw new Error("Update did not affect any rows. Subtask may have been deleted.");
+        }
       } else {
         const localSubtasks = localStorage.getItem(STORAGE_KEYS.SUBTASKS);
         if (localSubtasks !== null) {
@@ -632,19 +636,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       if (!isOfflineMode && user && user !== "guest") {
         const client = getSupabaseClient();
-        const { error } = await client
-          .from("goals")
-          .upsert(
-            reordered.map((g) => ({
-              id: g.id,
-              user_id: g.user_id,
-              title: g.title,
-              tags: g.tags,
-              created_at: g.created_at,
-              sort_order: g.sort_order,
-            }))
-          );
-        if (error) throw error;
+        const updatePromises = reordered.map((g) =>
+          client
+            .from("goals")
+            .update({ sort_order: g.sort_order })
+            .eq("id", g.id)
+            .eq("user_id", user.id)
+            .select()
+        );
+        const results = await Promise.all(updatePromises);
+        for (const res of results) {
+          if (res.error) throw res.error;
+          if (!res.data || res.data.length === 0) {
+            throw new Error("Update did not affect any rows. A goal may have been deleted.");
+          }
+        }
       } else {
         localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(reordered));
       }

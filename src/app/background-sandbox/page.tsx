@@ -116,6 +116,12 @@ const getThemeColors = (theme: ThemeType) => {
 };
 
 export default function BackgroundSandboxPage() {
+  const [isEnabled, setIsEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    setIsEnabled(process.env.NEXT_PUBLIC_ENABLE_SANDBOX === "true");
+  }, []);
+
   const [activeBg, setActiveBg] = useState<string>("constellation");
   const [intensity, setIntensity] = useState<IntensityType>("medium");
   const [motion, setMotion] = useState<boolean>(true);
@@ -143,6 +149,22 @@ export default function BackgroundSandboxPage() {
 
   // Handle Motion toggle respecting prefers-reduced-motion
   const isMotionActive = motion && !reducedMotion;
+
+  if (isEnabled === null) {
+    return null;
+  }
+
+  if (!isEnabled) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-neutral-950 p-6 text-center text-white">
+        <h1 className="text-2xl font-black tracking-tight text-red-500">SANDBOX DISABLED</h1>
+        <p className="mt-2 text-sm text-neutral-400">This route is not available in production.</p>
+        <Link href="/" className="mt-6 rounded-lg bg-neutral-800 px-4 py-2 text-xs font-bold transition hover:bg-neutral-700">
+          Go Home
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black text-neutral-100 flex flex-col font-sans select-none overflow-x-hidden antialiased">
@@ -224,8 +246,8 @@ export default function BackgroundSandboxPage() {
                       onClick={() => setTheme(t)}
                       className={`py-1.5 px-2 rounded-lg border text-xs font-mono capitalize transition-all duration-200 ${
                         theme === t 
-                          ? "accent-pill-active border-accent-theme"
-                          : "bg-neutral-900/60 border-neutral-850 hover:bg-neutral-900 text-neutral-400 hover:text-neutral-200"
+                          ? "accent-pill-active border-[var(--accent-theme)]"
+                          : "bg-neutral-900/60 border-neutral-800 hover:bg-neutral-900 text-neutral-400 hover:text-neutral-200"
                       }`}
                     >
                       {t === "monochrome" ? "Mono" : t}
@@ -244,8 +266,8 @@ export default function BackgroundSandboxPage() {
                       onClick={() => setIntensity(inst)}
                       className={`py-1.5 px-2 rounded-lg border text-xs font-mono capitalize transition-all duration-200 ${
                         intensity === inst 
-                          ? "accent-pill-active border-accent-theme"
-                          : "bg-neutral-900/60 border-neutral-850 hover:bg-neutral-900 text-neutral-400 hover:text-neutral-200"
+                          ? "accent-pill-active border-[var(--accent-theme)]"
+                          : "bg-neutral-900/60 border-neutral-800 hover:bg-neutral-900 text-neutral-400 hover:text-neutral-200"
                       }`}
                     >
                       {inst}
@@ -264,8 +286,8 @@ export default function BackgroundSandboxPage() {
                       onClick={() => setDensity(d)}
                       className={`py-1.5 px-2 rounded-lg border text-xs font-mono capitalize transition-all duration-200 ${
                         density === d 
-                          ? "accent-pill-active border-accent-theme"
-                          : "bg-neutral-900/60 border-neutral-850 hover:bg-neutral-900 text-neutral-400 hover:text-neutral-200"
+                          ? "accent-pill-active border-[var(--accent-theme)]"
+                          : "bg-neutral-900/60 border-neutral-800 hover:bg-neutral-900 text-neutral-400 hover:text-neutral-200"
                       }`}
                     >
                       {d}
@@ -291,7 +313,7 @@ export default function BackgroundSandboxPage() {
                   disabled={reducedMotion}
                   onClick={() => setMotion(!motion)}
                   className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    isMotionActive ? "bg-accent-theme accent-border" : "bg-neutral-800"
+                    isMotionActive ? "bg-[var(--accent-theme)] accent-border" : "bg-neutral-800"
                   } ${reducedMotion ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
                   <span
@@ -321,7 +343,7 @@ export default function BackgroundSandboxPage() {
                     onClick={() => setActiveBg(bg.id)}
                     className={`text-left p-3 rounded-xl border transition-all duration-200 flex flex-col gap-1 ${
                       isActive 
-                        ? "accent-border bg-neutral-900/80 border-accent-theme"
+                        ? "accent-border bg-neutral-900/80 border-[var(--accent-theme)]"
                         : "bg-neutral-950/40 border-neutral-900/60 hover:bg-neutral-900/40 hover:border-neutral-800"
                     }`}
                   >
@@ -330,7 +352,7 @@ export default function BackgroundSandboxPage() {
                         {bg.name}
                       </span>
                       {isActive && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-accent-theme shadow-lg shadow-accent-theme" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-theme)] shadow-lg shadow-[var(--accent-theme)]" />
                       )}
                     </div>
                     <span className="text-[10px] text-neutral-400 line-clamp-1 font-mono font-light">
@@ -362,7 +384,7 @@ export default function BackgroundSandboxPage() {
             {/* Preview Stage Header HUD Overlay */}
             <div className="z-10 w-full flex items-center justify-between pointer-events-none">
               <div className="flex items-center gap-2 bg-neutral-950/60 backdrop-blur-md border border-neutral-900 px-3 py-1.5 rounded-xl">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent-theme animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-theme)] animate-pulse" />
                 <span className="text-[10px] font-mono text-neutral-400">ACTIVE: <span className="text-white uppercase font-bold">{activeMetadata.name}</span></span>
               </div>
               <div className="flex items-center gap-1.5 bg-neutral-950/60 backdrop-blur-md border border-neutral-900 px-3 py-1.5 rounded-xl">
@@ -387,14 +409,14 @@ export default function BackgroundSandboxPage() {
 
           {/* Details / Notes Panel */}
           <div className="bg-neutral-950/40 backdrop-blur-md border border-neutral-900 rounded-2xl p-5 flex flex-col md:flex-row gap-5 items-start">
-            <div className="p-2.5 rounded-xl bg-neutral-900 border border-neutral-800 text-accent-theme flex-shrink-0">
+            <div className="p-2.5 rounded-xl bg-neutral-900 border border-neutral-800 text-[var(--accent-theme)] flex-shrink-0">
               <Info size={20} className="accent-text" />
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1">
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-500">Active Blueprint</span>
-                <span className="text-xs font-semibold text-neutral-250">{activeMetadata.name}</span>
+                <span className="text-xs font-semibold text-neutral-300">{activeMetadata.name}</span>
                 <span className="text-[10px] text-neutral-400 italic">&quot;{activeMetadata.vibe}&quot;</span>
               </div>
               <div className="flex flex-col gap-1">
@@ -460,10 +482,10 @@ function MockDashboardOverlay() {
           <div className="w-5 h-5 rounded-md bg-neutral-900 border border-neutral-800 flex items-center justify-center">
             <span className="text-[8px] font-mono font-extrabold accent-text">Æ</span>
           </div>
-          <span className="text-[11px] font-mono tracking-wider font-medium text-neutral-350">AETHER</span>
+          <span className="text-[11px] font-mono tracking-wider font-medium text-neutral-400">AETHER</span>
         </div>
         <div className="flex gap-1">
-          <span className="text-[9px] font-mono px-2 py-0.5 rounded-full accent-pill-active border border-accent-theme font-medium text-white shadow-sm">
+          <span className="text-[9px] font-mono px-2 py-0.5 rounded-full accent-pill-active border border-[var(--accent-theme)] font-medium text-white shadow-sm">
             Goals
           </span>
           <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-neutral-900/40 text-neutral-400 hover:text-neutral-300">
@@ -473,7 +495,7 @@ function MockDashboardOverlay() {
       </div>
 
       {/* Main Goal Card Mock */}
-      <div className="bg-neutral-950/75 backdrop-blur-lg border border-neutral-900/80 rounded-2xl p-4.5 shadow-2xl flex flex-col gap-3">
+      <div className="bg-neutral-950/75 backdrop-blur-lg border border-neutral-900/80 rounded-2xl p-4 shadow-2xl flex flex-col gap-3">
         <div className="flex items-start justify-between">
           <div className="flex flex-col">
             <span className="text-[10px] font-mono text-neutral-400 tracking-wider">PROJECT GOAL</span>
@@ -501,10 +523,10 @@ function MockDashboardOverlay() {
                   key={idx}
                   className={`h-full rounded-sm transition-all duration-300 ${
                     active 
-                      ? "bg-accent-theme opacity-85 shadow-[0_0_8px_var(--accent-theme-glow)]"
+                      ? "bg-[var(--accent-theme)] opacity-85 shadow-[0_0_8px_var(--accent-theme-glow)]"
                       : current
-                        ? "bg-accent-theme opacity-40 animate-pulse"
-                        : "bg-neutral-900 border border-neutral-850"
+                        ? "bg-[var(--accent-theme)] opacity-40 animate-pulse"
+                        : "bg-neutral-900 border border-neutral-800"
                   }`}
                 />
               );
@@ -559,6 +581,9 @@ function ConstellationField({ intensity, motion, density, theme, reducedMotion }
       canvas.width = width * dpr;
       canvas.height = height * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (!(motion && !reducedMotion)) {
+        draw();
+      }
     };
 
     const observer = new ResizeObserver(() => {
@@ -587,11 +612,17 @@ function ConstellationField({ intensity, motion, density, theme, reducedMotion }
       const rect = parent.getBoundingClientRect();
       mouse.x = e.clientX - rect.left;
       mouse.y = e.clientY - rect.top;
+      if (!(motion && !reducedMotion)) {
+        draw();
+      }
     };
 
     const handleMouseLeave = () => {
       mouse.x = -1000;
       mouse.y = -1000;
+      if (!(motion && !reducedMotion)) {
+        draw();
+      }
     };
 
     parent.addEventListener("mousemove", handleMouseMove, { passive: true });
@@ -662,7 +693,9 @@ function ConstellationField({ intensity, motion, density, theme, reducedMotion }
         }
       }
 
-      animationFrameId = requestAnimationFrame(draw);
+      if (motion && !reducedMotion) {
+        animationFrameId = requestAnimationFrame(draw);
+      }
     };
 
     draw();
@@ -716,6 +749,9 @@ function FlowField({ intensity, motion, density, theme, reducedMotion }: Backgro
       canvas.width = width * dpr;
       canvas.height = height * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (!(motion && !reducedMotion)) {
+        draw();
+      }
       
       // Clear black base to initialize trail rendering
       ctx.fillStyle = "#000000";
@@ -754,10 +790,16 @@ function FlowField({ intensity, motion, density, theme, reducedMotion }: Backgro
       const rect = parent.getBoundingClientRect();
       mouse.x = e.clientX - rect.left;
       mouse.y = e.clientY - rect.top;
+      if (!(motion && !reducedMotion)) {
+        draw();
+      }
     };
     const handleMouseLeave = () => {
       mouse.x = -1000;
       mouse.y = -1000;
+      if (!(motion && !reducedMotion)) {
+        draw();
+      }
     };
 
     parent.addEventListener("mousemove", handleMouseMove, { passive: true });
@@ -823,7 +865,9 @@ function FlowField({ intensity, motion, density, theme, reducedMotion }: Backgro
         ctx.stroke();
       }
 
-      animationFrameId = requestAnimationFrame(draw);
+      if (motion && !reducedMotion) {
+        animationFrameId = requestAnimationFrame(draw);
+      }
     };
 
     draw();
@@ -916,7 +960,9 @@ function AuroraMesh({ intensity, motion, density, theme, reducedMotion }: Backgr
         el.style.height = `${state.size}px`;
       });
 
-      animationFrameId = requestAnimationFrame(update);
+      if (motion && !reducedMotion) {
+        animationFrameId = requestAnimationFrame(update);
+      }
     };
 
     update();
@@ -983,6 +1029,9 @@ function TopographicContours({ intensity, motion, density, theme, reducedMotion 
       canvas.width = width * dpr;
       canvas.height = height * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (!(motion && !reducedMotion)) {
+        draw();
+      }
     };
 
     const observer = new ResizeObserver(() => {
@@ -996,10 +1045,16 @@ function TopographicContours({ intensity, motion, density, theme, reducedMotion 
       const rect = parent.getBoundingClientRect();
       mouse.x = e.clientX - rect.left;
       mouse.y = e.clientY - rect.top;
+      if (!(motion && !reducedMotion)) {
+        draw();
+      }
     };
     const handleMouseLeave = () => {
       mouse.x = -1000;
       mouse.y = -1000;
+      if (!(motion && !reducedMotion)) {
+        draw();
+      }
     };
 
     parent.addEventListener("mousemove", handleMouseMove, { passive: true });
@@ -1052,7 +1107,9 @@ function TopographicContours({ intensity, motion, density, theme, reducedMotion 
       }
       ctx.globalAlpha = 1.0;
 
-      animationFrameId = requestAnimationFrame(draw);
+      if (motion && !reducedMotion) {
+        animationFrameId = requestAnimationFrame(draw);
+      }
     };
 
     draw();
@@ -1104,6 +1161,9 @@ function OrbitalScanner({ intensity, motion, density, theme, reducedMotion }: Ba
       canvas.width = width * dpr;
       canvas.height = height * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (!(motion && !reducedMotion)) {
+        draw();
+      }
     };
 
     const observer = new ResizeObserver(() => {
@@ -1194,7 +1254,9 @@ function OrbitalScanner({ intensity, motion, density, theme, reducedMotion }: Ba
       ctx.lineWidth = 0.7;
       ctx.stroke();
 
-      animationFrameId = requestAnimationFrame(draw);
+      if (motion && !reducedMotion) {
+        animationFrameId = requestAnimationFrame(draw);
+      }
     };
 
     draw();
@@ -1243,6 +1305,9 @@ function MatrixRain({ intensity, motion, density, theme, reducedMotion }: Backgr
       canvas.width = width * dpr;
       canvas.height = height * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (!(motion && !reducedMotion)) {
+        draw();
+      }
 
       columns = Math.floor(width / (fontSize + 4));
       
@@ -1312,7 +1377,9 @@ function MatrixRain({ intensity, motion, density, theme, reducedMotion }: Backgr
         }
       }
 
-      animationFrameId = requestAnimationFrame(draw);
+      if (motion && !reducedMotion) {
+        animationFrameId = requestAnimationFrame(draw);
+      }
     };
 
     draw();
@@ -1379,6 +1446,9 @@ function NeuralMesh({ intensity, motion, density, theme, reducedMotion }: Backgr
       canvas.width = width * dpr;
       canvas.height = height * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (!(motion && !reducedMotion)) {
+        draw();
+      }
     };
 
     const observer = new ResizeObserver(() => {
@@ -1449,10 +1519,16 @@ function NeuralMesh({ intensity, motion, density, theme, reducedMotion }: Backgr
       const rect = parent.getBoundingClientRect();
       mouse.x = e.clientX - rect.left;
       mouse.y = e.clientY - rect.top;
+      if (!(motion && !reducedMotion)) {
+        draw();
+      }
     };
     const handleMouseLeave = () => {
       mouse.x = -1000;
       mouse.y = -1000;
+      if (!(motion && !reducedMotion)) {
+        draw();
+      }
     };
 
     parent.addEventListener("mousemove", handleMouseMove, { passive: true });
@@ -1565,7 +1641,9 @@ function NeuralMesh({ intensity, motion, density, theme, reducedMotion }: Backgr
         ctx.shadowBlur = 0; // reset
       }
 
-      animationFrameId = requestAnimationFrame(draw);
+      if (motion && !reducedMotion) {
+        animationFrameId = requestAnimationFrame(draw);
+      }
     };
 
     draw();
@@ -1620,6 +1698,9 @@ function LiquidGlassBlobs({ intensity, motion, density, theme, reducedMotion }: 
       canvas.width = width * dpr;
       canvas.height = height * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (!(motion && !reducedMotion)) {
+        draw();
+      }
     };
 
     const observer = new ResizeObserver(() => {
@@ -1672,7 +1753,9 @@ function LiquidGlassBlobs({ intensity, motion, density, theme, reducedMotion }: 
         ctx.fill();
       }
 
-      animationFrameId = requestAnimationFrame(draw);
+      if (motion && !reducedMotion) {
+        animationFrameId = requestAnimationFrame(draw);
+      }
     };
 
     draw();

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { 
   Plus, 
   Calendar, 
@@ -785,6 +786,28 @@ const InteractiveDeviceMockup = ({ title, description, navBarType }: Interactive
 };
 
 export default function NavbarSandbox() {
+  const [isEnabled, setIsEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    setIsEnabled(process.env.NEXT_PUBLIC_ENABLE_SANDBOX === "true");
+  }, []);
+
+  if (isEnabled === null) {
+    return null;
+  }
+
+  if (!isEnabled) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-neutral-950 p-6 text-center text-white">
+        <h1 className="text-2xl font-black tracking-tight text-red-500">SANDBOX DISABLED</h1>
+        <p className="mt-2 text-sm text-neutral-400">This route is not available in production.</p>
+        <Link href="/" className="mt-6 rounded-lg bg-neutral-800 px-4 py-2 text-xs font-bold transition hover:bg-neutral-700">
+          Go Home
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-black text-white pb-32 relative flex flex-col overflow-hidden">
       <ConstellationBackground opacity={0.75} particleCount={150} />
