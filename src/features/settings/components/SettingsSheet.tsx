@@ -232,6 +232,21 @@ export function SettingsSheet({ onNav }: SettingsSheetProps) {
       },
     },
     {
+      title: "Download Android App",
+      subtitle: "Install standalone Android wrapper (APK)",
+      action: "Get APK",
+      actionColor: "var(--ac)",
+      onClick: () => {
+        const link = document.createElement("a");
+        link.href = "/aether-goals.apk";
+        link.download = "aether-goals.apk";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast("Starting APK download...", "success");
+      },
+    },
+    {
       title: "Sign Out",
       subtitle: "Sign out of your session securely",
       action: "Exit",
