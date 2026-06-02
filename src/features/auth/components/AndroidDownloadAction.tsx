@@ -21,9 +21,6 @@ export function AndroidDownloadAction({ apkUrl }: AndroidDownloadActionProps) {
         aria-disabled="true"
         title="Android APK is not available yet."
         style={{
-          position: "absolute",
-          top: 20,
-          left: 24,
           display: "inline-flex",
           alignItems: "center",
           gap: 7,
@@ -36,7 +33,6 @@ export function AndroidDownloadAction({ apkUrl }: AndroidDownloadActionProps) {
           fontWeight: 700,
           letterSpacing: "0.14em",
           cursor: "not-allowed",
-          zIndex: 100,
           fontFamily: "inherit",
         }}
       >
@@ -52,9 +48,6 @@ export function AndroidDownloadAction({ apkUrl }: AndroidDownloadActionProps) {
       download
       aria-label="Download Android APK"
       style={{
-        position: "absolute",
-        top: 20,
-        left: 24,
         display: "inline-flex",
         alignItems: "center",
         gap: 7,
@@ -64,7 +57,6 @@ export function AndroidDownloadAction({ apkUrl }: AndroidDownloadActionProps) {
         borderRadius: 20,
         cursor: "pointer",
         textDecoration: "none",
-        zIndex: 100,
         fontFamily: "inherit",
       }}
     >
