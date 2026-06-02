@@ -29,7 +29,7 @@ export function PwaInstallAction({ onClick }: PwaInstallActionProps) {
     >
       <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#ccff00" }} />
       <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", letterSpacing: "0.14em" }}>
-        AETHER
+        DOWNLOAD APK
       </span>
     </button>
   );

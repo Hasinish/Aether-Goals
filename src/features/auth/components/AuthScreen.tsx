@@ -1,21 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Mail, Eye, EyeOff, AlertCircle, Check } from "lucide-react";
+import { Eye, EyeOff, AlertCircle, Check } from "lucide-react";
 import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
 import { AuthBackground } from "./AuthBackground";
 import { PwaInstallAction } from "./PwaInstallAction";
 import { AuthConfigRequired } from "./AuthConfigRequired";
 import { MagicLinkAction } from "./MagicLinkAction";
-
-interface BeforeInstallPromptEvent extends Event {
-  readonly platforms: string[];
-  readonly userChoice: Promise<{
-    outcome: "accepted" | "dismissed";
-    platform: string;
-  }>;
-  prompt(): Promise<void>;
-}
 
 export default function AuthScreen() {
   const [mounted, setMounted] = useState(false);
@@ -28,83 +19,22 @@ export default function AuthScreen() {
   const [error, setError] = useState("");
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const isDbReady = isSupabaseConfigured();
-
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-
-    // 1. Instantly pull prompt if captured globally by layout.tsx before mount
-    const earlyPrompt = ("deferredPrompt" in window) 
-      ? (window as Window & { deferredPrompt?: BeforeInstallPromptEvent | null }).deferredPrompt 
-      : null;
-    
-    if (earlyPrompt) {
-      setDeferredPrompt(earlyPrompt);
-    }
-
-    // 2. Custom event listener to capture prompts flowing post-mount
-    const handleCustomPromptCaptured = () => {
-      const captured = ("deferredPrompt" in window)
-        ? (window as Window & { deferredPrompt?: BeforeInstallPromptEvent | null }).deferredPrompt
-        : null;
-      
-      if (captured) {
-        setDeferredPrompt(captured);
-      }
-    };
-
-    window.addEventListener("pwa-prompt-captured", handleCustomPromptCaptured);
-
-    // 3. Fallback standard browser beforeinstallprompt listener
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-    };
-
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-
-    const handleAppInstalled = () => {
-      setDeferredPrompt(null);
-      setMessage("Aether Goals has been successfully installed as an app!");
-    };
-
-    window.addEventListener("appinstalled", handleAppInstalled);
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-      window.removeEventListener("pwa-prompt-captured", handleCustomPromptCaptured);
-      window.removeEventListener("appinstalled", handleAppInstalled);
-    };
+    const checkStandalone = window.matchMedia("(display-mode: standalone)").matches || 
+      ("standalone" in window.navigator && (window.navigator as Navigator & { standalone?: boolean }).standalone === true);
+    setIsStandalone(checkStandalone);
   }, []);
 
-  const handlePwaInstallClick = async () => {
-    if (deferredPrompt) {
-      try {
-        await deferredPrompt.prompt();
-        const choiceResult = await deferredPrompt.userChoice;
-        if (choiceResult.outcome === "accepted") {
-          setMessage("Initiated installation for Aether Goals...");
-        }
-        setDeferredPrompt(null);
-      } catch (err) {
-        console.error("PWA install prompt failed:", err);
-      }
-    } else {
-      const isStandalone = window.matchMedia("(display-mode: standalone)").matches || 
-        ("standalone" in window.navigator && (window.navigator as Navigator & { standalone?: boolean }).standalone === true);
-      
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
-        !("MSStream" in window);
-
-      if (isStandalone) {
-        setMessage("Aether is already running as a standalone PWA.");
-      } else if (isIOS) {
-        setMessage("To install Aether on iOS: Tap 'Share' in Safari, then select 'Add to Home Screen'.");
-      } else {
-        setMessage("Aether is PWA ready! To install, check your browser's options menu (e.g., three dots -> Install App).");
-      }
-    }
+  const handleApkDownloadClick = () => {
+    const link = document.createElement("a");
+    link.href = "/aether-goals.apk";
+    link.download = "aether-goals.apk";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
@@ -210,8 +140,8 @@ export default function AuthScreen() {
         position: "relative",
       }}>
         {/* Logo pill — top left */}
-        {isDbReady && (
-          <PwaInstallAction onClick={handlePwaInstallClick} />
+        {isDbReady && mounted && !isStandalone && (
+          <PwaInstallAction onClick={handleApkDownloadClick} />
         )}
 
         {/* Main Brand Heading */}
