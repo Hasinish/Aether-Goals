@@ -5,6 +5,7 @@ import { Eye, EyeOff, AlertCircle, Check } from "lucide-react";
 import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
 import { AuthBackground } from "./AuthBackground";
 import { AndroidDownloadAction } from "./AndroidDownloadAction";
+import { PwaInstallAction } from "./PwaInstallAction";
 import { AuthConfigRequired } from "./AuthConfigRequired";
 import { MagicLinkAction } from "./MagicLinkAction";
 
@@ -125,10 +126,23 @@ export default function AuthScreen() {
         padding: "54px 28px 16px",
         position: "relative",
       }}>
-        {/* Logo pill — top left */}
-        {isDbReady && mounted && (
-          <AndroidDownloadAction apkUrl={process.env.NEXT_PUBLIC_ANDROID_APK_URL || "/aether-goals.apk"} />
-        )}
+        {/* Top left action buttons */}
+        <div style={{
+          position: "absolute",
+          top: 20,
+          left: 24,
+          display: "flex",
+          gap: 10,
+          alignItems: "center",
+          zIndex: 100,
+        }}>
+          {isDbReady && mounted && (
+            <>
+              <PwaInstallAction />
+              <AndroidDownloadAction apkUrl={process.env.NEXT_PUBLIC_ANDROID_APK_URL || "/aether-goals.apk"} />
+            </>
+          )}
+        </div>
 
         {/* Main Brand Heading */}
         <div style={{ marginTop: 12 }}>
