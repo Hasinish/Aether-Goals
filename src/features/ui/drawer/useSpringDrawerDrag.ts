@@ -113,7 +113,8 @@ export function useSpringDrawerDrag({
       sheet.style.transform = `translate3d(0, ${Math.max(0, y)}px, 0)`;
 
       if (Math.abs(y - target) < 0.1 && Math.abs(v) < 0.01) {
-        sheet.style.transform = "translate3d(0, 0px, 0)";
+        sheet.style.transform = "";
+        sheet.style.transition = "";
         dragYRef.current = 0;
         velocityRef.current = 0;
       } else {

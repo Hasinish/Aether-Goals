@@ -141,7 +141,7 @@ export function SpringDrawer({
           display: "flex",
           flexDirection: "column",
           outline: "none",
-          transform: animate ? "translate3d(0, 0%, 0)" : "translate3d(0, 100%, 0)",
+          transform: isDraggingActive() ? undefined : (animate ? "translate3d(0, 0%, 0)" : "translate3d(0, 100%, 0)"),
           opacity: animate ? 1 : 0,
           transition: isDraggingActive() ? "opacity 300ms ease" : "transform 380ms cubic-bezier(0.16, 1, 0.3, 1), opacity 300ms cubic-bezier(0.16, 1, 0.3, 1)",
         }}
