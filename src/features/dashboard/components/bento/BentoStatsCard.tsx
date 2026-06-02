@@ -1,11 +1,12 @@
 "use client";
 
 import React from "react";
-import { Flame } from "lucide-react";
+import { CheckSquare } from "lucide-react";
 import { Habit } from "@/lib/types";
 import { useToast } from "../ToastProvider";
 import { useCountUp } from "@/hooks/useCountUp";
 import { bentoCardBaseStyle } from "./bentoStyles";
+import { ParallaxCard } from "@/components/ParallaxCard";
 
 // 1. Bento Streak Component
 interface BentoStreakProps {
@@ -20,24 +21,49 @@ export function BentoStreak({ onNav, habit }: BentoStreakProps) {
   const toast = useToast();
 
   return (
-    <div 
+    <ParallaxCard 
       onClick={() => { onNav("habits"); toast("Viewing habit streaks"); }}
-      onMouseEnter={e => {
-        e.currentTarget.style.transform = "translateY(-2px)";
-        e.currentTarget.style.borderColor = "rgba(255,255,255,0.13)";
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)";
-      }}
       style={{ 
         ...bentoCardBaseStyle, 
         minHeight: 140,
         animation: "fadeUp 0.4s 0.22s ease both", 
         cursor: "pointer",
-        transition: "transform 200ms ease, border-color 200ms ease",
       }}
     >
+      <style jsx global>{`
+        @keyframes flameOuterFlicker {
+          0%, 100% { transform: scale(1) rotate(-1.5deg); }
+          50% { transform: scale(1.08, 0.92) rotate(1.5deg); }
+        }
+        @keyframes flameInnerFlicker {
+          0%, 100% { transform: scale(1) rotate(2deg) skewX(1deg); }
+          50% { transform: scale(0.92, 1.08) rotate(-2deg) skewX(-1deg); }
+        }
+        @keyframes flameCoreFlicker {
+          0%, 100% { transform: scale(0.85); opacity: 0.8; }
+          50% { transform: scale(1.15); opacity: 1; }
+        }
+        @keyframes flameGlowPulse {
+          0%, 100% { filter: drop-shadow(0 0 4px rgba(204,255,0,0.4)); }
+          50% { filter: drop-shadow(0 0 10px rgba(204,255,0,0.75)); }
+        }
+        .flame-outer {
+          animation: flameOuterFlicker 1.5s ease-in-out infinite;
+          transform-origin: 12px 18px;
+          transform-box: fill-box;
+        }
+        .flame-inner {
+          animation: flameInnerFlicker 1s ease-in-out infinite;
+          transform-origin: 12px 18px;
+          transform-box: fill-box;
+        }
+        .flame-core {
+          animation: flameCoreFlicker 0.65s ease-in-out infinite;
+          transform-origin: 12px 18px;
+          transform-box: fill-box;
+        }
+      `}</style>
+
       <div style={{
         position: "absolute", top: 0, left: 14, right: 14, height: 1,
         background: "rgba(255,255,255,0.06)", pointerEvents: "none",
@@ -52,6 +78,7 @@ export function BentoStreak({ onNav, habit }: BentoStreakProps) {
         filter: "blur(12px)",
       }} />
 
+      {/* Animated Flame Container */}
       <div style={{
         width: 38, height: 38, borderRadius: "50%",
         background: "rgba(204,255,0,0.1)",
@@ -60,8 +87,46 @@ export function BentoStreak({ onNav, habit }: BentoStreakProps) {
         marginBottom: 14,
         position: "relative", zIndex: 1,
       }}>
-        <Flame size={20} color="var(--ac)" fill="rgba(204,255,0,0.35)" />
+        <svg 
+          width="22" 
+          height="22" 
+          viewBox="0 0 24 24" 
+          fill="none" 
+          stroke="var(--ac)" 
+          strokeWidth="2.2" 
+          strokeLinecap="round" 
+          strokeLinejoin="round"
+          style={{
+            animation: "flameGlowPulse 2.2s ease-in-out infinite",
+            overflow: "visible"
+          }}
+        >
+          {/* Outer glowing flame layer */}
+          <path
+            className="flame-outer"
+            d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"
+            fill="rgba(204,255,0,0.15)"
+            stroke="rgba(204,255,0,0.35)"
+            strokeWidth="1.5"
+          />
+          {/* Inner active flame layer */}
+          <path
+            className="flame-inner"
+            d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"
+            fill="rgba(204,255,0,0.45)"
+            stroke="var(--ac)"
+            strokeWidth="2.2"
+          />
+          {/* Core flame spark layer */}
+          <path
+            className="flame-core"
+            d="M10.5 14.5c0-.4.4-.7.6-1.1.2-.3.2-1 .2-1s.4.5.6.8.2.7.2 1a1.2 1.2 0 1 1-1.6 0z"
+            fill="#FFF"
+            stroke="none"
+          />
+        </svg>
       </div>
+
       <div style={{
         fontSize: 48, fontWeight: 900, color: "#fff",
         lineHeight: 0.9, letterSpacing: "-1px", marginBottom: 6,
@@ -69,7 +134,7 @@ export function BentoStreak({ onNav, habit }: BentoStreakProps) {
       }}>{streak}</div>
       <div style={{ fontSize: 12, fontWeight: 600, color: "var(--t2)", position: "relative", zIndex: 1 }}>day streak</div>
       <div style={{ fontSize: 10, color: "var(--t3)", marginTop: 2, position: "relative", zIndex: 1, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{habitName}</div>
-    </div>
+    </ParallaxCard>
   );
 }
 
@@ -95,28 +160,19 @@ export function BentoCompletion({ onNav, progress: progressPercent }: BentoCompl
   const c = size / 2;
 
   return (
-    <div 
+    <ParallaxCard 
       onClick={() => { onNav("goals"); toast("Viewing all goals", "info"); }}
-      onMouseEnter={e => {
-        e.currentTarget.style.transform = "translateY(-2px)";
-        e.currentTarget.style.borderColor = "rgba(255,255,255,0.13)";
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)";
-      }}
       style={{ 
         ...bentoCardBaseStyle, 
         animation: "fadeUp 0.4s 0.36s ease both", 
         cursor: "pointer",
-        transition: "transform 200ms ease, border-color 200ms ease",
       }}
     >
       <div style={{
         position: "absolute", top: 0, left: 14, right: 14, height: 1,
         background: "rgba(255,255,255,0.06)", pointerEvents: "none",
       }} />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <svg width={size} height={size} style={{ transform: "rotate(-90deg)", flexShrink: 0 }}>
           <circle cx={c} cy={c} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={stroke} />
           <circle cx={c} cy={c} r={r} fill="none" stroke="var(--ac)" strokeWidth={stroke}
@@ -130,7 +186,7 @@ export function BentoCompletion({ onNav, progress: progressPercent }: BentoCompl
       </div>
       <div style={{ fontSize: 12, fontWeight: 600, color: "var(--t2)" }}>Completion</div>
       <div style={{ fontSize: 10, color: "var(--t3)", fontWeight: 700, marginTop: 4 }}>Goal progress</div>
-    </div>
+    </ParallaxCard>
   );
 }
 
@@ -147,32 +203,34 @@ export function BentoHabitsToday({ onNav, completed, total }: BentoHabitsTodayPr
   const activeSlots = Math.max(3, total);
 
   return (
-    <div 
+    <ParallaxCard 
       onClick={() => { onNav("habits"); toast("Viewing daily habits", "info"); }}
-      onMouseEnter={e => {
-        e.currentTarget.style.transform = "translateY(-2px)";
-        e.currentTarget.style.borderColor = "rgba(255,255,255,0.13)";
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)";
-      }}
       style={{ 
         ...bentoCardBaseStyle, 
         animation: "fadeUp 0.4s 0.43s ease both", 
         cursor: "pointer",
-        transition: "transform 200ms ease, border-color 200ms ease",
       }}
     >
       <div style={{
         position: "absolute", top: 0, left: 14, right: 14, height: 1,
         background: "rgba(255,255,255,0.06)", pointerEvents: "none",
       }} />
-      <div style={{ display: "flex", alignItems: "baseline", gap: 2, marginBottom: 6 }}>
-        <span style={{ fontSize: 42, fontWeight: 900, color: "#fff", lineHeight: 0.9 }}>{completed}</span>
-        <span style={{ fontSize: 22, fontWeight: 600, color: "var(--t3)", lineHeight: 1 }}>/{total}</span>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 2 }}>
+          <span style={{ fontSize: 36, fontWeight: 900, color: "#fff", lineHeight: 0.9 }}>{completed}</span>
+          <span style={{ fontSize: 20, fontWeight: 600, color: "var(--t3)", lineHeight: 1 }}>/{total}</span>
+        </div>
+        <div style={{
+          width: 38, height: 38, borderRadius: "50%",
+          background: "rgba(204,255,0,0.1)",
+          border: "1px solid rgba(204,255,0,0.18)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          position: "relative", zIndex: 1,
+        }}>
+          <CheckSquare size={20} color="var(--ac)" />
+        </div>
       </div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--t2)", marginBottom: 14 }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--t2)", marginBottom: 10 }}>
         Habits Today
       </div>
       <div style={{ display: "flex", gap: 4 }}>
@@ -186,6 +244,6 @@ export function BentoHabitsToday({ onNav, completed, total }: BentoHabitsTodayPr
         ))}
       </div>
       <div style={{ fontSize: 10, color: "var(--t3)", marginTop: 6 }}>Today</div>
-    </div>
+    </ParallaxCard>
   );
 }

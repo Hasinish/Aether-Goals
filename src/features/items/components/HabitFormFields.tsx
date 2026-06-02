@@ -33,7 +33,7 @@ export function HabitFormFields({
           type="text" 
           value={habitTitle}
           onChange={e => setHabitTitle(e.target.value)}
-          placeholder="e.g. DEEP WORK SESSIONS" 
+          placeholder="e.g. Read 30 Pages" 
           style={{
             width: "100%", height: 46, borderRadius: 12, background: "var(--bg)", border: "1px solid var(--b1)",
             padding: "0 14px", color: "#fff", fontSize: 13, fontFamily: "inherit",
@@ -54,7 +54,7 @@ export function HabitFormFields({
           type="text" 
           value={habitTags}
           onChange={e => setHabitTags(e.target.value)}
-          placeholder="e.g. WORK, HEALTH" 
+          placeholder="e.g. HEALTH, ROUTINE" 
           style={{
             width: "100%", height: 46, borderRadius: 12, background: "var(--bg)", border: "1px solid var(--b1)",
             padding: "0 14px", color: "#fff", fontSize: 13, fontFamily: "inherit",

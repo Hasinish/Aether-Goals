@@ -38,7 +38,7 @@ export function GoalFormFields({
           type="text" 
           value={goalTitle}
           onChange={e => setGoalTitle(e.target.value)}
-          placeholder="e.g. Advanced Graphics Pipeline" 
+          placeholder="e.g. Launch New Website" 
           style={{
             width: "100%", height: 46, borderRadius: 12, background: "var(--bg)", border: "1px solid var(--b1)",
             padding: "0 14px", color: "#fff", fontSize: 13, fontFamily: "inherit",
@@ -59,7 +59,7 @@ export function GoalFormFields({
           type="text" 
           value={goalTags}
           onChange={e => setGoalTags(e.target.value)}
-          placeholder="e.g. WEBGL, SHADERS" 
+          placeholder="e.g. WORK, DESIGN" 
           style={{
             width: "100%", height: 46, borderRadius: 12, background: "var(--bg)", border: "1px solid var(--b1)",
             padding: "0 14px", color: "#fff", fontSize: 13, fontFamily: "inherit",

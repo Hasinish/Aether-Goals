@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { ParallaxCard } from "@/components/ParallaxCard";
 
 export interface HabitCardProps {
   name: string;
@@ -14,7 +15,6 @@ export interface HabitCardProps {
 }
 
 export function HabitCard({ name, target, done, streak, rate, animDelay, onClick, onCheckIn }: HabitCardProps) {
-  const [hovered, setHovered] = React.useState(false);
   const [ringProg, setRingProg] = React.useState(0);
   const isComplete = done >= target;
 
@@ -30,24 +30,19 @@ export function HabitCard({ name, target, done, streak, rate, animDelay, onClick
   const c = size / 2;
 
   return (
-    <div
+    <ParallaxCard
       onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       style={{
         background: isComplete ? 'rgba(204,255,0,0.06)' : 'var(--card)',
         borderRadius: 20,
         border: `1px solid ${
-          isComplete ? 'rgba(204,255,0,0.18)' 
-          : hovered ? 'var(--b2)' 
-          : 'var(--b1)'
+          isComplete ? 'rgba(204,255,0,0.18)' : 'var(--b1)'
         }`,
         padding: '16px 18px',
         display: 'flex',
         alignItems: 'center',
         gap: 16,
         marginBottom: 10,
-        transition: 'all 220ms ease',
         animation: 'fadeUp 0.4s ease both',
         animationDelay: `${animDelay}ms`,
         position: 'relative', overflow: 'hidden',
@@ -116,6 +111,6 @@ export function HabitCard({ name, target, done, streak, rate, animDelay, onClick
           </span>
         </div>
       </div>
-    </div>
+    </ParallaxCard>
   );
 }

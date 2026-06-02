@@ -1,10 +1,10 @@
 "use client";
 
 import React from "react";
-import { useToast } from "../../dashboard/components/ToastProvider";
 import { useCountdown } from "../hooks/useCountdown";
 import { formatTime } from "../utils/deadlineStatus";
 import { DeadlineProps } from "../types";
+import { ParallaxCard } from "@/components/ParallaxCard";
 
 export function FeaturedDeadline({ id, title, sub, priority, due, total, completed, onToggle, onClick }: DeadlineProps) {
   const [mounted, setMounted] = React.useState(false);
@@ -21,7 +21,7 @@ export function FeaturedDeadline({ id, title, sub, priority, due, total, complet
   const elapsedPercent = completed ? 100 : Math.round(Math.min(100, Math.max(0, (1 - remainingMs / total) * 100)));
 
   return (
-    <div 
+    <ParallaxCard 
       onClick={onClick}
       style={{
         background: "var(--card)",
@@ -41,7 +41,6 @@ export function FeaturedDeadline({ id, title, sub, priority, due, total, complet
         animation: "fadeUp 400ms ease both",
         animationDelay: "550ms",
         cursor: onClick ? 'pointer' : 'default',
-        transition: "all 0.2s ease",
       }}
     >
       {/* Glass highlight first child */}
@@ -51,13 +50,55 @@ export function FeaturedDeadline({ id, title, sub, priority, due, total, complet
       }} />
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        {/* Pulsing dot before badge */}
+        {/* Radar pulsing dot before badge */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {!completed && (
-            <div style={{
-              width: 8, height: 8, borderRadius: '50%', background: '#ff4040',
-              animation: 'pulse 1.5s ease-in-out infinite',
-            }} />
+            <div className="radar-container">
+              <style jsx>{`
+                @keyframes bentoRadarPulse {
+                  0% {
+                    transform: scale(1);
+                    opacity: 0.85;
+                  }
+                  100% {
+                    transform: scale(3.5);
+                    opacity: 0;
+                  }
+                }
+                .radar-container {
+                  position: relative;
+                  width: 8px;
+                  height: 8px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                }
+                .radar-dot {
+                  width: 8px;
+                  height: 8px;
+                  border-radius: 50%;
+                  background: #ff4040;
+                  position: relative;
+                  z-index: 2;
+                  box-shadow: 0 0 8px #ff4040;
+                }
+                .radar-ring {
+                  position: absolute;
+                  width: 8px;
+                  height: 8px;
+                  border-radius: 50%;
+                  border: 1.5px solid #ff4040;
+                  opacity: 0;
+                  z-index: 1;
+                  pointer-events: none;
+                  animation: bentoRadarPulse 1.8s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
+                }
+              `}</style>
+              <div className="radar-dot" />
+              <div className="radar-ring" style={{ animationDelay: "0s" }} />
+              <div className="radar-ring" style={{ animationDelay: "0.6s" }} />
+              <div className="radar-ring" style={{ animationDelay: "1.2s" }} />
+            </div>
           )}
           <span style={{
             background: completed ? "rgba(74,222,128,0.2)" : "rgba(255, 92, 92, 0.2)",
@@ -129,7 +170,7 @@ export function FeaturedDeadline({ id, title, sub, priority, due, total, complet
       >
         {completed ? "✓ Completed" : "Mark Complete"}
       </button>
-    </div>
+    </ParallaxCard>
   );
 }
 
@@ -151,7 +192,7 @@ export function DeadlineListItem({ index, title, priority, due, total, completed
   const elapsedPercent = completed ? 100 : Math.round(Math.min(100, Math.max(0, (1 - remainingMs / total) * 100)));
 
   return (
-    <div 
+    <ParallaxCard 
       onClick={onClick}
       style={{
         background: "var(--card)",
@@ -165,11 +206,59 @@ export function DeadlineListItem({ index, title, priority, due, total, completed
         animation: "fadeUp 400ms ease both",
         animationDelay: `${550 + (index - 1) * 80}ms`,
         cursor: onClick ? 'pointer' : 'default',
-        transition: "all 0.2s ease",
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {/* Radar pulsing dot before priority label on list items */}
+          {!completed && (
+            <div className="radar-container" style={{ marginRight: 2 }}>
+              <style jsx>{`
+                @keyframes bentoRadarPulse {
+                  0% {
+                    transform: scale(1);
+                    opacity: 0.85;
+                  }
+                  100% {
+                    transform: scale(3.5);
+                    opacity: 0;
+                  }
+                }
+                .radar-container {
+                  position: relative;
+                  width: 8px;
+                  height: 8px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  flex-shrink: 0;
+                }
+                .radar-dot {
+                  width: 8px;
+                  height: 8px;
+                  border-radius: 50%;
+                  background: #ff4040;
+                  position: relative;
+                  z-index: 2;
+                  box-shadow: 0 0 8px #ff4040;
+                }
+                .radar-ring {
+                  position: absolute;
+                  width: 8px;
+                  height: 8px;
+                  border-radius: 50%;
+                  border: 1.5px solid #ff4040;
+                  opacity: 0;
+                  z-index: 1;
+                  pointer-events: none;
+                  animation: bentoRadarPulse 1.8s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
+                }
+              `}</style>
+              <div className="radar-dot" />
+              <div className="radar-ring" style={{ animationDelay: "0s" }} />
+              <div className="radar-ring" style={{ animationDelay: "0.9s" }} />
+            </div>
+          )}
           <span style={{
             background: completed ? "rgba(74,222,128,0.15)" : "var(--ac-soft)",
             color: completed ? "var(--ok)" : "var(--ac)",
@@ -216,6 +305,6 @@ export function DeadlineListItem({ index, title, priority, due, total, completed
         <span style={{ fontSize: 11, color: "var(--t2)" }}>{completed ? "100% achieved" : `${elapsedPercent}% elapsed`}</span>
         <span style={{ fontSize: 16, color: "var(--t3)", userSelect: "none" }}>›</span>
       </div>
-    </div>
+    </ParallaxCard>
   );
 }

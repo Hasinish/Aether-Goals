@@ -4,6 +4,7 @@ import React from "react";
 import { useGoalsStore } from "@/lib/store";
 import { useCountUp } from "@/hooks/useCountUp";
 import { ActiveDrawer } from "../DetailDrawer";
+import { ParallaxCard } from "@/components/ParallaxCard";
 
 interface BentoHeroCardProps {
   onDrawer: (d: ActiveDrawer) => void;
@@ -43,14 +44,8 @@ export function BentoHeroCard({ onDrawer, onNav }: BentoHeroCardProps) {
   };
 
   return (
-    <div 
+    <ParallaxCard 
       onClick={handleCardClick}
-      onMouseEnter={e => {
-        e.currentTarget.style.transform = "translateY(-2px)";
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.transform = "translateY(0)";
-      }}
       style={{
         background: "var(--ac)",
         borderRadius: 28,
@@ -64,9 +59,68 @@ export function BentoHeroCard({ onDrawer, onNav }: BentoHeroCardProps) {
         animation: "scaleIn 0.55s 0.12s ease both",
         marginBottom: 10,
         cursor: "pointer",
-        transition: "transform 200ms ease, border-color 200ms ease",
       }}
     >
+      <style>{`
+        @keyframes bentoDotWave {
+          0%, 100% {
+            transform: scale(0.65) translateY(0px) translateX(0px);
+          }
+          50% {
+            transform: scale(1.35) translateY(-3px) translateX(1px);
+          }
+        }
+        @keyframes bentoRotateCW {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        @keyframes bentoRotateCCW {
+          0% { transform: rotate(360deg); }
+          100% { transform: rotate(0deg); }
+        }
+        @keyframes bentoRingPulse {
+          0%, 100% { transform: scale(0.95); opacity: 0.7; }
+          50% { transform: scale(1.05); opacity: 1.0; }
+        }
+        @keyframes bentoWaveFlow {
+          0% { stroke-dashoffset: 20; }
+          100% { stroke-dashoffset: 0; }
+        }
+        @keyframes bentoWaveSway {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(5px, 2px) scale(1.03); }
+        }
+        
+        .bento-dot {
+          animation: bentoDotWave 3.8s ease-in-out infinite;
+          transform-origin: center;
+          transform-box: fill-box;
+        }
+        .bento-ring-cw {
+          animation: bentoRotateCW 35s linear infinite;
+          transform-origin: center;
+          transform-box: fill-box;
+        }
+        .bento-ring-ccw {
+          animation: bentoRotateCCW 25s linear infinite;
+          transform-origin: center;
+          transform-box: fill-box;
+        }
+        .bento-ring-pulse {
+          animation: bentoRingPulse 7s ease-in-out infinite;
+          transform-origin: center;
+          transform-box: fill-box;
+        }
+        .bento-wave {
+          stroke-dasharray: 12, 8;
+          animation: bentoWaveFlow 2.8s linear infinite;
+        }
+        .bento-wave-svg {
+          animation: bentoWaveSway 6.5s ease-in-out infinite;
+          transform-origin: bottom left;
+        }
+      `}</style>
+
       {/* Glass top edge highlight */}
       <div style={{
         position: "absolute", top: 0, left: 20, right: 20, height: 1,
@@ -75,8 +129,8 @@ export function BentoHeroCard({ onDrawer, onNav }: BentoHeroCardProps) {
 
       {/* Dot grid */}
       <svg
-        style={{ position: "absolute", top: 14, right: 14, pointerEvents: "none" }}
-        width="88" height="72" viewBox="0 0 88 72"
+        style={{ position: "absolute", top: 14, right: 14, overflow: "visible", pointerEvents: "none" }}
+        width="96" height="72" viewBox="0 0 96 72"
       >
         {Array.from({ length: 7 }, (_, row) =>
           Array.from({ length: 8 }, (_, col) => {
@@ -87,33 +141,95 @@ export function BentoHeroCard({ onDrawer, onNav }: BentoHeroCardProps) {
             return (
               <circle
                 key={`${row}-${col}`}
+                className="bento-dot"
+                style={{
+                  animationDelay: `${(row + col) * 0.16}s`,
+                }}
                 cx={col * 12 + 6} cy={row * 10 + 5} r={2.2}
-                fill="#000" opacity={opacity}
+                fill="#000"
+                opacity={opacity}
               />
             );
           })
         )}
       </svg>
 
-      {/* Decorative rings */}
-      <div style={{
-        position: "absolute", bottom: -50, right: -50,
-        width: 160, height: 160, borderRadius: "50%",
-        border: "2px solid rgba(0,0,0,0.1)", pointerEvents: "none",
-      }} />
-      <div style={{
-        position: "absolute", bottom: -25, right: -25,
-        width: 110, height: 110, borderRadius: "50%",
-        background: "rgba(0,0,0,0.07)", pointerEvents: "none",
-      }} />
+      {/* Decorative rings SVG */}
+      <svg
+        style={{
+          position: "absolute",
+          bottom: -60,
+          right: -60,
+          width: 190,
+          height: 190,
+          pointerEvents: "none",
+        }}
+        viewBox="0 0 190 190"
+      >
+        {/* Outer dashed ring (rotating clockwise) */}
+        <circle
+          cx="95"
+          cy="95"
+          r="82"
+          fill="none"
+          stroke="rgba(0,0,0,0.11)"
+          strokeWidth="1.5"
+          strokeDasharray="10 8"
+          className="bento-ring-cw"
+          style={{
+            transformOrigin: "95px 95px",
+          }}
+        />
+        {/* Middle dotted/dashed ring (rotating counter-clockwise) */}
+        <circle
+          cx="95"
+          cy="95"
+          r="62"
+          fill="none"
+          stroke="rgba(0,0,0,0.08)"
+          strokeWidth="2"
+          strokeDasharray="3 7"
+          className="bento-ring-ccw"
+          style={{
+            transformOrigin: "95px 95px",
+          }}
+        />
+        {/* Inner solid ring (pulsing size/opacity) */}
+        <circle
+          cx="95"
+          cy="95"
+          r="44"
+          fill="none"
+          stroke="rgba(0,0,0,0.06)"
+          strokeWidth="18"
+          className="bento-ring-pulse"
+          style={{
+            transformOrigin: "95px 95px",
+          }}
+        />
+        {/* Inner fine solid detail orbit */}
+        <circle
+          cx="95"
+          cy="95"
+          r="28"
+          fill="none"
+          stroke="rgba(0,0,0,0.04)"
+          strokeWidth="1"
+        />
+      </svg>
 
       {/* Wave lines */}
       <svg
+        className="bento-wave-svg"
         style={{ position: "absolute", bottom: 14, left: 18, opacity: 0.12, pointerEvents: "none" }}
         width="90" height="32" viewBox="0 0 90 32"
       >
         {[8, 16, 24].map((y, i) => (
           <path key={i}
+            className="bento-wave"
+            style={{
+              animationDelay: `${i * 0.25}s`
+            }}
             d={`M0 ${y} Q11 ${y - 8} 22 ${y} Q33 ${y + 8} 44 ${y} Q55 ${y - 8} 66 ${y} Q77 ${y + 8} 88 ${y}`}
             fill="none" stroke="#000" strokeWidth="1.5"
           />
@@ -203,6 +319,6 @@ export function BentoHeroCard({ onDrawer, onNav }: BentoHeroCardProps) {
           }}>{completedTasks}/{totalTasks}</span>
         </div>
       </div>
-    </div>
+    </ParallaxCard>
   );
 }

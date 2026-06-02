@@ -138,7 +138,7 @@ export function SpringDrawer({
           zIndex: 10000,
           boxShadow: "0 -10px 40px rgba(0,0,0,0.6)",
           userSelect: "none",
-          touchAction: "pan-y", // Safer touch behavior instead of none
+          touchAction: "none", // Let JS handle all non-scrollable area gestures
           maxHeight: "min(86dvh, 720px)",
           display: "flex",
           flexDirection: "column",
@@ -184,6 +184,7 @@ export function SpringDrawer({
             width: "100%",
             flex: 1,
             minHeight: 0,
+            touchAction: "pan-y", // Allow native panning vertical scrolling
           }}
         >
           {children}

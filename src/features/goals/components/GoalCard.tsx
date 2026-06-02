@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { ParallaxCard } from "@/components/ParallaxCard";
 
 export interface GoalCardProps {
   title: string;
@@ -15,7 +16,6 @@ export interface GoalCardProps {
 
 export function GoalCard({ title, progress, tags, delta, done, total, animDelay, onClick }: GoalCardProps) {
   const [width, setWidth] = React.useState(0);
-  const [hovered, setHovered] = React.useState(false);
 
   React.useEffect(() => {
     const t = setTimeout(() => setWidth(progress), 200);
@@ -25,19 +25,16 @@ export function GoalCard({ title, progress, tags, delta, done, total, animDelay,
   const stripColor = progress > 60 ? 'var(--ac)' : progress >= 30 ? 'var(--warn)' : 'var(--t3)';
 
   return (
-    <div
+    <ParallaxCard
       onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       style={{
         background: 'var(--card)',
         borderRadius: 20,
-        border: `1px solid ${hovered ? 'var(--b2)' : 'var(--b1)'}`,
+        border: '1px solid var(--b1)',
         padding: '18px 18px 18px 22px',
-        position: 'relative', overflow: 'hidden',
+        position: 'relative', 
+        overflow: 'hidden',
         marginBottom: 10,
-        transform: hovered ? 'translateY(-2px)' : 'translateY(0)',
-        transition: 'transform 220ms cubic-bezier(0.16,1,0.3,1), border-color 200ms ease',
         animation: 'fadeUp 0.4s ease both',
         animationDelay: `${animDelay}ms`,
         cursor: onClick ? 'pointer' : 'default',
@@ -105,6 +102,6 @@ export function GoalCard({ title, progress, tags, delta, done, total, animDelay,
           {done}/{total} tasks
         </span>
       </div>
-    </div>
+    </ParallaxCard>
   );
 }

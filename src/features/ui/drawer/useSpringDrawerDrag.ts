@@ -27,7 +27,6 @@ function isInteractiveElement(target: EventTarget | null): boolean {
         "textarea",
         "select",
         "option",
-        "label",
         "[contenteditable='true']",
         "[role='button']",
         "[role='checkbox']",
@@ -129,29 +128,34 @@ export function useSpringDrawerDrag({
     }, 300);
   }, [sheetRef, onDragStateChange]);
 
-  const handleDragStart = useCallback((clientY: number, target: EventTarget | null, pointerId: number | null) => {
-    if (isClosingRef.current || modeRef.current === "settling" || !isOpen) return;
+  const handleDragStart = useCallback((clientY: number, target: EventTarget | null, pointerId: number | null, isTouch = false): boolean => {
+    if (isClosingRef.current || modeRef.current === "settling" || !isOpen) return false;
     const el = target as HTMLElement | null;
-    if (!el || isInteractiveElement(el)) return;
-
+    if (!el) return false;
+    
+    // Prevent dragging on interactive elements for mouse/PC so users can select text/click normally
+    if (!isTouch && isInteractiveElement(el)) return false;
+ 
     if (animFrameIdRef.current) {
       cancelAnimationFrame(animFrameIdRef.current);
     }
-
+ 
     isDraggingRef.current = true;
     wasDraggingRef.current = false;
     pointerIdRef.current = pointerId;
-
+ 
     const sheet = sheetRef.current;
     if (sheet) {
       activeScrollElRef.current = getScrollableParent(el, sheet) || scrollRef?.current || null;
     }
-
+ 
     startYRef.current = clientY;
     lastYRef.current = clientY;
     lastTimeRef.current = performance.now();
     velocityRef.current = 0;
     modeRef.current = "pending";
+
+    return true;
   }, [sheetRef, scrollRef, isOpen]);
 
   const handleDragMove = useCallback((clientY: number, e: Event) => {
@@ -289,11 +293,13 @@ export function useSpringDrawerDrag({
     const onPointerDown = (e: PointerEvent) => {
       if (e.pointerType === "touch") return; // Touch handled by native touch listeners
       if (e.button !== 0) return; // Only left click
-      handleDragStart(e.clientY, e.target, e.pointerId);
-      try {
-        sheet.setPointerCapture(e.pointerId);
-      } catch {
-        // ignore
+      const started = handleDragStart(e.clientY, e.target, e.pointerId, false);
+      if (started) {
+        try {
+          sheet.setPointerCapture(e.pointerId);
+        } catch {
+          // ignore
+        }
       }
     };
 
@@ -317,7 +323,7 @@ export function useSpringDrawerDrag({
     // --- Touch events for mobile swiping ---
     const onTouchStart = (e: TouchEvent) => {
       const touch = e.touches[0];
-      handleDragStart(touch.clientY, e.target, null);
+      handleDragStart(touch.clientY, e.target, null, true);
     };
 
     const onTouchMove = (e: TouchEvent) => {

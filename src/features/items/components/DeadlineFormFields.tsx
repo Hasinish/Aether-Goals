@@ -36,7 +36,7 @@ export function DeadlineFormFields({
           type="text" 
           value={deadlineTitle}
           onChange={e => setDeadlineTitle(e.target.value)}
-          placeholder="e.g. CV Submission" 
+          placeholder="e.g. Project Proposal Submission" 
           style={{
             width: "100%", height: 46, borderRadius: 12, background: "var(--bg)", border: "1px solid var(--b1)",
             padding: "0 14px", color: "#fff", fontSize: 13, fontFamily: "inherit",

@@ -17,61 +17,154 @@ export function BottomNav({ active, onSelect }: BottomNavProps) {
     { id: "deadlines", label: "Deadlines", icon: Zap },
   ];
 
+  const navRef = React.useRef<HTMLDivElement>(null);
+  const [orbStyle, setOrbStyle] = React.useState<React.CSSProperties>({
+    opacity: 0,
+    left: "0px",
+    width: "0px",
+  });
+
+  const updateOrbPosition = React.useCallback(() => {
+    if (!navRef.current || active === "add") {
+      setOrbStyle({ opacity: 0 });
+      return;
+    }
+
+    const activeBtn = navRef.current.querySelector(`[data-tab="${active}"]`) as HTMLElement;
+    if (activeBtn) {
+      const parentRect = navRef.current.getBoundingClientRect();
+      const btnRect = activeBtn.getBoundingClientRect();
+      
+      const leftOffset = btnRect.left - parentRect.left;
+      const width = btnRect.width;
+
+      setOrbStyle({
+        opacity: 1,
+        left: `${leftOffset}px`,
+        width: `${width}px`,
+        transition: "left 420ms cubic-bezier(0.34, 1.56, 0.64, 1.15), width 420ms cubic-bezier(0.34, 1.56, 0.64, 1.15), opacity 300ms ease",
+      });
+    } else {
+      setOrbStyle({ opacity: 0 });
+    }
+  }, [active]);
+
+  React.useEffect(() => {
+    updateOrbPosition();
+    
+    const t = setTimeout(updateOrbPosition, 60);
+
+    window.addEventListener("resize", updateOrbPosition);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("resize", updateOrbPosition);
+    };
+  }, [active, updateOrbPosition]);
+
   return (
-    <nav style={{
-      position: "fixed",
-      bottom: 0,
-      left: 0,
-      right: 0,
-      margin: "0 auto",
-      width: "100%",
-      maxWidth: 390,
-      height: "calc(80px + env(safe-area-inset-bottom))",
-      background: "rgba(20,20,20,0.92)",
-      backdropFilter: "blur(20px)",
-      WebkitBackdropFilter: "blur(20px)",
-      borderTop: "1px solid rgba(255,255,255,0.08)",
-      display: "flex",
-      justifyContent: "space-around",
-      alignItems: "center",
-      paddingBottom: "calc(16px + env(safe-area-inset-bottom))",
-      zIndex: 100,
-      animation: "fadeUp 400ms ease both",
-      animationDelay: "800ms"
-    }}>
+    <nav 
+      ref={navRef}
+      style={{
+        position: "fixed",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        margin: "0 auto",
+        width: "100%",
+        maxWidth: 390,
+        height: "calc(80px + env(safe-area-inset-bottom))",
+        background: "rgba(20,20,20,0.92)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        borderTop: "1px solid rgba(255,255,255,0.08)",
+        display: "flex",
+        justifyContent: "space-around",
+        alignItems: "center",
+        paddingBottom: "calc(16px + env(safe-area-inset-bottom))",
+        zIndex: 100,
+        animation: "fadeUp 400ms ease both",
+        animationDelay: "800ms"
+      }}
+    >
+      <style jsx global>{`
+        @keyframes navOrbFloat {
+          0%, 100% { transform: translateY(0) scale(1); filter: brightness(1); }
+          50% { transform: translateY(-1px) scale(1.02); filter: brightness(1.05); }
+        }
+        .nav-orb-pulse {
+          animation: navOrbFloat 3s ease-in-out infinite;
+        }
+      `}</style>
+
+      {/* Shared elastic sliding backdrop capsule (Nav Orb) */}
+      <div
+        style={{
+          position: "absolute",
+          top: 6,
+          bottom: "calc(6px + 16px + env(safe-area-inset-bottom))",
+          pointerEvents: "none",
+          zIndex: 1,
+          ...orbStyle,
+        }}
+      >
+        <div
+          className="nav-orb-pulse"
+          style={{
+            width: "100%",
+            height: "100%",
+            borderRadius: 14,
+            background: "var(--ac)",
+            boxShadow: "0 4px 15px rgba(204,255,0,0.38), 0 0 25px rgba(204,255,0,0.15)",
+          }}
+        />
+      </div>
+
       {navItems.map((item) => {
         const Icon = item.icon;
         const isActive = active === item.id;
 
         if (item.isSpecial) {
           return (
-            <button
+            <div
               key={item.id}
-              onClick={() => onSelect(item.id)}
               style={{
-                width: 54,
-                height: 54,
-                borderRadius: "50%",
-                background: "var(--ac)",
-                border: "none",
                 display: "flex",
-                alignItems: "center",
                 justifyContent: "center",
-                transform: "translateY(-14px)",
-                boxShadow: "0 6px 24px rgba(204,255,0,0.5), 0 2px 8px rgba(0,0,0,0.6)",
-                cursor: "pointer",
-                transition: "transform 200ms ease"
+                alignItems: "center",
+                height: "100%",
+                paddingBottom: 10,
               }}
-              aria-label="Add Item"
             >
-              <Plus size={24} color="#000000" strokeWidth={3} />
-            </button>
+              <button
+                onClick={() => onSelect(item.id)}
+                style={{
+                  width: 54,
+                  height: 54,
+                  borderRadius: "50%",
+                  background: "var(--ac)",
+                  border: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transform: "translateY(-14px)",
+                  boxShadow: "0 6px 24px rgba(204,255,0,0.5), 0 2px 8px rgba(0,0,0,0.6)",
+                  cursor: "pointer",
+                  transition: "transform 200ms ease",
+                  position: "relative",
+                  zIndex: 6,
+                }}
+                aria-label="Add Item"
+              >
+                <Plus size={24} color="#000000" strokeWidth={3} />
+              </button>
+            </div>
           );
         }
 
         return (
           <button
             key={item.id}
+            data-tab={item.id}
             onClick={() => onSelect(item.id)}
             style={{
               background: "transparent",
@@ -79,25 +172,25 @@ export function BottomNav({ active, onSelect }: BottomNavProps) {
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: 4,
+              justifyContent: "center",
+              gap: 3,
               cursor: "pointer",
-              padding: "4px 8px"
+              padding: "0 12px",
+              height: "100%",
+              position: "relative",
+              zIndex: 5,
             }}
           >
             <div 
-              key={isActive ? 'active' : 'inactive'}
               style={{
-                width: "auto",
+                width: 52,
                 height: 32,
                 borderRadius: 20,
-                padding: isActive ? "7px 14px" : "4px 8px",
-                background: isActive ? "var(--ac)" : "transparent",
-                boxShadow: isActive ? "0 2px 12px rgba(204,255,0,0.2)" : "none",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                transition: "all 300ms cubic-bezier(0.16, 1, 0.3, 1)",
-                animation: isActive ? 'pillIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both' : 'none',
+                background: "transparent",
+                transition: "all 300ms ease",
               }}
             >
               <div style={{ position: 'relative' }}>
@@ -105,6 +198,10 @@ export function BottomNav({ active, onSelect }: BottomNavProps) {
                   size={22}
                   color={isActive ? "#000000" : "var(--t3)"}
                   strokeWidth={isActive ? 2.5 : 2}
+                  style={{
+                    transition: "color 280ms ease, transform 280ms ease",
+                    transform: isActive ? "scale(1.05)" : "scale(1)",
+                  }}
                 />
                 {/* Critical indicator dot */}
                 {item.id === "deadlines" && (
@@ -121,8 +218,8 @@ export function BottomNav({ active, onSelect }: BottomNavProps) {
             </div>
             <span style={{
               fontSize: 10,
-              fontWeight: 600,
-              color: isActive ? "var(--ac)" : "var(--t3)",
+              fontWeight: 700,
+              color: isActive ? "#000000" : "var(--t3)",
               transition: "color 300ms ease"
             }}>
               {item.label}
