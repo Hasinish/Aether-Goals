@@ -411,7 +411,7 @@ export function useSpringDrawerDrag({
         cancelAnimationFrame(animFrameIdRef.current);
       }
     };
-  }, [sheetRef, scrollRef, closeThreshold, velocityThreshold, getScrollParent, startSpringBack]);
+  }, [isOpen, sheetRef, scrollRef, closeThreshold, velocityThreshold, getScrollParent, startSpringBack]);
 
   // Clean up animation on unmount or when drawer is closed programmatically
   useEffect(() => {
