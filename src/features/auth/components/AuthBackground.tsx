@@ -9,7 +9,7 @@ interface AuthBackgroundProps {
 export function AuthBackground({ children }: AuthBackgroundProps) {
   return (
     <div style={{
-      background: "#0f0f0f",
+      background: "#000000",
       minHeight: "100dvh",
       maxWidth: 390,
       margin: "0 auto",
@@ -68,7 +68,37 @@ export function AuthBackground({ children }: AuthBackgroundProps) {
           }
         }
       `}</style>
-      {children}
+      
+      {/* Volumetric Full Bleed Looping Video Background */}
+      <video
+        src="/auth-loop.mp4"
+        autoPlay
+        loop
+        muted
+        playsInline
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          transform: "scaleY(-1)",
+          zIndex: 0,
+          pointerEvents: "none"
+        }}
+      />
+
+      {/* Children container overlaid on top of video */}
+      <div style={{
+        position: "relative",
+        zIndex: 1,
+        display: "flex",
+        flexDirection: "column",
+        flex: 1,
+        justifyContent: "space-between"
+      }}>
+        {children}
+      </div>
     </div>
   );
 }

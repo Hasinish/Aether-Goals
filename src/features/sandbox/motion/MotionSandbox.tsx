@@ -1408,7 +1408,20 @@ export default function MotionSandbox() {
           <div className="absolute inset-0 z-10" onClick={() => setIsModalOpen(false)} />
 
           {/* Sliding Sheet Panel with Spring Overshoot animation */}
-          <div className="w-full bg-neutral-950 border-t border-neutral-800 px-6 pt-3 pb-8 rounded-t-2xl z-20 space-y-6 shadow-[0_-12px_45px_rgba(0,0,0,0.85)] animate-spring-slide-up relative">
+          <div 
+            className="w-full px-6 pt-3 pb-8 z-20 space-y-6 animate-spring-slide-up relative"
+            style={{
+              background: "linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(20, 20, 20, 0.35) 100%)",
+              backdropFilter: "blur(24px)",
+              WebkitBackdropFilter: "blur(24px)",
+              borderRadius: "32px 32px 0 0",
+              borderTop: "1.5px solid rgba(255, 255, 255, 0.55)",
+              borderLeft: "1px solid rgba(255, 255, 255, 0.22)",
+              borderRight: "1px solid rgba(255, 255, 255, 0.22)",
+              borderBottom: "none",
+              boxShadow: "0 -12px 48px rgba(0, 0, 0, 0.65)",
+            }}
+          >
             
             {/* Drag Handle aesthetic bar */}
             <div className="w-10 h-1 bg-neutral-800 rounded-full mx-auto mb-3" />

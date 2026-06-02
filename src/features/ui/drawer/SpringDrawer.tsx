@@ -131,12 +131,17 @@ export function SpringDrawer({
           margin: "0 auto",
           width: "100%",
           maxWidth: 390,
-          background: "var(--card)",
-          borderTop: "1px solid var(--b2)",
-          borderRadius: "28px 28px 0 0",
+          background: "linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(20, 20, 20, 0.35) 100%)",
+          backdropFilter: "blur(24px)",
+          WebkitBackdropFilter: "blur(24px)",
+          borderTop: "1.5px solid rgba(255, 255, 255, 0.55)",
+          borderLeft: "1px solid rgba(255, 255, 255, 0.22)",
+          borderRight: "1px solid rgba(255, 255, 255, 0.22)",
+          borderBottom: "none",
+          borderRadius: "32px 32px 0 0",
           padding: "12px 20px 34px",
           zIndex: 10000,
-          boxShadow: "0 -10px 40px rgba(0,0,0,0.6)",
+          boxShadow: "0 -12px 48px rgba(0, 0, 0, 0.65)",
           userSelect: "none",
           touchAction: "none", // Let JS handle all non-scrollable area gestures
           maxHeight: "min(86dvh, 720px)",
@@ -148,11 +153,6 @@ export function SpringDrawer({
           transition: isDragging ? "opacity 300ms ease" : "transform 380ms cubic-bezier(0.16, 1, 0.3, 1), opacity 300ms cubic-bezier(0.16, 1, 0.3, 1)",
         }}
       >
-        {/* Glass top edge highlights */}
-        <div style={{
-          position: 'absolute', top: 0, left: 20, right: 20, height: 1,
-          background: 'rgba(255,255,255,0.08)', pointerEvents: 'none',
-        }} />
 
         {/* Swipe Handle Indicator Bar */}
         <div style={{

@@ -248,10 +248,21 @@ const InteractiveDeviceMockup = ({ title, description, navBarType }: Interactive
 
           {/* Interactive Sliding Modal sheet (Within Mock Device Viewport) */}
           <div 
-            className={`absolute inset-x-0 bottom-0 bg-[#0c0c0c] border-t border-neutral-800 rounded-t-2xl z-50 p-4 transition-transform duration-350 ease-out select-none flex flex-col justify-between ${
-              isDrawerOpen ? "translate-y-0 shadow-[0_-8px_24px_rgba(0,0,0,0.85)]" : "translate-y-full"
+            className={`absolute inset-x-0 bottom-0 z-50 p-4 transition-transform duration-350 ease-out select-none flex flex-col justify-between ${
+              isDrawerOpen ? "translate-y-0" : "translate-y-full"
             }`}
-            style={{ height: "180px" }}
+            style={{
+              height: "180px",
+              background: "linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(20, 20, 20, 0.35) 100%)",
+              backdropFilter: "blur(24px)",
+              WebkitBackdropFilter: "blur(24px)",
+              borderRadius: "32px 32px 0 0",
+              borderTop: "1.5px solid rgba(255, 255, 255, 0.55)",
+              borderLeft: "1px solid rgba(255, 255, 255, 0.22)",
+              borderRight: "1px solid rgba(255, 255, 255, 0.22)",
+              borderBottom: "none",
+              boxShadow: "0 -12px 48px rgba(0, 0, 0, 0.65)",
+            }}
           >
             <form onSubmit={handleCreateItem} className="flex-grow flex flex-col justify-between">
               <div className="space-y-2">

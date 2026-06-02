@@ -21,6 +21,97 @@ import { ChooseUsernameModal } from "./components/ChooseUsernameModal";
 import { SpringDrawer } from "../ui/drawer/SpringDrawer";
 import { mapDeadlineProps } from "@/features/deadlines/utils/deadlineStatus";
 
+// CrossfadeVideo: two stacked <video> elements that crossfade at loop end
+// so playback is continuous with no visible cut.
+function CrossfadeVideo({ src, style }: { src: string; style?: React.CSSProperties }) {
+  const refA = React.useRef<HTMLVideoElement | null>(null);
+  const refB = React.useRef<HTMLVideoElement | null>(null);
+  // 0 = A is active, 1 = B is active
+  const activeRef = React.useRef<0 | 1>(0);
+  const crossfadingRef = React.useRef(false);
+  const animIdRef = React.useRef<number>(0);
+
+  const SPEED = 0.5;          // 50% playback speed
+  const FADE_SECS = 2.5;      // crossfade overlap duration in seconds
+
+  React.useEffect(() => {
+    const vA = refA.current;
+    const vB = refB.current;
+    if (!vA || !vB) return;
+
+    // Initialise both videos
+    vA.playbackRate = SPEED;
+    vB.playbackRate = SPEED;
+    vA.style.opacity = "1";
+    vB.style.opacity = "0";
+
+    vA.play().catch(() => {});
+
+    const tick = () => {
+      const active = activeRef.current === 0 ? vA : vB;
+      const next   = activeRef.current === 0 ? vB : vA;
+
+      if (!active.duration || isNaN(active.duration)) {
+        animIdRef.current = requestAnimationFrame(tick);
+        return;
+      }
+
+      const remaining = active.duration - active.currentTime;
+
+      if (!crossfadingRef.current && remaining <= FADE_SECS / SPEED) {
+        // Start crossfade: cue next video slightly before current ends
+        crossfadingRef.current = true;
+        next.currentTime = 0;
+        next.playbackRate = SPEED;
+        next.play().catch(() => {});
+      }
+
+      if (crossfadingRef.current) {
+        // Progress of fade: 0 → 1 over FADE_SECS of *real* time
+        const fadeProgress = Math.min(
+          1,
+          1 - (remaining * SPEED) / FADE_SECS
+        );
+        active.style.opacity = String(1 - fadeProgress);
+        next.style.opacity   = String(fadeProgress);
+
+        if (fadeProgress >= 1) {
+          // Swap active
+          active.pause();
+          active.style.opacity = "0";
+          next.style.opacity   = "1";
+          activeRef.current    = activeRef.current === 0 ? 1 : 0;
+          crossfadingRef.current = false;
+        }
+      }
+
+      animIdRef.current = requestAnimationFrame(tick);
+    };
+
+    animIdRef.current = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(animIdRef.current);
+      vA.pause();
+      vB.pause();
+    };
+  }, []);
+
+  const sharedStyle: React.CSSProperties = {
+    ...style,
+    position: "absolute",
+    inset: 0,
+    transition: "none", // opacity driven by rAF, not CSS
+  };
+
+  return (
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      <video ref={refA} src={src} muted playsInline style={{ ...sharedStyle, opacity: 1 }} />
+      <video ref={refB} src={src} muted playsInline style={{ ...sharedStyle, opacity: 0 }} />
+    </div>
+  );
+}
+
+
 export default function DashboardContent() {
   const [activeNav, setActiveNav] = React.useState("home");
   const [activeDrawer, setActiveDrawer] = React.useState<ActiveDrawer | null>(null);
@@ -232,8 +323,37 @@ export default function DashboardContent() {
         WebkitFontSmoothing: "antialiased",
         MozOsxFontSmoothing: "grayscale"
       }}>
+        {/* Ambient video background loop */}
+        <div style={{
+          position: "absolute",
+          inset: 0,
+          zIndex: 0,
+          pointerEvents: "none",
+          opacity: 0.22, // Keep background ambient and readable
+          overflow: "hidden",
+        }}>
+          <CrossfadeVideo
+            src="/loop-video.mp4"
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+            }}
+          />
+
+          {/* Lime tint: color blend preserves luminance/detail */}
+          <div style={{
+            position: "absolute",
+            inset: 0,
+            background: "linear-gradient(135deg, #f3ffb3 0%, #ccff00 35%, #88cc00 70%, #449900 100%)",
+            mixBlendMode: "color",
+          }} />
+        </div>
+
+
+
         {/* Main Content */}
-        <div style={{ padding: "0 20px" }}>
+        <div style={{ padding: "0 20px", position: "relative", zIndex: 1 }}>
           {/* Header section trigger profile -> settings */}
           <GreetingHero onProfileClick={() => handleNavChange("settings")} />
 

@@ -118,7 +118,7 @@ export default function AuthScreen() {
     <AuthBackground>
       {/* TOP ZONE — #0f0f0f — Centered logo in the middle of spacing */}
       <div style={{
-        minHeight: "140px",
+        flex: 1,
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
@@ -168,11 +168,16 @@ export default function AuthScreen() {
 
       {/* BOTTOM SHEET — #1c1c1e */}
       <div style={{
-        background: "#1c1c1e",
+        background: "linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(20, 20, 20, 0.35) 100%)",
+        backdropFilter: "blur(24px)",
+        WebkitBackdropFilter: "blur(24px)",
         borderRadius: "32px 32px 0 0",
         padding: "12px 20px 16px",
-        borderTop: "1px solid rgba(255,255,255,0.07)",
-        boxShadow: "0 -12px 48px rgba(0,0,0,0.6)",
+        borderTop: "1.5px solid rgba(255, 255, 255, 0.55)",
+        borderLeft: "1px solid rgba(255, 255, 255, 0.22)",
+        borderRight: "1px solid rgba(255, 255, 255, 0.22)",
+        borderBottom: "none",
+        boxShadow: "0 -12px 48px rgba(0, 0, 0, 0.65)",
         animation: "sheetUp 0.55s 0.1s cubic-bezier(0.16,1,0.3,1) both",
         position: "relative",
         zIndex: 50,
