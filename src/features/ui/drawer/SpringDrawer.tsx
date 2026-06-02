@@ -26,6 +26,7 @@ export function SpringDrawer({
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
   const [animate, setAnimate] = useState(false);
+  const [isDragging, setIsDragging] = useState(false); // Clean state-driven tracking to avoid React style diff fight
 
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -81,6 +82,7 @@ export function SpringDrawer({
     scrollRef,
     closeThreshold,
     velocityThreshold,
+    onDragStateChange: setIsDragging,
   });
 
   // Keyboard Escape listener
@@ -141,9 +143,9 @@ export function SpringDrawer({
           display: "flex",
           flexDirection: "column",
           outline: "none",
-          transform: isDraggingActive() ? undefined : (animate ? "translate3d(0, 0%, 0)" : "translate3d(0, 100%, 0)"),
+          transform: isDragging ? undefined : (animate ? "translate3d(0, 0%, 0)" : "translate3d(0, 100%, 0)"),
           opacity: animate ? 1 : 0,
-          transition: isDraggingActive() ? "opacity 300ms ease" : "transform 380ms cubic-bezier(0.16, 1, 0.3, 1), opacity 300ms cubic-bezier(0.16, 1, 0.3, 1)",
+          transition: isDragging ? "opacity 300ms ease" : "transform 380ms cubic-bezier(0.16, 1, 0.3, 1), opacity 300ms cubic-bezier(0.16, 1, 0.3, 1)",
         }}
       >
         {/* Glass top edge highlights */}
@@ -188,11 +190,6 @@ export function SpringDrawer({
       </div>
     </>
   );
-
-  function isDraggingActive() {
-    // Helper to determine if we should animate transitions
-    return sheetRef.current?.style.transition === "none";
-  }
 
   return createPortal(content, document.body);
 }

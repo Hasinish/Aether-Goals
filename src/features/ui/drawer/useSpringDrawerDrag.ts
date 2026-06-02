@@ -9,6 +9,7 @@ interface SpringDrawerDragProps {
   scrollRef?: React.RefObject<HTMLElement | null>;
   closeThreshold?: number; // pixel distance to dismiss
   velocityThreshold?: number; // velocity to dismiss (px/ms)
+  onDragStateChange?: (active: boolean) => void; // Callback to notify parent of active drag/spring phase
 }
 
 function isInteractiveElement(el: HTMLElement): boolean {
@@ -42,6 +43,7 @@ export function useSpringDrawerDrag({
   scrollRef,
   closeThreshold = 100,
   velocityThreshold = 0.55,
+  onDragStateChange,
 }: SpringDrawerDragProps) {
   const onCloseRef = useRef(onClose);
   useEffect(() => {
@@ -117,13 +119,14 @@ export function useSpringDrawerDrag({
         sheet.style.transition = "";
         dragYRef.current = 0;
         velocityRef.current = 0;
+        onDragStateChange?.(false); // Restored to clean stable position!
       } else {
         animFrameIdRef.current = requestAnimationFrame(step);
       }
     };
 
     animFrameIdRef.current = requestAnimationFrame(step);
-  }, [sheetRef]);
+  }, [sheetRef, onDragStateChange]);
 
   useEffect(() => {
     const sheet = sheetRef.current;
@@ -156,6 +159,8 @@ export function useSpringDrawerDrag({
       lastYRef.current = e.clientY;
       lastTimeRef.current = performance.now();
       velocityRef.current = 0;
+
+      onDragStateChange?.(true); // Drag is now active!
 
       if (!insideScroll) {
         dragModeRef.current = "sheet";
@@ -237,6 +242,7 @@ export function useSpringDrawerDrag({
         const velocity = velocityRef.current;
 
         if (currentDrag > closeThreshold || velocity > velocityThreshold) {
+          onDragStateChange?.(false); // Restoring to regular React CSS transitions down
           sheet.style.transition = "transform 0.28s cubic-bezier(0.32, 0.94, 0.6, 1)";
           sheet.style.transform = "translate3d(0, 100%, 0)";
           
@@ -252,6 +258,8 @@ export function useSpringDrawerDrag({
         } else {
           startSpringBack();
         }
+      } else {
+        onDragStateChange?.(false); // Restored!
       }
 
       dragModeRef.current = "undecided";
@@ -282,6 +290,8 @@ export function useSpringDrawerDrag({
       lastYRef.current = touch.clientY;
       lastTimeRef.current = performance.now();
       velocityRef.current = 0;
+
+      onDragStateChange?.(true); // Drag is now active!
 
       if (!insideScroll) {
         dragModeRef.current = "sheet";
@@ -353,6 +363,7 @@ export function useSpringDrawerDrag({
         const velocity = velocityRef.current;
 
         if (currentDrag > closeThreshold || velocity > velocityThreshold) {
+          onDragStateChange?.(false); // Restored!
           sheet.style.transition = "transform 0.28s cubic-bezier(0.32, 0.94, 0.6, 1)";
           sheet.style.transform = "translate3d(0, 100%, 0)";
           
@@ -368,6 +379,8 @@ export function useSpringDrawerDrag({
         } else {
           startSpringBack();
         }
+      } else {
+        onDragStateChange?.(false); // Restored!
       }
 
       dragModeRef.current = "undecided";
@@ -412,7 +425,7 @@ export function useSpringDrawerDrag({
         cancelAnimationFrame(animFrameIdRef.current);
       }
     };
-  }, [isOpen, sheetRef, scrollRef, closeThreshold, velocityThreshold, getScrollParent, startSpringBack]);
+  }, [isOpen, sheetRef, scrollRef, closeThreshold, velocityThreshold, getScrollParent, startSpringBack, onDragStateChange]);
 
   // Clean up animation on unmount or when drawer is closed programmatically
   useEffect(() => {
