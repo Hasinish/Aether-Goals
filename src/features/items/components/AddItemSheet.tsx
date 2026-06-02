@@ -30,6 +30,9 @@ export function AddItemSheet({ onClose, onCreate, editItem }: AddItemSheetProps)
     setDeadlineTitle,
     deadlineDueDate,
     setDeadlineDueDate,
+    nlpInput,
+    setNlpInput,
+    parsedDate,
     isSubmitting,
     isDeleting,
     showConfirmDelete,
@@ -144,6 +147,9 @@ export function AddItemSheet({ onClose, onCreate, editItem }: AddItemSheetProps)
             setDeadlineTitle={setDeadlineTitle}
             deadlineDueDate={deadlineDueDate}
             setDeadlineDueDate={setDeadlineDueDate}
+            nlpInput={nlpInput}
+            setNlpInput={setNlpInput}
+            parsedDate={parsedDate}
           />
         )}
       </div>

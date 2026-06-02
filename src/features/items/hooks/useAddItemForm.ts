@@ -1,16 +1,13 @@
 "use client";
 
 import React from "react";
+import * as chrono from "chrono-node";
 import { Subtask } from "@/lib/types";
 import { useGoalsStore } from "@/lib/store";
 import { useHabitsStore } from "@/lib/habitStore";
 import { useDeadlinesStore } from "@/lib/deadlineStore";
 import { useToast } from "@/features/dashboard/components/ToastProvider";
 import { EditItem } from "../types";
-
-function fromDateTimeLocalValue(value: string): string {
-  return new Date(value).toISOString();
-}
 
 function toDateTimeLocalValue(iso: string): string {
   const date = new Date(iso);
@@ -44,10 +41,38 @@ export function useAddItemForm({ onClose, onCreate, editItem }: UseAddItemFormPr
 
   const [deadlineTitle, setDeadlineTitle] = React.useState("");
   const [deadlineDueDate, setDeadlineDueDate] = React.useState("");
+  const [nlpInput, setNlpInput] = React.useState("");
+  const [parsedDate, setParsedDate] = React.useState<Date | null>(null);
 
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = React.useState(false);
+
+  // NLP Dynamic Date Parser
+  React.useEffect(() => {
+    if (!nlpInput.trim()) {
+      if (deadlineDueDate) {
+        setParsedDate(new Date(deadlineDueDate));
+      } else {
+        setParsedDate(null);
+      }
+      return;
+    }
+
+    const parsed = chrono.parseDate(nlpInput);
+    if (parsed) {
+      setParsedDate(parsed);
+      const offset = parsed.getTimezoneOffset();
+      const localTime = new Date(parsed.getTime() - offset * 60 * 1000);
+      setDeadlineDueDate(localTime.toISOString().slice(0, 16));
+    } else {
+      if (deadlineDueDate) {
+        setParsedDate(new Date(deadlineDueDate));
+      } else {
+        setParsedDate(null);
+      }
+    }
+  }, [nlpInput, deadlineDueDate]);
 
   // Load edit item data if present
   React.useEffect(() => {
@@ -71,6 +96,8 @@ export function useAddItemForm({ onClose, onCreate, editItem }: UseAddItemFormPr
         const deadlineData = editItem.data;
         setDeadlineTitle(deadlineData.title);
         setDeadlineDueDate(toDateTimeLocalValue(deadlineData.due_date));
+        setParsedDate(new Date(deadlineData.due_date));
+        setNlpInput("");
       }
     } else {
       setGoalTitle("");
@@ -82,6 +109,8 @@ export function useAddItemForm({ onClose, onCreate, editItem }: UseAddItemFormPr
       setDeadlineTitle("");
       const defaultDate = new Date(Date.now() + 24 * 3600000).toISOString();
       setDeadlineDueDate(toDateTimeLocalValue(defaultDate));
+      setParsedDate(new Date(defaultDate));
+      setNlpInput("");
     }
   }, [editItem]);
 
@@ -140,8 +169,8 @@ export function useAddItemForm({ onClose, onCreate, editItem }: UseAddItemFormPr
       } else if (activeType === "deadline") {
         const titleTrimmed = deadlineTitle.trim();
         if (!titleTrimmed) throw new Error("Title is required");
-        if (!deadlineDueDate) throw new Error("Due date is required");
-        const targetDate = fromDateTimeLocalValue(deadlineDueDate);
+        if (!parsedDate || isNaN(parsedDate.getTime())) throw new Error("Due date is required");
+        const targetDate = parsedDate.toISOString();
 
         if (editItem && editItem.type === "deadline") {
           await updateDeadline(editItem.data.id, titleTrimmed, targetDate, editItem.data.completed);
@@ -208,6 +237,9 @@ export function useAddItemForm({ onClose, onCreate, editItem }: UseAddItemFormPr
     setDeadlineTitle,
     deadlineDueDate,
     setDeadlineDueDate,
+    nlpInput,
+    setNlpInput,
+    parsedDate,
     isSubmitting,
     isDeleting,
     showConfirmDelete,
