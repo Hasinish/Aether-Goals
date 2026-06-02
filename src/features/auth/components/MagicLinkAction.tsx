@@ -17,8 +17,8 @@ export function MagicLinkAction({ onSend }: MagicLinkActionProps) {
         letterSpacing: "0.08em",
         textTransform: "uppercase",
         paddingLeft: 4,
-        marginBottom: 4,
-        marginTop: 12,
+        marginBottom: 2,
+        marginTop: 8,
       }}>
         Or continue with
       </div>
@@ -31,7 +31,7 @@ export function MagicLinkAction({ onSend }: MagicLinkActionProps) {
           borderRadius: 16,
           border: "1px solid rgba(255,255,255,0.06)",
           padding: "0 16px",
-          height: 46,
+          height: 40,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -44,12 +44,12 @@ export function MagicLinkAction({ onSend }: MagicLinkActionProps) {
         onMouseLeave={e => e.currentTarget.style.background = "#2c2c2e"}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Mail size={17} color="#8e8e93" />
-          <span style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>
+          <Mail size={16} color="#8e8e93" />
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>
             Send Magic Link
           </span>
         </div>
-        <span style={{ fontSize: 18, color: "#48484a" }}>›</span>
+        <span style={{ fontSize: 16, color: "#48484a" }}>›</span>
       </button>
     </div>
   );

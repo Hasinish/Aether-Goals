@@ -118,11 +118,11 @@ export default function AuthScreen() {
     <AuthBackground>
       {/* TOP ZONE — #0f0f0f — Centered logo in the middle of spacing */}
       <div style={{
-        minHeight: "220px",
+        minHeight: "140px",
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
-        padding: "54px 28px 16px",
+        padding: "44px 24px 12px",
         position: "relative",
       }}>
         {/* Top left action buttons */}
@@ -141,9 +141,9 @@ export default function AuthScreen() {
         </div>
 
         {/* Main Brand Heading */}
-        <div style={{ marginTop: 12 }}>
+        <div style={{ marginTop: 8 }}>
           <h1 style={{
-            fontSize: 42,
+            fontSize: 34,
             fontWeight: 900,
             color: "#ffffff",
             letterSpacing: "-1.5px",
@@ -155,10 +155,10 @@ export default function AuthScreen() {
             <span style={{ color: "#ccff00" }}>Goals</span>
           </h1>
           <p style={{
-            fontSize: 15,
+            fontSize: 14,
             fontWeight: 400,
             color: "#48484a",
-            marginTop: 6,
+            marginTop: 4,
             animation: "fadeUp 0.4s 0.1s ease both",
           }}>
             Track what matters.
@@ -170,7 +170,7 @@ export default function AuthScreen() {
       <div style={{
         background: "#1c1c1e",
         borderRadius: "32px 32px 0 0",
-        padding: "16px 20px 20px",
+        padding: "12px 20px 16px",
         borderTop: "1px solid rgba(255,255,255,0.07)",
         boxShadow: "0 -12px 48px rgba(0,0,0,0.6)",
         animation: "sheetUp 0.55s 0.1s cubic-bezier(0.16,1,0.3,1) both",
@@ -183,7 +183,7 @@ export default function AuthScreen() {
           height: 4,
           borderRadius: 2,
           background: "rgba(255,255,255,0.18)",
-          margin: "0 auto 12px",
+          margin: "0 auto 8px",
         }} />
 
         {!isDbReady ? (
@@ -243,11 +243,11 @@ export default function AuthScreen() {
           /* STANDARD FORM */
           <>
             {/* Sheet Heading */}
-            <div style={{ marginBottom: 14 }}>
-              <h2 style={{ fontSize: 28, fontWeight: 800, color: "#fff", letterSpacing: "-0.5px" }}>
+            <div style={{ marginBottom: 8 }}>
+              <h2 style={{ fontSize: 24, fontWeight: 800, color: "#fff", letterSpacing: "-0.5px" }}>
                 Welcome back
               </h2>
-              <p style={{ fontSize: 14, color: "#8e8e93", marginTop: 4 }}>
+              <p style={{ fontSize: 13, color: "#8e8e93", marginTop: 3 }}>
                 Sign in to your account
               </p>
             </div>
@@ -302,7 +302,7 @@ export default function AuthScreen() {
               background: "#2c2c2e",
               borderRadius: 22,
               padding: 3,
-              marginBottom: 14,
+              marginBottom: 8,
             }}>
               {["Sign In", "Sign Up"].map(label => {
                 const active = (label === "Sign In") ? isSignIn : !isSignIn;
@@ -316,12 +316,12 @@ export default function AuthScreen() {
                     }}
                     style={{
                       flex: 1,
-                      padding: "10px 0",
+                      padding: "7px 0",
                       borderRadius: 19,
                       border: "none",
                       background: active ? "#ccff00" : "transparent",
                       color: active ? "#000" : "#8e8e93",
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: 700,
                       cursor: "pointer",
                       fontFamily: "inherit",
@@ -344,7 +344,7 @@ export default function AuthScreen() {
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
                 paddingLeft: 4,
-                marginBottom: 4,
+                marginBottom: 2,
                 animation: "fadeUp 0.4s 0.25s ease both",
               }}>
                 Account
@@ -355,7 +355,7 @@ export default function AuthScreen() {
                 background: "#2c2c2e",
                 borderRadius: 16,
                 overflow: "hidden",
-                marginBottom: 12,
+                marginBottom: 8,
                 border: "1px solid rgba(255,255,255,0.06)",
                 animation: "fadeUp 0.4s 0.25s ease both",
               }}>
@@ -364,7 +364,7 @@ export default function AuthScreen() {
                   display: "flex",
                   alignItems: "center",
                   padding: "0 16px",
-                  height: 46,
+                  height: 40,
                   gap: 12,
                 }}>
                   <span style={{ fontSize: 13, fontWeight: 500, color: "#8e8e93", width: 72, flexShrink: 0 }}>
@@ -382,7 +382,7 @@ export default function AuthScreen() {
                       background: "transparent",
                       border: "none",
                       color: "#fff",
-                      fontSize: 15,
+                      fontSize: 14,
                       fontFamily: "inherit",
                       outline: "none",
                       textAlign: "right",
@@ -398,7 +398,7 @@ export default function AuthScreen() {
                   display: "flex",
                   alignItems: "center",
                   padding: "0 16px",
-                  height: 46,
+                  height: 40,
                   gap: 12,
                 }}>
                   <span style={{ fontSize: 13, fontWeight: 500, color: "#8e8e93", width: 72, flexShrink: 0 }}>
@@ -416,7 +416,7 @@ export default function AuthScreen() {
                       background: "transparent",
                       border: "none",
                       color: "#fff",
-                      fontSize: 15,
+                      fontSize: 14,
                       fontFamily: "inherit",
                       outline: "none",
                       textAlign: "right",
@@ -442,19 +442,19 @@ export default function AuthScreen() {
                 disabled={loading}
                 style={{
                   width: "100%",
-                  height: 48,
+                  height: 40,
                   background: loading ? "rgba(204,255,0,0.5)" : "#ccff00",
                   color: "#000",
                   border: "none",
-                  borderRadius: 16,
-                  fontSize: 15,
+                  borderRadius: 14,
+                  fontSize: 14,
                   fontWeight: 800,
                   letterSpacing: "0.02em",
                   cursor: "pointer",
                   fontFamily: "inherit",
                   transition: "transform 0.12s ease, box-shadow 0.2s ease, background 0.2s ease",
                   boxShadow: "0 4px 20px rgba(204,255,0,0.25)",
-                  marginBottom: 8,
+                  marginBottom: 4,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -483,7 +483,7 @@ export default function AuthScreen() {
           textAlign: "center",
           fontSize: 11,
           color: "#3a3a3c",
-          marginTop: 16,
+          marginTop: 10,
           lineHeight: 1.6,
         }}>
           By continuing you agree to our Terms & Privacy Policy.
