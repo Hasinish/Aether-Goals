@@ -40,3 +40,11 @@ collect_codebase.py
 /ai_context/
 
 .vercel
+
+# Android build and IDE configs
+/android/.idea/
+/android/.gradle/
+/android/local.properties
+/android/app/build/
+/android/build/
+/android/capacitor-cordova-android-plugins/
