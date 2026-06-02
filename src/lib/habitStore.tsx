@@ -33,6 +33,11 @@ export const createHabitId = (): string => {
   return `habit-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 };
 
+// Deterministic ID for habit_logs upserts based on habit ID and date
+export const createHabitLogId = (habitId: string, date: string): string => {
+  return `${habitId}-${date}`;
+};
+
 /** Returns today's date as "YYYY-MM-DD" in local time */
 export const todayString = (): string => {
   const d = new Date();
@@ -112,7 +117,7 @@ const HabitStoreContext = createContext<HabitStoreContextProps | undefined>(unde
 
 export const HabitStoreProvider: React.FC<{
   children: React.ReactNode;
-  user: User | "guest" | null;
+  user: User | null;
 }> = ({ children, user }) => {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [allLogs, setAllLogs] = useState<HabitLog[]>([]);
@@ -120,7 +125,6 @@ export const HabitStoreProvider: React.FC<{
   const [pendingHabitIds, setPendingHabitIds] = useState<Set<string>>(new Set());
   const [syncError, setSyncError] = useState<string | null>(null);
   const clearSyncError = () => setSyncError(null);
-  const isOfflineMode = false;
   const isReorderingRef = useRef(false);
 
   const addPending = useCallback(
@@ -182,7 +186,7 @@ export const HabitStoreProvider: React.FC<{
       let rawHabits: Omit<Habit, "logs" | "completionsToday" | "streak">[] = [];
       let logs: HabitLog[] = [];
 
-      if (!isOfflineMode && user && user !== "guest") {
+      if (user) {
         ({ rawHabits, logs } = await fetchFromSupabase());
       }
 
@@ -194,7 +198,7 @@ export const HabitStoreProvider: React.FC<{
     } finally {
       setLoading(false);
     }
-  }, [user, isOfflineMode, fetchFromSupabase, buildHabits]);
+  }, [user, fetchFromSupabase, buildHabits]);
 
   useEffect(() => {
     fetchData();
@@ -214,7 +218,7 @@ export const HabitStoreProvider: React.FC<{
 
       const newRaw: Omit<Habit, "logs" | "completionsToday" | "streak"> = {
         id,
-        user_id: user && user !== "guest" ? user.id : null,
+        user_id: user ? user.id : null,
         title,
         tags: dbTags,
         daily_target: dailyTarget,
@@ -228,7 +232,7 @@ export const HabitStoreProvider: React.FC<{
       addPending(id);
 
       try {
-        if (user && user !== "guest") {
+        if (user) {
           const client = getSupabaseClient();
           const { error } = await client.from("habits").insert({
             id: newRaw.id,
@@ -279,7 +283,7 @@ export const HabitStoreProvider: React.FC<{
       addPending(id);
 
       try {
-        if (user && user !== "guest") {
+        if (user) {
           const client = getSupabaseClient();
           const { data, error } = await client
             .from("habits")
@@ -315,7 +319,7 @@ export const HabitStoreProvider: React.FC<{
       setHabits((hs) => hs.filter((h) => h.id !== id));
 
       try {
-        if (user && user !== "guest") {
+        if (user) {
           const client = getSupabaseClient();
           const { data, error } = await client.from("habits").delete().eq("id", id).select();
           if (error) throw error;
@@ -361,7 +365,7 @@ export const HabitStoreProvider: React.FC<{
           if (h.id !== habitId) return h;
           const updatedLogs = (h.logs ?? []).filter((l) => l.log_date !== today);
           const todayLog: HabitLog = {
-            id: `${habitId}-${today}`,
+            id: createHabitLogId(habitId, today),
             habit_id: habitId,
             user_id: h.user_id,
             log_date: today,
@@ -380,7 +384,7 @@ export const HabitStoreProvider: React.FC<{
         );
         if (newCompletions > 0) {
           filtered.push({
-            id: `${habitId}-${today}`,
+            id: createHabitLogId(habitId, today),
             habit_id: habitId,
             user_id: habit.user_id,
             log_date: today,
@@ -391,7 +395,7 @@ export const HabitStoreProvider: React.FC<{
       });
 
       try {
-        if (user && user !== "guest") {
+        if (user) {
           const client = getSupabaseClient();
           if (newCompletions === 0) {
             // Delete the log row
@@ -406,6 +410,7 @@ export const HabitStoreProvider: React.FC<{
             // Upsert (insert or update)
             const { data, error } = await client.from("habit_logs").upsert(
               {
+                id: createHabitLogId(habitId, today),
                 habit_id: habitId,
                 user_id: habit.user_id,
                 log_date: today,
@@ -426,6 +431,7 @@ export const HabitStoreProvider: React.FC<{
         const msg = getErrorMessage(e);
         setSyncError(`Failed to log completion: ${msg}`);
         await fetchData();
+        throw e;
       }
     },
     [habits, user, fetchData]
@@ -445,7 +451,7 @@ export const HabitStoreProvider: React.FC<{
       setHabits(reordered);
 
       try {
-        if (user && user !== "guest") {
+        if (user) {
           const client = getSupabaseClient();
           const updatePromises = reordered.map((h) =>
             client

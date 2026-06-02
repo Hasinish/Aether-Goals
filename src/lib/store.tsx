@@ -20,12 +20,11 @@ export const createId = (prefix = "id"): string => {
 interface StoreContextProps {
   goals: Goal[];
   loading: boolean;
-  user: User | "guest" | null;
-  isOfflineMode: boolean;
+  user: User | null;
+  username: string;
   pendingGoalIds: Set<string>;
   syncError: string | null;
   clearSyncError: () => void;
-  loginAsGuest: () => void;
   logout: () => Promise<void>;
   addGoal: (title: string, tags: string[], subtaskTitles: string[]) => Promise<void>;
   updateGoal: (goalId: string, title: string, tags: string[], subtasksInput: { id?: string; title: string; is_complete?: boolean; sort_order?: number }[]) => Promise<void>;
@@ -33,6 +32,7 @@ interface StoreContextProps {
   toggleSubtask: (subtaskId: string) => Promise<void>;
   reorderGoals: (startIndex: number, endIndex: number) => Promise<void>;
   refreshData: () => Promise<void>;
+  updateUsername: (username: string) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextProps | undefined>(undefined);
@@ -40,8 +40,8 @@ const StoreContext = createContext<StoreContextProps | undefined>(undefined);
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [user, setUser] = useState<User | "guest" | null>(null);
-  const [isOfflineMode, setIsOfflineMode] = useState<boolean>(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [username, setUsername] = useState<string>("");
   
   // Track concurrent pending goals
   const [pendingGoalIds, setPendingGoalIds] = useState<Set<string>>(new Set());
@@ -129,7 +129,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setLoading(true);
     try {
       const dbConfigured = isSupabaseConfigured();
-      if (dbConfigured && user && user !== "guest") {
+      if (dbConfigured && user) {
         // ── Authenticated path: 100% Supabase only. No localStorage reads. ──
         const client = getSupabaseClient();
         const { data: goalsData, error: goalsError } = await client
@@ -184,7 +184,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     const dbConfigured = isSupabaseConfigured();
-    setIsOfflineMode(false);
 
     let subscription: { unsubscribe: () => void } | null = null;
 
@@ -215,7 +214,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setUser(null);
           }
         } catch {
-          setIsOfflineMode(false);
+          // silent fallback
         }
       } else {
         setUser(null);
@@ -231,12 +230,76 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, []);
 
+  // Fetch username from DB when user changes
+  useEffect(() => {
+    const fetchUsername = async () => {
+      if (user) {
+        if (user.user_metadata?.username) {
+          setUsername(user.user_metadata.username);
+        }
+        try {
+          if (isSupabaseConfigured()) {
+            const client = getSupabaseClient();
+            const { data } = await client
+              .from("profiles")
+              .select("username")
+              .eq("id", user.id)
+              .maybeSingle();
+
+            if (data?.username) {
+              setUsername(data.username);
+            }
+          }
+        } catch (e) {
+          console.error("Error fetching username:", e);
+        }
+      } else {
+        setUsername("");
+      }
+    };
+    fetchUsername();
+  }, [user]);
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  const loginAsGuest = () => {
-    // No-op: Guest mode is completely removed.
+  const updateUsername = async (newUsername: string) => {
+    if (!user) {
+      throw new Error("User must be authenticated to update username.");
+    }
+    if (newUsername.trim().length < 3) {
+      throw new Error("Username must be at least 3 characters.");
+    }
+    try {
+      if (isSupabaseConfigured()) {
+        const client = getSupabaseClient();
+        const { error: profileError } = await client
+          .from("profiles")
+          .upsert({
+            id: user.id,
+            username: newUsername.trim(),
+            updated_at: new Date().toISOString(),
+          });
+        if (profileError) {
+          console.warn("Could not sync to profiles table, falling back to metadata:", profileError.message);
+        }
+
+        const { data: updateData, error: authError } = await client.auth.updateUser({
+          data: { username: newUsername.trim() }
+        });
+        if (authError) throw authError;
+
+        if (updateData?.user) {
+          setUser(updateData.user);
+        }
+      }
+      setUsername(newUsername.trim());
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : String(e);
+      setSyncError(`Failed to update username: ${errMsg}`);
+      throw e;
+    }
   };
 
   const logout = async () => {
@@ -247,7 +310,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
       setSyncError(`Logout failed: ${errMsg}`);
-      return; // Don't wipe UI session if DB logout fails
+      throw e;
     }
     setUser(null);
   };
@@ -258,7 +321,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const newSortOrder = minSortOrder - 1;
     const newGoal: Goal = {
       id: newGoalId,
-      user_id: user && user !== "guest" ? user.id : null,
+      user_id: user ? user.id : null,
       title,
       tags,
       created_at: new Date().toISOString(),
@@ -281,7 +344,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addPendingId(newGoalId);
 
     try {
-      if (user && user !== "guest") {
+      if (user) {
         const client = getSupabaseClient();
         const { error: gError } = await client.from("goals").insert({
           id: newGoal.id,
@@ -347,7 +410,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
 
     try {
-      if (user && user !== "guest") {
+      if (user) {
         const client = getSupabaseClient();
         
         const originalSubtasks = goalToUpdate?.subtasks || [];
@@ -398,7 +461,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setGoals((prev) => prev.filter((g) => g.id !== goalId));
 
     try {
-      if (user && user !== "guest") {
+      if (user) {
         const client = getSupabaseClient();
         const { data, error: gError } = await client.from("goals").delete().eq("id", goalId).select();
         if (gError) throw gError;
@@ -471,7 +534,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     try {
-      if (user && user !== "guest") {
+      if (user) {
         const client = getSupabaseClient();
         const { data, error: upErr } = await client
           .from("subtasks")
@@ -505,6 +568,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       const errMsg = e instanceof Error ? e.message : String(e);
       setSyncError(`Failed to save subtask status: ${errMsg}`);
+      throw e;
     } finally {
       inflightSubtasksRef.current.delete(subtaskId);
     }
@@ -528,7 +592,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setGoals(reordered);
 
     try {
-      if (user && user !== "guest") {
+      if (user) {
         const client = getSupabaseClient();
         const updatePromises = reordered.map((g) =>
           client
@@ -567,11 +631,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         goals,
         loading,
         user,
-        isOfflineMode,
+        username,
         pendingGoalIds,
         syncError,
         clearSyncError,
-        loginAsGuest,
         logout,
         addGoal,
         updateGoal,
@@ -579,6 +642,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         toggleSubtask,
         reorderGoals,
         refreshData,
+        updateUsername,
       }}
     >
       {children}

@@ -36,14 +36,13 @@ export const createDeadlineId = (): string => {
 
 export const DeadlineStoreProvider: React.FC<{
   children: React.ReactNode;
-  user: User | "guest" | null;
+  user: User | null;
 }> = ({ children, user }) => {
   const [deadlines, setDeadlines] = useState<Deadline[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingDeadlineIds, setPendingDeadlineIds] = useState<Set<string>>(new Set());
   const [syncError, setSyncError] = useState<string | null>(null);
   const clearSyncError = () => setSyncError(null);
-  const isOfflineMode = false;
 
   const addPending = useCallback(
     (id: string) => setPendingDeadlineIds((p) => new Set(p).add(id)),
@@ -76,7 +75,7 @@ export const DeadlineStoreProvider: React.FC<{
     setLoading(true);
     try {
       let list: Deadline[] = [];
-      if (!isOfflineMode && user && user !== "guest") {
+      if (user) {
         list = await fetchFromSupabase();
       }
       setDeadlines(list);
@@ -86,7 +85,7 @@ export const DeadlineStoreProvider: React.FC<{
     } finally {
       setLoading(false);
     }
-  }, [user, isOfflineMode, fetchFromSupabase]);
+  }, [user, fetchFromSupabase]);
 
   useEffect(() => {
     fetchData();
@@ -98,7 +97,7 @@ export const DeadlineStoreProvider: React.FC<{
       const id = createDeadlineId();
       const newDeadline: Deadline = {
         id,
-        user_id: user && user !== "guest" ? user.id : null,
+        user_id: user ? user.id : null,
         title,
         due_date: dueDate,
         completed: false,
@@ -110,7 +109,7 @@ export const DeadlineStoreProvider: React.FC<{
       addPending(id);
 
       try {
-        if (user && user !== "guest") {
+        if (user) {
           const client = getSupabaseClient();
           const { error } = await client.from("deadlines").insert(newDeadline);
           if (error) throw error;
@@ -141,7 +140,7 @@ export const DeadlineStoreProvider: React.FC<{
       addPending(id);
 
       try {
-        if (user && user !== "guest") {
+        if (user) {
           const client = getSupabaseClient();
           const { data, error } = await client
             .from("deadlines")
@@ -175,7 +174,7 @@ export const DeadlineStoreProvider: React.FC<{
       setDeadlines((prevList) => prevList.filter((d) => d.id !== id));
 
       try {
-        if (user && user !== "guest") {
+        if (user) {
           const client = getSupabaseClient();
           const { data, error } = await client.from("deadlines").delete().eq("id", id).select();
           if (error) throw error;

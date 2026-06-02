@@ -5,6 +5,7 @@ import React from "react";
 import { Home, Target, Plus, Flame, Settings, Zap, BarChart2, Edit2, Trash2, Calendar, Award, CheckCircle, Percent, X, LogOut, Check, ChevronUp, ChevronDown, Clock, GripVertical } from "lucide-react";
 
 import { useGoalsStore } from "@/lib/store";
+import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
 import AuthScreen from "@/components/AuthScreen";
 import { HabitStoreProvider, useHabitsStore } from "@/lib/habitStore";
 import { DeadlineStoreProvider, useDeadlinesStore } from "@/lib/deadlineStore";
@@ -183,29 +184,52 @@ function getGreeting(): string {
   return "Working late,";
 }
 
-// ─── DEADLINE PROPS MAPPER ───────────────────────────────────────────────────
+interface DeadlineProps {
+  id: string;
+  title: string;
+  sub: string;
+  priority: string;
+  due: number;
+  total: number;
+  completed: boolean;
+  onToggle?: () => void;
+  onClick?: () => void;
+}
 
-function mapDeadlineProps(deadline: Deadline): DeadlineProps {
+function mapDeadlineProps(deadline: Deadline): Omit<DeadlineProps, "onToggle" | "onClick"> {
   const due = new Date(deadline.due_date).getTime();
   const created = deadline.created_at ? new Date(deadline.created_at).getTime() : due - 7 * 86400000;
   const total = Math.max(3600000, due - created);
   const diff = due - Date.now();
-  const isCritical = diff > 0 && diff < 24 * 3600 * 1000;
-  const isHigh = diff > 0 && diff >= 24 * 3600 * 1000 && diff < 3 * 24 * 3600 * 1000;
-  const priority = deadline.completed ? "COMPLETED" : (isCritical ? "CRITICAL" : (isHigh ? "HIGH" : "NORMAL"));
+  const isOverdue = !deadline.completed && diff <= 0;
+  const isCritical = !deadline.completed && diff > 0 && diff < 24 * 3600 * 1000;
+  const isHigh = !deadline.completed && diff >= 24 * 3600 * 1000 && diff < 3 * 24 * 3600 * 1000;
+  const priority = deadline.completed 
+    ? "COMPLETED" 
+    : (isOverdue 
+        ? "OVERDUE" 
+        : (isCritical 
+            ? "CRITICAL" 
+            : (isHigh 
+                ? "HIGH" 
+                : "NORMAL")));
+
   const sub = deadline.completed
-    ? "Timeline successfully achieved"
-    : (isCritical
-        ? "Due today, urgent action required"
-        : isHigh
-          ? "Upcoming short-term milestone"
-          : "Timeline checkpoint on track");
+    ? "Completed successfully."
+    : (isOverdue
+        ? "This deadline is overdue."
+        : (isCritical
+            ? "Due soon. Finish this first."
+            : "Complete before the target time."));
+
   return {
+    id: deadline.id,
     title: deadline.title,
     sub,
     priority,
     due,
     total,
+    completed: deadline.completed,
   };
 }
 
@@ -266,9 +290,9 @@ interface GreetingHeroProps {
 
 function GreetingHero({ onProfileClick }: GreetingHeroProps) {
   const [greeting] = React.useState(getGreeting);
-  const { user, goals } = useGoalsStore();
+  const { user, username, goals } = useGoalsStore();
 
-  const userName = user && user !== "guest" ? (user.email?.split("@")[0] || "User") : "Guest";
+  const userName = user ? (username || user.email?.split("@")[0] || "User") : "Guest";
   const userInitial = userName.charAt(0).toUpperCase();
 
   const activeGoalsCount = goals.length;
@@ -407,7 +431,7 @@ function BentoHeroCard({ onDrawer, onNav }: BentoHeroCardProps) {
   const tags = goal ? goal.tags : ["BEGIN", "AETHER"];
   const deltaText = goal && goal.deltaPercent !== undefined 
     ? `↑ ${goal.deltaPercent >= 0 ? '+' : ''}${goal.deltaPercent}% this week` 
-    : "↑ +100% start";
+    : "↑ +0%";
   const firstTag = tags[0] ? `#${tags[0].toUpperCase()}` : "#GOAL";
 
   const progress = useCountUp(progressPercent, 1000, 200);
@@ -992,7 +1016,7 @@ function GoalCard({ title, progress, tags, delta, done, total, animDelay, onClic
           fontSize: 10, fontWeight: 700, color: 'var(--ac)',
           background: 'var(--ac-soft)', padding: '4px 10px',
           borderRadius: 20, whiteSpace: 'nowrap', flexShrink: 0,
-        }}>↑ {delta}</span>
+        }}>{delta.includes('%') ? `↑ ${delta}` : delta}</span>
       </div>
 
       {/* Progress row */}
@@ -1150,16 +1174,9 @@ function HabitCard({ name, target, done, streak, rate, animDelay, onClick, onChe
   );
 }
 
-interface DeadlineProps {
-  title: string;
-  sub: string;
-  priority: string;
-  due: number;
-  total: number;
-  onClick?: () => void;
-}
 
-function FeaturedDeadline({ title, sub, priority, due, total, onClick }: DeadlineProps) {
+
+function FeaturedDeadline({ id, title, sub, priority, due, total, completed, onToggle, onClick }: DeadlineProps) {
   const [mounted, setMounted] = React.useState(false);
   const toast = useToast();
   React.useEffect(() => {
@@ -1168,12 +1185,11 @@ function FeaturedDeadline({ title, sub, priority, due, total, onClick }: Deadlin
 
   const targetDate = React.useMemo(() => new Date(due), [due]);
   const time = useCountdown(targetDate);
-  const formattedText = mounted ? formatTime(time) : "--h --m left";
-  const [complete, setComplete] = React.useState(false);
+  const formattedText = mounted ? (completed ? "DONE" : formatTime(time)) : "--h --m left";
 
   // Compute elapsed percentage
   const remainingMs = Math.max(0, due - Date.now());
-  const elapsedPercent = Math.round(Math.min(100, Math.max(0, (1 - remainingMs / total) * 100)));
+  const elapsedPercent = completed ? 100 : Math.round(Math.min(100, Math.max(0, (1 - remainingMs / total) * 100)));
 
   return (
     <div 
@@ -1181,37 +1197,42 @@ function FeaturedDeadline({ title, sub, priority, due, total, onClick }: Deadlin
       style={{
         background: "var(--card)",
         borderRadius: 16,
-        borderLeft: "4px solid var(--danger)", // F) Border-left: 3px → 4px solid var(--danger)
-        backgroundImage: "linear-gradient(90deg, rgba(255,92,92,0.04) 0%, transparent 100%)",
+        borderLeft: completed ? "4px solid var(--ok)" : "4px solid var(--danger)",
+        backgroundImage: completed 
+          ? "linear-gradient(90deg, rgba(74,222,128,0.04) 0%, transparent 100%)"
+          : "linear-gradient(90deg, rgba(255,92,92,0.04) 0%, transparent 100%)",
         borderTop: "1px solid var(--b1)",
         borderRight: "1px solid var(--b1)",
         borderBottom: "1px solid var(--b1)",
-        padding: 20, // H) Increase card padding: 18px → 20px
-        minHeight: 200, // I) Add min-height: 200px to give it more presence
+        padding: 20,
+        minHeight: 200,
         position: "relative",
         overflow: "hidden",
         marginBottom: 12,
         animation: "fadeUp 400ms ease both",
         animationDelay: "550ms",
         cursor: onClick ? 'pointer' : 'default',
+        transition: "all 0.2s ease",
       }}
     >
-      {/* G) Add glass highlight first child */}
+      {/* Glass highlight first child */}
       <div style={{
         position: 'absolute', top: 0, left: 14, right: 14, height: 1,
         background: 'rgba(255,255,255,0.06)', pointerEvents: 'none',
       }} />
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        {/* C) Add pulsing dot before CRITICAL badge */}
+        {/* Pulsing dot before badge */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{
-            width: 8, height: 8, borderRadius: '50%', background: '#ff4040',
-            animation: 'pulse 1.5s ease-in-out infinite',
-          }} />
+          {!completed && (
+            <div style={{
+              width: 8, height: 8, borderRadius: '50%', background: '#ff4040',
+              animation: 'pulse 1.5s ease-in-out infinite',
+            }} />
+          )}
           <span style={{
-            background: "rgba(255, 92, 92, 0.2)",
-            color: "var(--danger)",
+            background: completed ? "rgba(74,222,128,0.2)" : "rgba(255, 92, 92, 0.2)",
+            color: completed ? "var(--ok)" : "var(--danger)",
             fontSize: 9,
             fontWeight: 700,
             letterSpacing: "0.08em",
@@ -1222,17 +1243,16 @@ function FeaturedDeadline({ title, sub, priority, due, total, onClick }: Deadlin
           </span>
         </div>
         <span style={{
-          fontSize: 28, // B) Increase time display: 18px → 28px
-          fontWeight: 900, // B) weight 800 → 900
-          color: "var(--danger)",
-          animation: "pulse 1.5s ease-in-out infinite"
+          fontSize: 28,
+          fontWeight: 900,
+          color: completed ? "var(--ok)" : "var(--danger)",
+          animation: completed ? "none" : "pulse 1.5s ease-in-out infinite"
         }}>
           {formattedText}
         </span>
       </div>
 
       <div style={{ marginTop: 12 }}>
-        {/* A) Increase title font size: 18px → 22px, weight 700 → 800 */}
         <h3 style={{ fontSize: 22, fontWeight: 800, color: "var(--t1)" }}>{title}</h3>
         <p style={{ fontSize: 13, color: "var(--t2)", marginTop: 4 }}>{sub}</p>
       </div>
@@ -1249,30 +1269,28 @@ function FeaturedDeadline({ title, sub, priority, due, total, onClick }: Deadlin
         }}>
           <div style={{
             height: "100%",
-            background: "var(--danger)",
+            background: completed ? "var(--ok)" : "var(--danger)",
             borderRadius: 3,
             width: `${elapsedPercent}%`,
             transition: "width 800ms ease"
           }} />
         </div>
         <span style={{ fontSize: 11, fontWeight: 600, color: "var(--t2)" }}>
-          {elapsedPercent}% elapsed
+          {completed ? "100% achieved" : `${elapsedPercent}% elapsed`}
         </span>
       </div>
 
       <button
         onClick={(e) => {
           e.stopPropagation();
-          const next = !complete;
-          setComplete(next);
-          toast(next ? 'CV Submission marked complete! ✓' : 'Marked incomplete');
+          onToggle?.();
         }}
         style={{
           width: "100%",
-          height: 48, // D) Increase button height: 44px → 48px
-          background: complete ? "var(--card-3)" : "var(--ac)",
-          color: complete ? "var(--t2)" : "#000000",
-          borderRadius: 14, // E) Button border-radius: 12px → 14px
+          height: 48,
+          background: completed ? "var(--card-3)" : "var(--ac)",
+          color: completed ? "var(--t2)" : "#000000",
+          borderRadius: 14,
           border: "none",
           fontSize: 13,
           fontWeight: 700,
@@ -1280,7 +1298,7 @@ function FeaturedDeadline({ title, sub, priority, due, total, onClick }: Deadlin
           transition: "all 0.2s ease"
         }}
       >
-        {complete ? "✓ Completed" : "Mark Complete"}
+        {completed ? "✓ Completed" : "Mark Complete"}
       </button>
     </div>
   );
@@ -1290,7 +1308,7 @@ interface DeadlineListItemProps extends DeadlineProps {
   index: number;
 }
 
-function DeadlineListItem({ index, title, priority, due, total, onClick }: DeadlineListItemProps) {
+function DeadlineListItem({ index, title, priority, due, total, completed, onClick }: DeadlineListItemProps) {
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => {
     setMounted(true);
@@ -1298,10 +1316,10 @@ function DeadlineListItem({ index, title, priority, due, total, onClick }: Deadl
 
   const targetDate = React.useMemo(() => new Date(due), [due]);
   const time = useCountdown(targetDate);
-  const formattedText = mounted ? formatTime(time) : "--h --m left";
+  const formattedText = mounted ? (completed ? "DONE" : formatTime(time)) : "--h --m left";
 
   const remainingMs = Math.max(0, due - Date.now());
-  const elapsedPercent = Math.round(Math.min(100, Math.max(0, (1 - remainingMs / total) * 100)));
+  const elapsedPercent = completed ? 100 : Math.round(Math.min(100, Math.max(0, (1 - remainingMs / total) * 100)));
 
   return (
     <div 
@@ -1309,7 +1327,7 @@ function DeadlineListItem({ index, title, priority, due, total, onClick }: Deadl
       style={{
         background: "var(--card)",
         borderRadius: 16,
-        border: "1px solid var(--b1)",
+        border: completed ? "1px solid rgba(74,222,128,0.18)" : "1px solid var(--b1)",
         padding: 16,
         display: "flex",
         flexDirection: "column",
@@ -1318,13 +1336,14 @@ function DeadlineListItem({ index, title, priority, due, total, onClick }: Deadl
         animation: "fadeUp 400ms ease both",
         animationDelay: `${550 + (index - 1) * 80}ms`,
         cursor: onClick ? 'pointer' : 'default',
+        transition: "all 0.2s ease",
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <span style={{
-            background: "var(--ac-soft)",
-            color: "var(--ac)",
+            background: completed ? "rgba(74,222,128,0.15)" : "var(--ac-soft)",
+            color: completed ? "var(--ok)" : "var(--ac)",
             fontSize: 9,
             fontWeight: 700,
             letterSpacing: "0.08em",
@@ -1333,9 +1352,18 @@ function DeadlineListItem({ index, title, priority, due, total, onClick }: Deadl
           }}>
             {priority}
           </span>
-          <h4 style={{ fontSize: 14, fontWeight: 700, color: "var(--t1)" }}>{title}</h4>
+          <h4 style={{ 
+            fontSize: 14, 
+            fontWeight: 700, 
+            color: completed ? "var(--t2)" : "var(--t1)",
+            textDecoration: completed ? "line-through" : "none"
+          }}>{title}</h4>
         </div>
-        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--t1)" }}>
+        <span style={{ 
+          fontSize: 13, 
+          fontWeight: 700, 
+          color: completed ? "var(--ok)" : "var(--t1)" 
+        }}>
           {formattedText}
         </span>
       </div>
@@ -1351,12 +1379,12 @@ function DeadlineListItem({ index, title, priority, due, total, onClick }: Deadl
         }}>
           <div style={{
             height: "100%",
-            background: "var(--ac)",
+            background: completed ? "var(--ok)" : "var(--ac)",
             borderRadius: 1.5,
             width: `${elapsedPercent}%`
           }} />
         </div>
-        <span style={{ fontSize: 11, color: "var(--t2)" }}>{elapsedPercent}% elapsed</span>
+        <span style={{ fontSize: 11, color: "var(--t2)" }}>{completed ? "100% achieved" : `${elapsedPercent}% elapsed`}</span>
         <span style={{ fontSize: 16, color: "var(--t3)", userSelect: "none" }}>›</span>
       </div>
     </div>
@@ -1386,7 +1414,7 @@ function BottomNav({ active, onSelect }: BottomNavProps) {
       margin: "0 auto",
       width: "100%",
       maxWidth: 390,
-      height: 80,
+      height: "calc(80px + env(safe-area-inset-bottom))",
       background: "rgba(20,20,20,0.92)",
       backdropFilter: "blur(20px)",
       WebkitBackdropFilter: "blur(20px)",
@@ -1394,7 +1422,7 @@ function BottomNav({ active, onSelect }: BottomNavProps) {
       display: "flex",
       justifyContent: "space-around",
       alignItems: "center",
-      paddingBottom: 16,
+      paddingBottom: "calc(16px + env(safe-area-inset-bottom))",
       zIndex: 100,
       animation: "fadeUp 400ms ease both",
       animationDelay: "800ms"
@@ -1494,6 +1522,17 @@ function BottomNav({ active, onSelect }: BottomNavProps) {
   );
 }
 
+function toDateTimeLocalValue(iso: string): string {
+  const date = new Date(iso);
+  const offset = date.getTimezoneOffset();
+  const local = new Date(date.getTime() - offset * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+function fromDateTimeLocalValue(value: string): string {
+  return new Date(value).toISOString();
+}
+
 interface AddItemSheetProps {
   onClose: () => void;
   onCreate?: (type: 'goal' | 'habit' | 'deadline') => void;
@@ -1511,7 +1550,7 @@ function AddItemSheet({ onClose, onCreate, editItem }: AddItemSheetProps) {
   // Form States
   const [goalTitle, setGoalTitle] = React.useState("");
   const [goalTags, setGoalTags] = React.useState("");
-  const [goalSubtasks, setGoalSubtasks] = React.useState<string[]>([""]);
+  const [goalSubtasks, setGoalSubtasks] = React.useState<{ id?: string; title: string; is_complete: boolean }[]>([{ title: "", is_complete: false }]);
 
   const [habitTitle, setHabitTitle] = React.useState("");
   const [habitTags, setHabitTags] = React.useState("");
@@ -1519,7 +1558,7 @@ function AddItemSheet({ onClose, onCreate, editItem }: AddItemSheetProps) {
   const [habitIcon, setHabitIcon] = React.useState("activity");
 
   const [deadlineTitle, setDeadlineTitle] = React.useState("");
-  const [deadlineHours, setDeadlineHours] = React.useState(24);
+  const [deadlineDueDate, setDeadlineDueDate] = React.useState("");
 
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -1532,7 +1571,11 @@ function AddItemSheet({ onClose, onCreate, editItem }: AddItemSheetProps) {
       if (editItem.type === 'goal') {
         setGoalTitle(editItem.data.title);
         setGoalTags(editItem.data.tags?.join(", ") || "");
-        setGoalSubtasks(editItem.data.subtasks?.map((s: any) => s.title) || [""]);
+        setGoalSubtasks(editItem.data.subtasks?.map((s: any) => ({
+          id: s.id,
+          title: s.title,
+          is_complete: s.is_complete
+        })) || [{ title: "", is_complete: false }]);
       } else if (editItem.type === 'habit') {
         setHabitTitle(editItem.data.title);
         setHabitTags(editItem.data.tags?.join(", ") || "");
@@ -1540,35 +1583,35 @@ function AddItemSheet({ onClose, onCreate, editItem }: AddItemSheetProps) {
         setHabitIcon(editItem.data.icon || "activity");
       } else if (editItem.type === 'deadline') {
         setDeadlineTitle(editItem.data.title);
-        const hoursLeft = Math.max(1, Math.round((new Date(editItem.data.due_date).getTime() - Date.now()) / 3600000));
-        setDeadlineHours(hoursLeft);
+        setDeadlineDueDate(toDateTimeLocalValue(editItem.data.due_date));
       }
     } else {
       setGoalTitle("");
       setGoalTags("");
-      setGoalSubtasks([""]);
+      setGoalSubtasks([{ title: "", is_complete: false }]);
       setHabitTitle("");
       setHabitTags("");
       setHabitTarget(1);
       setHabitIcon("activity");
       setDeadlineTitle("");
-      setDeadlineHours(24);
+      const defaultDate = new Date(Date.now() + 24 * 3600000).toISOString();
+      setDeadlineDueDate(toDateTimeLocalValue(defaultDate));
     }
   }, [editItem]);
 
   const handleAddSubtaskInput = () => {
-    setGoalSubtasks([...goalSubtasks, ""]);
+    setGoalSubtasks([...goalSubtasks, { title: "", is_complete: false }]);
   };
 
   const handleSubtaskChange = (idx: number, val: string) => {
     const next = [...goalSubtasks];
-    next[idx] = val;
+    next[idx] = { ...next[idx], title: val };
     setGoalSubtasks(next);
   };
 
   const handleSubtaskRemove = (idx: number) => {
     const filtered = goalSubtasks.filter((_, i) => i !== idx);
-    setGoalSubtasks(filtered.length === 0 ? [""] : filtered);
+    setGoalSubtasks(filtered.length === 0 ? [{ title: "", is_complete: false }] : filtered);
   };
 
   const handleSubmit = async () => {
@@ -1580,22 +1623,19 @@ function AddItemSheet({ onClose, onCreate, editItem }: AddItemSheetProps) {
         const titleTrimmed = goalTitle.trim();
         if (!titleTrimmed) throw new Error("Title is required");
         const parsedTags = goalTags.split(",").map(t => t.trim().toLowerCase()).filter(Boolean);
-        const subtasksFiltered = goalSubtasks.map(s => s.trim()).filter(Boolean);
+        const subtasksFiltered = goalSubtasks.filter(s => s.title.trim() !== "");
 
         if (editItem && editItem.type === 'goal') {
-          const subtasksInput = subtasksFiltered.map((subTitle, idx) => {
-            const existing = editItem.data.subtasks?.[idx];
-            return {
-              id: existing?.id,
-              title: subTitle,
-              is_complete: existing?.is_complete || false,
-              sort_order: idx
-            };
-          });
+          const subtasksInput = subtasksFiltered.map((sub, idx) => ({
+            id: sub.id,
+            title: sub.title.trim(),
+            is_complete: sub.is_complete,
+            sort_order: idx
+          }));
           await updateGoal(editItem.data.id, titleTrimmed, parsedTags, subtasksInput);
           toast("Goal updated successfully! ✓");
         } else {
-          await addGoal(titleTrimmed, parsedTags, subtasksFiltered);
+          await addGoal(titleTrimmed, parsedTags, subtasksFiltered.map(s => s.title.trim()));
           toast("Goal created successfully! ✓");
         }
       } else if (activeType === 'habit') {
@@ -1613,7 +1653,8 @@ function AddItemSheet({ onClose, onCreate, editItem }: AddItemSheetProps) {
       } else if (activeType === 'deadline') {
         const titleTrimmed = deadlineTitle.trim();
         if (!titleTrimmed) throw new Error("Title is required");
-        const targetDate = new Date(Date.now() + deadlineHours * 3600000).toISOString();
+        if (!deadlineDueDate) throw new Error("Due date is required");
+        const targetDate = fromDateTimeLocalValue(deadlineDueDate);
 
         if (editItem && editItem.type === 'deadline') {
           await updateDeadline(editItem.data.id, titleTrimmed, targetDate, editItem.data.completed);
@@ -1624,8 +1665,11 @@ function AddItemSheet({ onClose, onCreate, editItem }: AddItemSheetProps) {
         }
       }
 
-      if (onCreate) onCreate(activeType);
-      onClose();
+      if (onCreate) {
+        onCreate(activeType);
+      } else {
+        onClose();
+      }
     } catch (e) {
       toast(e instanceof Error ? e.message : "Error saving item", "error");
     } finally {
@@ -1818,7 +1862,7 @@ function AddItemSheet({ onClose, onCreate, editItem }: AddItemSheetProps) {
                   <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <input
                       type="text"
-                      value={task}
+                      value={task.title}
                       onChange={e => handleSubtaskChange(idx, e.target.value)}
                       placeholder={`Subtask deliverable #${idx + 1}`}
                       style={{
@@ -1880,41 +1924,20 @@ function AddItemSheet({ onClose, onCreate, editItem }: AddItemSheetProps) {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>
-                  Daily Target Check-ins
-                </label>
-                <input 
-                  type="number" 
-                  value={habitTarget}
-                  onChange={e => setHabitTarget(Math.max(1, parseInt(e.target.value) || 1))}
-                  style={{
-                    width: '100%', height: 46, borderRadius: 12, background: 'var(--bg)', border: '1px solid var(--b1)',
-                    padding: '0 14px', color: '#fff', fontSize: 13, fontFamily: 'inherit',
-                    outline: 'none', transition: 'border-color 0.2s',
-                  }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>
-                  Icon Glyph
-                </label>
-                <select
-                  value={habitIcon}
-                  onChange={e => setHabitIcon(e.target.value)}
-                  style={{
-                    width: '100%', height: 46, borderRadius: 12, background: 'var(--bg)', border: '1px solid var(--b1)',
-                    padding: '0 10px', color: '#fff', fontSize: 13, fontFamily: 'inherit',
-                    outline: 'none', cursor: 'pointer',
-                  }}
-                >
-                  <option value="activity" style={{ background: '#1e1e1e', color: '#fff' }}>Activity ●</option>
-                  <option value="flame" style={{ background: '#1e1e1e', color: '#fff' }}>Flame 🔥</option>
-                  <option value="zap" style={{ background: '#1e1e1e', color: '#fff' }}>Power ⚡</option>
-                  <option value="target" style={{ background: '#1e1e1e', color: '#fff' }}>Target 🎯</option>
-                </select>
-              </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>
+                Daily Target Check-ins
+              </label>
+              <input 
+                type="number" 
+                value={habitTarget}
+                onChange={e => setHabitTarget(Math.max(1, parseInt(e.target.value) || 1))}
+                style={{
+                  width: '100%', height: 46, borderRadius: 12, background: 'var(--bg)', border: '1px solid var(--b1)',
+                  padding: '0 14px', color: '#fff', fontSize: 13, fontFamily: 'inherit',
+                  outline: 'none', transition: 'border-color 0.2s',
+                }}
+              />
             </div>
           </>
         )}
@@ -1940,12 +1963,12 @@ function AddItemSheet({ onClose, onCreate, editItem }: AddItemSheetProps) {
 
             <div>
               <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>
-                Hours Left Until Due
+                Due Date & Time
               </label>
               <input 
-                type="number" 
-                value={deadlineHours}
-                onChange={e => setDeadlineHours(Math.max(1, parseInt(e.target.value) || 1))}
+                type="datetime-local" 
+                value={deadlineDueDate}
+                onChange={e => setDeadlineDueDate(e.target.value)}
                 style={{
                   width: '100%', height: 46, borderRadius: 12, background: 'var(--bg)', border: '1px solid var(--b1)',
                   padding: '0 14px', color: '#fff', fontSize: 13, fontFamily: 'inherit',
@@ -1995,30 +2018,327 @@ function AddItemSheet({ onClose, onCreate, editItem }: AddItemSheetProps) {
   );
 }
 
+function ChooseUsernameModal() {
+  const { user, username, updateUsername, loading } = useGoalsStore();
+  const [inputVal, setInputVal] = React.useState("");
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [errorMsg, setErrorMsg] = React.useState("");
+  const toast = useToast();
+
+  const isVisible = !!user && !loading && !username;
+
+  React.useEffect(() => {
+    if (isVisible) {
+      setInputVal("");
+      setErrorMsg("");
+    }
+  }, [isVisible]);
+
+  if (!isVisible) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (inputVal.trim().length < 3) {
+      setErrorMsg("Username must be at least 3 characters.");
+      return;
+    }
+    setIsSubmitting(true);
+    setErrorMsg("");
+    try {
+      await updateUsername(inputVal.trim());
+      toast("Username configured! Welcome to Aether Goals. 🚀");
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to set username. Try another name.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+      background: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(20px)',
+      zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 20,
+    }}>
+      <div style={{
+        background: 'var(--sheet)', borderRadius: 24,
+        border: '1px solid var(--b1)', width: '100%', maxWidth: 400,
+        padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+        animation: 'fadeUp 0.4s ease both',
+      }}>
+        <h2 style={{
+          fontSize: 22, fontWeight: 900, color: '#fff',
+          letterSpacing: '-0.5px', marginBottom: 8, textAlign: 'center',
+        }}>
+          Choose a Username
+        </h2>
+        <p style={{
+          fontSize: 13, color: 'var(--t2)', lineHeight: 1.5,
+          marginBottom: 20, textAlign: 'center',
+        }}>
+          Welcome to Aether! Let&apos;s personalize your dashboard by setting up your unique profile username.
+        </p>
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{
+            background: 'var(--block)', borderRadius: 16,
+            border: '1px solid var(--b1)', padding: '12px 16px',
+            display: 'flex', flexDirection: 'column', gap: 4,
+          }}>
+            <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Username
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. hyperion_discipline"
+              value={inputVal}
+              onChange={(e) => setInputVal(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
+              required
+              disabled={isSubmitting}
+              style={{
+                background: 'transparent', border: 'none', outline: 'none',
+                color: '#fff', fontSize: 15, fontWeight: 600, padding: 0, width: '100%',
+              }}
+            />
+          </div>
+
+          {errorMsg && (
+            <div style={{ fontSize: 12, color: '#ff4040', fontWeight: 600, textAlign: 'center' }}>
+              {errorMsg}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={isSubmitting || inputVal.trim().length < 3}
+            style={{
+              height: 48, borderRadius: 16, background: 'var(--ac)', border: 'none',
+              color: '#000', fontSize: 14, fontWeight: 800, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 14px rgba(204,255,0,0.3)', transition: 'opacity 0.2s',
+              opacity: (inputVal.trim().length < 3 || isSubmitting) ? 0.5 : 1,
+            }}
+          >
+            {isSubmitting ? "Configuring..." : "Confirm & Enter Dashboard"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function SettingsSheet({ onNav }: { onNav: (id: string) => void }) {
   const toast = useToast();
-  const { logout } = useGoalsStore();
+  const { logout, username, updateUsername } = useGoalsStore();
+  const [isEditingProfile, setIsEditingProfile] = React.useState(false);
+
+  // Profile Editor state
+  const [editUsername, setEditUsername] = React.useState(username);
+  const [password, setPassword] = React.useState("");
+  const [confirmPassword, setConfirmPassword] = React.useState("");
+  const [isSaving, setIsSaving] = React.useState(false);
+
+  // Sync state if username loaded later
+  React.useEffect(() => {
+    setEditUsername(username);
+  }, [username]);
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editUsername.trim().length < 3) {
+      toast("Username must be at least 3 characters", "error");
+      return;
+    }
+    if (password && password !== confirmPassword) {
+      toast("Passwords do not match", "error");
+      return;
+    }
+    if (password && password.length < 6) {
+      toast("Password must be at least 6 characters", "error");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // 1. Update username if changed
+      if (editUsername.trim() !== username) {
+        await updateUsername(editUsername.trim());
+      }
+
+      // 2. Update password if provided
+      if (password) {
+        const client = getSupabaseClient();
+        const { error: passError } = await client.auth.updateUser({
+          password: password,
+        });
+        if (passError) throw passError;
+        setPassword("");
+        setConfirmPassword("");
+      }
+
+      toast("Profile updated successfully!", "success");
+      setIsEditingProfile(false);
+    } catch (err: any) {
+      toast(err.message || "Failed to update profile", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isEditingProfile) {
+    return (
+      <div style={{
+        animation: 'fadeUp 0.4s ease both',
+        background: 'var(--card)',
+        borderRadius: 24,
+        border: '1px solid var(--b1)',
+        padding: 24,
+        marginTop: 8,
+        position: 'relative',
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          position: 'absolute', top: 0, left: 14, right: 14, height: 1,
+          background: 'rgba(255,255,255,0.06)', pointerEvents: 'none',
+        }} />
+
+        <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--t1)', marginBottom: 8, letterSpacing: '-0.5px' }}>
+          Edit Profile
+        </h2>
+        <p style={{ fontSize: 13, color: 'var(--t2)', marginBottom: 20 }}>
+          Manage your account credentials & identity.
+        </p>
+
+        <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Username Input Bento Cell */}
+          <div style={{
+            background: 'var(--bg)', borderRadius: 16,
+            border: '1px solid var(--b1)', padding: '12px 18px',
+            display: 'flex', flexDirection: 'column', gap: 4,
+          }}>
+            <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Username
+            </label>
+            <input
+              type="text"
+              placeholder="Username"
+              value={editUsername}
+              onChange={e => setEditUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
+              required
+              disabled={isSaving}
+              style={{
+                background: 'transparent', border: 'none', outline: 'none',
+                color: '#fff', fontSize: 14, fontWeight: 600, padding: 0, width: '100%',
+              }}
+            />
+          </div>
+
+          {/* New Password Input Bento Cell */}
+          <div style={{
+            background: 'var(--bg)', borderRadius: 16,
+            border: '1px solid var(--b1)', padding: '12px 18px',
+            display: 'flex', flexDirection: 'column', gap: 4,
+          }}>
+            <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              New Password (Optional)
+            </label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              disabled={isSaving}
+              style={{
+                background: 'transparent', border: 'none', outline: 'none',
+                color: '#fff', fontSize: 14, fontWeight: 600, padding: 0, width: '100%',
+              }}
+            />
+          </div>
+
+          {/* Confirm Password Input Bento Cell */}
+          <div style={{
+            background: 'var(--bg)', borderRadius: 16,
+            border: '1px solid var(--b1)', padding: '12px 18px',
+            display: 'flex', flexDirection: 'column', gap: 4,
+          }}>
+            <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Confirm Password
+            </label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={confirmPassword}
+              onChange={e => setConfirmPassword(e.target.value)}
+              disabled={isSaving}
+              style={{
+                background: 'transparent', border: 'none', outline: 'none',
+                color: '#fff', fontSize: 14, fontWeight: 600, padding: 0, width: '100%',
+              }}
+            />
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
+            <button
+              type="button"
+              onClick={() => {
+                setIsEditingProfile(false);
+                setEditUsername(username);
+                setPassword("");
+                setConfirmPassword("");
+              }}
+              disabled={isSaving}
+              style={{
+                flex: 1, height: 46, borderRadius: 14, background: 'var(--card-3)', border: 'none',
+                color: 'var(--t2)', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSaving}
+              style={{
+                flex: 2, height: 46, borderRadius: 14, background: 'var(--ac)', border: 'none',
+                color: '#000', fontSize: 13, fontWeight: 800, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 14px rgba(204,255,0,0.3)',
+              }}
+            >
+              {isSaving ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
 
   const settingsItems = [
     {
       title: "Edit Profile",
-      subtitle: "Name, avatar, bio & email",
+      subtitle: "Update your username and account password",
       action: "Manage",
-      onClick: () => toast('Profile editor coming soon!', 'info'),
+      onClick: () => setIsEditingProfile(true),
     },
     {
       title: "Dashboard Colors",
-      subtitle: "Current: Cyber Lime #ccff00",
-      action: "Lime ●",
-      onClick: () => toast('Color themes coming soon!', 'info'),
+      subtitle: "Theme customization (Coming soon)",
+      action: "Locked",
+      actionColor: 'var(--t3)',
+      onClick: () => {},
     },
     {
       title: "Cloud Database",
-      subtitle: "Synchronized with Supabase Cloud",
-      action: "ONLINE",
-      actionColor: 'var(--ok)',
+      subtitle: isSupabaseConfigured() ? "Synchronized with Supabase Cloud" : "Supabase connection is not configured",
+      action: isSupabaseConfigured() ? "ONLINE" : "OFFLINE",
+      actionColor: isSupabaseConfigured() ? 'var(--ok)' : 'var(--danger)',
       onClick: () => {
-        toast('Supabase cloud connection is active', 'success');
+        if (isSupabaseConfigured()) {
+          toast('Supabase cloud connection is active', 'success');
+        } else {
+          toast('Supabase is not configured. Check your env variables.', 'error');
+        }
       },
     },
     {
@@ -2305,6 +2625,8 @@ function DetailDrawer({ activeDrawer, onClose, onEditTap }: DetailDrawerProps) {
           padding: "16px 24px 34px",
           zIndex: 1000,
           boxShadow: "0 -8px 32px rgba(0,0,0,0.5)",
+          userSelect: "none",
+          touchAction: "pan-y",
         }}
       >
         {/* Glass top highlight */}
@@ -2351,7 +2673,7 @@ function DetailDrawer({ activeDrawer, onClose, onEditTap }: DetailDrawerProps) {
               {currentData.title}
             </h2>
             <p style={{ fontSize: 12, color: 'var(--t2)', marginBottom: 20 }}>
-              Track dynamic execution deliverables and task status.
+              Track your progress and subtask status.
             </p>
 
             {/* Progress Segment */}
@@ -2370,7 +2692,7 @@ function DetailDrawer({ activeDrawer, onClose, onEditTap }: DetailDrawerProps) {
 
             {/* Checklist */}
             <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
-              Tasks deliverables checklist ({completedTasksCount} of {totalTasksCount})
+              Subtasks checklist ({completedTasksCount} of {totalTasksCount})
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24, maxHeight: 180, overflowY: 'auto' }}>
               {subtasks.length === 0 ? (
@@ -2380,9 +2702,13 @@ function DetailDrawer({ activeDrawer, onClose, onEditTap }: DetailDrawerProps) {
                   return (
                     <div 
                       key={task.id}
-                      onClick={() => {
-                        toggleSubtask(task.id);
-                        toast(task.is_complete ? "Task marked incomplete" : "Task completed! 💪");
+                      onClick={async () => {
+                        try {
+                          await toggleSubtask(task.id);
+                          toast(task.is_complete ? "Task marked incomplete" : "Task completed! 💪");
+                        } catch (error) {
+                          toast("Could not update task", "error");
+                        }
                       }}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 12,
@@ -2420,7 +2746,7 @@ function DetailDrawer({ activeDrawer, onClose, onEditTap }: DetailDrawerProps) {
                 boxShadow: '0 4px 14px rgba(204,255,0,0.3)',
               }}
             >
-              Save Deliverables
+              Done
             </button>
           </div>
         )}
@@ -2561,11 +2887,14 @@ function DetailDrawer({ activeDrawer, onClose, onEditTap }: DetailDrawerProps) {
                 })}
               </div>
             </div>
-
             <button 
-              onClick={() => {
-                logCompletion(currentData.id);
-                toast(habitCheckedIn ? 'Check-in removed' : 'Habit logged successfully! 🔥');
+              onClick={async () => {
+                try {
+                  await logCompletion(currentData.id);
+                  toast(habitCheckedIn ? 'Check-in removed' : 'Habit logged successfully! 🔥');
+                } catch (err) {
+                  toast('Failed to update check-in. Please try again.', 'error');
+                }
               }}
               style={{
                 width: '100%', height: 46, borderRadius: 12,
@@ -2609,7 +2938,7 @@ function DetailDrawer({ activeDrawer, onClose, onEditTap }: DetailDrawerProps) {
               {currentData.title}
             </h2>
             <p style={{ fontSize: 12, color: 'var(--t2)', marginBottom: 20 }}>
-              Critical deliverables due in real-time. Complete immediately.
+              {mapDeadlineProps(currentData).sub}
             </p>
 
             {/* Progress countdown section */}
@@ -2641,13 +2970,16 @@ function DetailDrawer({ activeDrawer, onClose, onEditTap }: DetailDrawerProps) {
             </div>
 
             <p style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.4, marginBottom: 26 }}>
-              {currentData.completed ? "This deadline has been completed successfully! ✓" : "This represents an outstanding high-priority deliverable timeline checkpoint."}
+              {currentData.completed ? "This deadline has been completed successfully! ✓" : "This deadline is currently active."}
             </p>
-
             <button 
-              onClick={() => {
-                toggleDeadlineCompletion(currentData.id);
-                toast(currentData.completed ? 'Marked incomplete' : 'Deadline complete! ✓');
+              onClick={async () => {
+                try {
+                  await toggleDeadlineCompletion(currentData.id);
+                  toast(currentData.completed ? 'Marked incomplete' : 'Deadline complete! ✓');
+                } catch (err) {
+                  toast('Failed to update deadline. Please try again.', 'error');
+                }
               }}
               style={{
                 width: '100%', height: 46, borderRadius: 12, 
@@ -2862,7 +3194,7 @@ function DashboardContent() {
         maxWidth: 390,
         margin: "0 auto",
         fontFamily: "'Plus Jakarta Sans', -apple-system, sans-serif",
-        paddingBottom: 100,
+        paddingBottom: "calc(100px + env(safe-area-inset-bottom))",
         position: "relative",
         overflowX: "hidden",
         WebkitFontSmoothing: "antialiased",
@@ -2894,7 +3226,7 @@ function DashboardContent() {
                   title={bestGoal.title}
                   progress={bestGoal.progressPercent || 0}
                   tags={bestGoal.tags}
-                  delta={bestGoal.deltaPercent !== undefined ? `${bestGoal.deltaPercent >= 0 ? '+' : ''}${bestGoal.deltaPercent}%` : "+10%"}
+                  delta={bestGoal.deltaPercent !== undefined ? `${bestGoal.deltaPercent >= 0 ? '+' : ''}${bestGoal.deltaPercent}%` : "Tracking"}
                   done={bestGoal.subtasks?.filter(s => s.is_complete).length || 0}
                   total={bestGoal.subtasks?.length || 0}
                   animDelay={200}
@@ -2949,8 +3281,8 @@ function DashboardContent() {
           <TabContent id="goals" active={activeNav}>
             <SectionHeader title="All Active Goals" style={{ marginTop: 8 }} />
             {goals.length === 0 ? (
-              <div className="text-center py-20 px-4 border border-dashed border-neutral-900 rounded-lg select-none space-y-3">
-                <p className="text-xs text-neutral-300 font-light">No goals tracked. Tap Add to initialize one.</p>
+              <div className="text-center py-10 px-4 border border-dashed border-neutral-900 rounded-lg select-none space-y-3">
+                <p className="text-xs text-neutral-300 font-light">No goals tracked. Tap Add to create your first goal.</p>
               </div>
             ) : (
               goals.map((g, i) => (
@@ -2959,7 +3291,7 @@ function DashboardContent() {
                   title={g.title}
                   progress={g.progressPercent || 0}
                   tags={g.tags}
-                  delta={g.deltaPercent !== undefined ? `${g.deltaPercent >= 0 ? '+' : ''}${g.deltaPercent}%` : "+10%"}
+                  delta={g.deltaPercent !== undefined ? `${g.deltaPercent >= 0 ? '+' : ''}${g.deltaPercent}%` : "Tracking"}
                   done={g.subtasks?.filter(s => s.is_complete).length || 0}
                   total={g.subtasks?.length || 0}
                   animDelay={100 + i * 80} 
@@ -2972,8 +3304,8 @@ function DashboardContent() {
           <TabContent id="habits" active={activeNav}>
             <SectionHeader title="Daily Habits Checklist" style={{ marginTop: 8 }} />
             {habits.length === 0 ? (
-              <div className="text-center py-20 px-4 border border-dashed border-neutral-900 rounded-lg select-none space-y-3">
-                <p className="text-xs text-neutral-300 font-light">No habits tracked. Tap Add to initialize one.</p>
+              <div className="text-center py-10 px-4 border border-dashed border-neutral-900 rounded-lg select-none space-y-3">
+                <p className="text-xs text-neutral-300 font-light">No habits tracked. Tap Add to create your first habit.</p>
               </div>
             ) : (
               habits.map((h, i) => (
@@ -2995,8 +3327,8 @@ function DashboardContent() {
           <TabContent id="deadlines" active={activeNav}>
             <SectionHeader title="All Deadlines" style={{ marginTop: 8 }} />
             {deadlines.length === 0 ? (
-              <div className="text-center py-20 px-4 border border-dashed border-neutral-900 rounded-lg select-none space-y-3">
-                <p className="text-xs text-neutral-300 font-light">No deadlines tracked. Tap Add to initialize one.</p>
+              <div className="text-center py-10 px-4 border border-dashed border-neutral-900 rounded-lg select-none space-y-3">
+                <p className="text-xs text-neutral-300 font-light">No deadlines tracked. Tap Add to create your first deadline.</p>
               </div>
             ) : (
               <>
@@ -3057,6 +3389,8 @@ function DashboardContent() {
         {/* Sticky centered Bottom Navigation Bar */}
         <BottomNav active={activeNav} onSelect={setActiveNav} />
       </div>
+
+      <ChooseUsernameModal />
     </>
   );
 }
