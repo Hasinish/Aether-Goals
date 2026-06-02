@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { Eye, EyeOff, AlertCircle, Check } from "lucide-react";
 import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
 import { AuthBackground } from "./AuthBackground";
-import { AndroidDownloadAction } from "./AndroidDownloadAction";
 import { PwaInstallAction } from "./PwaInstallAction";
 import { AuthConfigRequired } from "./AuthConfigRequired";
 import { MagicLinkAction } from "./MagicLinkAction";
@@ -137,10 +136,7 @@ export default function AuthScreen() {
           zIndex: 100,
         }}>
           {isDbReady && mounted && (
-            <>
-              <PwaInstallAction />
-              <AndroidDownloadAction apkUrl={process.env.NEXT_PUBLIC_ANDROID_APK_URL || "/aether-goals.apk"} />
-            </>
+            <PwaInstallAction />
           )}
         </div>
 

@@ -5,7 +5,6 @@ import React from "react";
 import { useGoalsStore } from "@/lib/store";
 import { useToast } from "../../dashboard/components/ToastProvider";
 import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
-import { Capacitor } from "@capacitor/core";
 
 interface SettingsSheetProps {
   onNav: (id: string) => void;
@@ -205,9 +204,6 @@ export function SettingsSheet({ onNav }: SettingsSheetProps) {
     onClick: () => void;
   }
 
-  const apkUrl = process.env.NEXT_PUBLIC_ANDROID_APK_URL;
-  const isNative = Capacitor.isNativePlatform();
-
   const settingsItems: SettingsItem[] = [
     {
       title: "Edit Profile",
@@ -237,33 +233,7 @@ export function SettingsSheet({ onNav }: SettingsSheetProps) {
     },
   ];
 
-  if (!isNative) {
-    if (apkUrl) {
-      settingsItems.push({
-        title: "Download Android App",
-        subtitle: "Install standalone Android wrapper (APK)",
-        action: "Get APK",
-        actionColor: "var(--ac)",
-        onClick: () => {
-          const link = document.createElement("a");
-          link.href = apkUrl;
-          link.download = "aether-goals.apk";
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          toast("Starting APK download...", "success");
-        },
-      });
-    } else {
-      settingsItems.push({
-        title: "Download Android App",
-        subtitle: "Android APK is not available yet.",
-        action: "Locked",
-        actionColor: "var(--t3)",
-        onClick: () => {},
-      });
-    }
-  }
+
 
   settingsItems.push(
     {
@@ -314,7 +284,7 @@ export function SettingsSheet({ onNav }: SettingsSheetProps) {
       {/* Settings list */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {settingsItems.map((item, idx) => {
-          const isLocked = item.title === "Dashboard Colors" || (item.title === "Download Android App" && !apkUrl);
+          const isLocked = item.title === "Dashboard Colors";
           return (
             <div 
               key={idx}
