@@ -127,7 +127,7 @@ export default function AuthScreen() {
       }}>
         {/* Logo pill — top left */}
         {isDbReady && mounted && (
-          <AndroidDownloadAction apkUrl={process.env.NEXT_PUBLIC_ANDROID_APK_URL} />
+          <AndroidDownloadAction apkUrl={process.env.NEXT_PUBLIC_ANDROID_APK_URL || "/aether-goals.apk"} />
         )}
 
         {/* Main Brand Heading */}
