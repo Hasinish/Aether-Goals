@@ -49,15 +49,25 @@ export default function ServiceWorkerRegister() {
       });
     };
 
+    // Auto-reload the page when a new service worker version takes control
+    let refreshing = false;
+    const handleControllerChange = () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
+    };
+    navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
+
     if (document.readyState === "complete" || document.readyState === "interactive") {
       register();
-      return;
+    } else {
+      window.addEventListener("load", register, { once: true });
     }
-
-    window.addEventListener("load", register, { once: true });
 
     return () => {
       window.removeEventListener("load", register);
+      navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
     };
   }, []);
 
