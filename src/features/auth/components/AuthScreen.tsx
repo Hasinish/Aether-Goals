@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Eye, EyeOff, AlertCircle, Check } from "lucide-react";
 import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
 import { AuthBackground } from "./AuthBackground";
-import { PwaInstallAction } from "./PwaInstallAction";
+import { AndroidDownloadAction } from "./AndroidDownloadAction";
 import { AuthConfigRequired } from "./AuthConfigRequired";
 import { MagicLinkAction } from "./MagicLinkAction";
 
@@ -19,23 +19,9 @@ export default function AuthScreen() {
   const [error, setError] = useState("");
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const isDbReady = isSupabaseConfigured();
-  const [isStandalone, setIsStandalone] = useState(false);
-
   useEffect(() => {
     setMounted(true);
-    const checkStandalone = window.matchMedia("(display-mode: standalone)").matches || 
-      ("standalone" in window.navigator && (window.navigator as Navigator & { standalone?: boolean }).standalone === true);
-    setIsStandalone(checkStandalone);
   }, []);
-
-  const handleApkDownloadClick = () => {
-    const link = document.createElement("a");
-    link.href = "/aether-goals.apk";
-    link.download = "aether-goals.apk";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,8 +126,8 @@ export default function AuthScreen() {
         position: "relative",
       }}>
         {/* Logo pill — top left */}
-        {isDbReady && mounted && !isStandalone && (
-          <PwaInstallAction onClick={handleApkDownloadClick} />
+        {isDbReady && mounted && (
+          <AndroidDownloadAction apkUrl={process.env.NEXT_PUBLIC_ANDROID_APK_URL} />
         )}
 
         {/* Main Brand Heading */}

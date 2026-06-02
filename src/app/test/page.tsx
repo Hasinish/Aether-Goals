@@ -11,6 +11,7 @@ import { HabitStoreProvider, useHabitsStore } from "@/lib/habitStore";
 import { DeadlineStoreProvider, useDeadlinesStore } from "@/lib/deadlineStore";
 import { Goal, Habit, Deadline, Subtask, HabitLog } from "@/lib/types";
 import { useBottomSheetDrag } from "@/hooks/useBottomSheetDrag";
+import { Capacitor } from "@capacitor/core";
 
 
 // ─── HOOKS ────────────────────────────────────────────────────────────────────
@@ -2314,6 +2315,9 @@ function SettingsSheet({ onNav }: { onNav: (id: string) => void }) {
     );
   }
 
+  const apkUrl = process.env.NEXT_PUBLIC_ANDROID_APK_URL;
+  const isNative = Capacitor.isNativePlatform();
+
   const settingsItems = [
     {
       title: "Edit Profile",
@@ -2341,21 +2345,37 @@ function SettingsSheet({ onNav }: { onNav: (id: string) => void }) {
         }
       },
     },
-    {
-      title: "Download Android App",
-      subtitle: "Install standalone Android wrapper (APK)",
-      action: "Get APK",
-      actionColor: "var(--ac)",
-      onClick: () => {
-        const link = document.createElement("a");
-        link.href = "/aether-goals.apk";
-        link.download = "aether-goals.apk";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast("Starting APK download...", "success");
-      },
-    },
+  ];
+
+  if (!isNative) {
+    if (apkUrl) {
+      settingsItems.push({
+        title: "Download Android App",
+        subtitle: "Install standalone Android wrapper (APK)",
+        action: "Get APK",
+        actionColor: "var(--ac)",
+        onClick: () => {
+          const link = document.createElement("a");
+          link.href = apkUrl;
+          link.download = "aether-goals.apk";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          toast("Starting APK download...", "success");
+        },
+      });
+    } else {
+      settingsItems.push({
+        title: "Download Android App",
+        subtitle: "Android APK is not available yet.",
+        action: "Locked",
+        actionColor: "var(--t3)",
+        onClick: () => {},
+      });
+    }
+  }
+
+  settingsItems.push(
     {
       title: "Sign Out",
       subtitle: "Sign out of your session securely",
@@ -2375,8 +2395,8 @@ function SettingsSheet({ onNav }: { onNav: (id: string) => void }) {
       subtitle: "Return to dashboard",
       action: "Go →",
       onClick: () => onNav('home'),
-    },
-  ];
+    }
+  );
 
   return (
     <div style={{
@@ -2403,49 +2423,57 @@ function SettingsSheet({ onNav }: { onNav: (id: string) => void }) {
 
       {/* Settings list */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {settingsItems.map((item, idx) => (
-          <div 
-            key={idx}
-            onClick={item.onClick}
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '14px 18px',
-              background: 'var(--bg)',
-              borderRadius: 16,
-              border: '1px solid var(--b1)',
-              cursor: 'pointer',
-              transition: 'border-color 0.2s, transform 0.2s',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.borderColor = 'var(--b2)';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.borderColor = 'var(--b1)';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{item.title}</div>
-              <div style={{ fontSize: 11, color: 'var(--t2)', marginTop: 2 }}>{item.subtitle}</div>
+        {settingsItems.map((item, idx) => {
+          const isLocked = item.title === "Dashboard Colors" || (item.title === "Download Android App" && !apkUrl);
+          return (
+            <div 
+              key={idx}
+              onClick={isLocked ? undefined : item.onClick}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '14px 18px',
+                background: 'var(--bg)',
+                borderRadius: 16,
+                border: '1px solid var(--b1)',
+                cursor: isLocked ? 'default' : 'pointer',
+                opacity: isLocked ? 0.5 : 1,
+                transition: 'border-color 0.2s, transform 0.2s',
+              }}
+              onMouseEnter={e => {
+                if (!isLocked) {
+                  e.currentTarget.style.borderColor = 'var(--b2)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }
+              }}
+              onMouseLeave={e => {
+                if (!isLocked) {
+                  e.currentTarget.style.borderColor = 'var(--b1)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{item.title}</div>
+                <div style={{ fontSize: 11, color: 'var(--t2)', marginTop: 2 }}>{item.subtitle}</div>
+              </div>
+              <span style={{
+                fontSize: 10,
+                fontWeight: 800,
+                color: (item as any).actionColor || 'var(--ac)',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid var(--b1)',
+                padding: '4px 10px',
+                borderRadius: 20,
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+              }}>
+                {item.action}
+              </span>
             </div>
-            <span style={{
-              fontSize: 10,
-              fontWeight: 800,
-              color: (item as any).actionColor || 'var(--ac)',
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid var(--b1)',
-              padding: '4px 10px',
-              borderRadius: 20,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-            }}>
-              {item.action}
-            </span>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

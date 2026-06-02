@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Aether Goals</string>
+    <string name="title_activity_main">Aether Goals</string>
+    <string name="package_name">com.hasinish.aethergoals</string>
+    <string name="custom_url_scheme">com.hasinish.aethergoals</string>
+</resources>
