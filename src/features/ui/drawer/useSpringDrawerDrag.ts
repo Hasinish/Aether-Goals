@@ -133,6 +133,10 @@ export function useSpringDrawerDrag({
     const el = target as HTMLElement | null;
     if (!el) return false;
     
+    // Always block drawer drag when the touch/click originates from a subtask grip handle
+    // (the isTouch guard below would otherwise skip this check on mobile)
+    if ((el as HTMLElement).closest("[data-subtask-grip='true']")) return false;
+
     // Prevent dragging on interactive elements for mouse/PC so users can select text/click normally
     if (!isTouch && isInteractiveElement(el)) return false;
  
