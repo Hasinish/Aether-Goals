@@ -60,15 +60,17 @@ export const DeadlineStoreProvider: React.FC<{
 
   // ── Fetch from Supabase ───────────────────────────────────────────────────
   const fetchFromSupabase = useCallback(async () => {
+    if (!user) return [];
     const client = getSupabaseClient();
     const { data, error } = await client
       .from("deadlines")
       .select("*")
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
     return (data ?? []) as Deadline[];
-  }, []);
+  }, [user]);
 
   // ── Main fetch ────────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -94,10 +96,10 @@ export const DeadlineStoreProvider: React.FC<{
 
   // LocalStorage sync for Guest Mode deadlines
   useEffect(() => {
-    if (user && user.id === "guest-id") {
+    if (user && user.id === "guest-id" && !loading) {
       localStorage.setItem("guest_deadlines", JSON.stringify(deadlines));
     }
-  }, [deadlines, user]);
+  }, [deadlines, user, loading]);
 
   useEffect(() => {
     fetchData();

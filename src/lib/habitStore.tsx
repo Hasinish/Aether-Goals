@@ -167,11 +167,13 @@ export const HabitStoreProvider: React.FC<{
 
   // ── Fetch from Supabase ───────────────────────────────────────────────────
   const fetchFromSupabase = useCallback(async () => {
+    if (!user) return { rawHabits: [], logs: [] };
     const client = getSupabaseClient();
 
     const { data: habitsData, error: habitsError } = await client
       .from("habits")
       .select("*")
+      .eq("user_id", user.id)
       .order("sort_order", { ascending: true });
 
     if (habitsError) throw habitsError;
@@ -184,6 +186,7 @@ export const HabitStoreProvider: React.FC<{
     const { data: logsData, error: logsError } = await client
       .from("habit_logs")
       .select("*")
+      .eq("user_id", user.id)
       .gte("log_date", startDateStr);
 
     if (logsError) throw logsError;
@@ -191,7 +194,7 @@ export const HabitStoreProvider: React.FC<{
     const rawHabits = (habitsData ?? []) as Omit<Habit, "logs" | "completionsToday" | "streak">[];
     const logs = (logsData ?? []) as HabitLog[];
     return { rawHabits, logs };
-  }, []);
+  }, [user]);
 
   // ── Main fetch ────────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -223,17 +226,18 @@ export const HabitStoreProvider: React.FC<{
 
   // LocalStorage sync for Guest Mode habits
   useEffect(() => {
-    if (user && user.id === "guest-id") {
+    if (user && user.id === "guest-id" && !loading) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const rawHabits = habits.map(({ logs, completionsToday, streak, ...h }) => h);
       localStorage.setItem("guest_habits", JSON.stringify(rawHabits));
     }
-  }, [habits, user]);
+  }, [habits, user, loading]);
 
   useEffect(() => {
-    if (user && user.id === "guest-id") {
+    if (user && user.id === "guest-id" && !loading) {
       localStorage.setItem("guest_habit_logs", JSON.stringify(allLogs));
     }
-  }, [allLogs, user]);
+  }, [allLogs, user, loading]);
 
   useEffect(() => {
     fetchData();

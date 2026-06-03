@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { Goal, Subtask } from "./types";
-import { getInitialSeedData } from "./seed";
 import { getSupabaseClient, isSupabaseConfigured } from "./supabase";
 import { User } from "@supabase/supabase-js";
 
@@ -53,10 +52,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode; guestMode?: bo
 
   // LocalStorage sync for Guest Mode goals
   useEffect(() => {
-    if (guestMode && user) {
+    if (guestMode && user && !loading) {
       localStorage.setItem("guest_goals", JSON.stringify(goals));
     }
-  }, [goals, guestMode, user]);
+  }, [goals, guestMode, user, loading]);
   
   // Track concurrent pending goals
   const [pendingGoalIds, setPendingGoalIds] = useState<Set<string>>(new Set());
@@ -87,58 +86,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode; guestMode?: bo
     };
   }, []);
 
-  const seedDataToSupabase = useCallback(async (userId: string) => {
-    try {
-      const client = getSupabaseClient();
-      const { goals: seedGoals, subtasks: seedSubtasks } = getInitialSeedData();
-
-      const goalIdMap: Record<string, string> = {};
-      seedGoals.forEach((g) => {
-        goalIdMap[g.id] = createId("goal");
-      });
-
-      const goalsToInsert = seedGoals.map((g, i) => ({
-        id: goalIdMap[g.id],
-        user_id: userId,
-        title: g.title,
-        tags: g.tags,
-        created_at: g.created_at,
-        sort_order: i,
-      }));
-
-      const { error: goalsError } = await client.from("goals").insert(goalsToInsert);
-      if (goalsError) throw goalsError;
-
-      const subtasksToInsert = seedSubtasks.map((s) => ({
-        id: createId("subtask"),
-        goal_id: goalIdMap[s.goal_id],
-        title: s.title,
-        is_complete: s.is_complete,
-        sort_order: s.sort_order || 0
-      }));
-
-      const { error: subtasksError } = await client.from("subtasks").insert(subtasksToInsert);
-      if (subtasksError) {
-        // Rollback goal insertion
-        await client.from("goals").delete().in("id", goalsToInsert.map(g => g.id));
-        throw subtasksError;
-      }
-
-      const assembledGoals = seedGoals.map((g) => {
-        const goalSubtasks = subtasksToInsert.filter((s) => s.goal_id === goalIdMap[g.id]);
-        return calculateGoalMetrics({
-          ...g,
-          id: goalIdMap[g.id],
-          subtasks: goalSubtasks,
-        });
-      });
-
-      setGoals(assembledGoals);
-    } catch (e) {
-      const errMsg = e instanceof Error ? e.message : String(e);
-      setSyncError(`Seeding failed: ${errMsg}`);
-    }
-  }, [calculateGoalMetrics]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -156,6 +103,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode; guestMode?: bo
         const { data: goalsData, error: goalsError } = await client
           .from("goals")
           .select("*")
+          .eq("user_id", user.id)
           .order("sort_order", { ascending: true });
 
         if (goalsError) throw goalsError;
@@ -176,21 +124,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode; guestMode?: bo
           setGoals(assembledGoals);
         } else {
           // Supabase returned 0 goals.
-          // Only seed if this user has never been seeded before (using cloud user metadata).
-          const isSeeded = user.user_metadata?.seeded === true;
-          if (isSeeded) {
-            // User deliberately deleted everything — respect it.
-            setGoals([]);
-          } else {
-            // Brand new user — give them demo data.
-            await seedDataToSupabase(user.id);
-            const { data: updateData } = await client.auth.updateUser({
-              data: { seeded: true }
-            });
-            if (updateData?.user) {
-              setUser(updateData.user);
-            }
-          }
+          setGoals([]);
         }
       } else {
         setGoals([]);
@@ -201,7 +135,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode; guestMode?: bo
     } finally {
       setLoading(false);
     }
-  }, [user, calculateGoalMetrics, seedDataToSupabase, guestMode]);
+  }, [user, calculateGoalMetrics, guestMode]);
 
   useEffect(() => {
     if (guestMode) return;
