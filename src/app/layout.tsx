@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { StoreProvider } from "@/lib/store";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import { PullToRefresh } from "@/components/PullToRefresh";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -65,6 +66,7 @@ export default function RootLayout({
           }}
         />
         <StoreProvider>
+          <PullToRefresh />
           {children}
           <ServiceWorkerRegister />
         </StoreProvider>
