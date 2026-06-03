@@ -86,7 +86,7 @@ export function GoalFormFields({
             <Plus size={12} /> Add Task
           </button>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 180, overflowY: "auto" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {goalSubtasks.map((task, idx) => (
             <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <input
