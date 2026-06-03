@@ -8,6 +8,7 @@ import { ToastProvider } from "@/features/dashboard/components/ToastProvider";
 import DashboardContent from "@/features/dashboard/DashboardContent";
 
 import { getInitialSeedData } from "@/lib/seed";
+import { HabitLog } from "@/lib/types";
 
 function GuestDashboardWithReset() {
   const handleReset = () => {
@@ -62,7 +63,7 @@ function GuestDashboardWithReset() {
     ];
 
     // Generate 100 days of logs
-    const logs: any[] = [];
+    const logs: HabitLog[] = [];
     const today = new Date();
     
     habitsList.forEach((habit) => {
