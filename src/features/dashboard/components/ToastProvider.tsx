@@ -35,19 +35,31 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             role={t.type === "error" ? "alert" : "status"}
             aria-live={t.type === "error" ? "assertive" : "polite"}
             style={{
-            background: t.type === "success" ? "var(--ac)"
-              : t.type === "error" ? "#ff4040" : "#1e1e1e",
-            color: t.type === "success" ? "#000" : "#fff",
-            padding: "12px 18px",
-            borderRadius: 14,
-            fontSize: 13,
-            fontWeight: 700,
-            boxShadow: t.type === "success"
-              ? "0 4px 20px rgba(204,255,0,0.35)"
-              : "0 4px 20px rgba(0,0,0,0.4)",
-            animation: "toastIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both",
-            border: t.type === "info" ? "1px solid rgba(255,255,255,0.1)" : "none",
-          }}>
+              background: t.type === "success"
+                ? "rgba(204, 255, 0, 0.08)"
+                : t.type === "error"
+                ? "rgba(255, 64, 64, 0.08)"
+                : "rgba(255, 255, 255, 0.04)",
+              backdropFilter: "blur(16px)",
+              WebkitBackdropFilter: "blur(16px)",
+              color: t.type === "success" ? "var(--ac)" : t.type === "error" ? "#ff5c5c" : "#fff",
+              padding: "12px 18px",
+              borderRadius: 14,
+              fontSize: 13,
+              fontWeight: 700,
+              boxShadow: t.type === "success"
+                ? "0 8px 32px rgba(0, 0, 0, 0.4), 0 0 16px rgba(204, 255, 0, 0.12)"
+                : t.type === "error"
+                ? "0 8px 32px rgba(0, 0, 0, 0.4), 0 0 16px rgba(255, 64, 64, 0.12)"
+                : "0 8px 32px rgba(0, 0, 0, 0.4)",
+              animation: "toastIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both",
+              border: t.type === "success"
+                ? "1px solid rgba(204, 255, 0, 0.2)"
+                : t.type === "error"
+                ? "1px solid rgba(255, 64, 64, 0.2)"
+                : "1px solid rgba(255, 255, 255, 0.08)",
+            }}
+          >
             {t.type === "success" ? "✓ " : t.type === "error" ? "✗ " : "ℹ "}{t.message}
           </div>
         ))}
