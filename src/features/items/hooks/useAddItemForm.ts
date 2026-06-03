@@ -60,8 +60,13 @@ export function useAddItemForm({ onClose, onCreate, editItem, defaultType }: Use
       return;
     }
 
-    const parsed = chrono.parseDate(nlpInput);
-    if (parsed) {
+    const results = chrono.parse(nlpInput);
+    if (results.length > 0) {
+      const result = results[0];
+      const parsed = result.date();
+      if (!result.start.isCertain("hour")) {
+        parsed.setHours(23, 59, 0, 0);
+      }
       setParsedDate(parsed);
       const offset = parsed.getTimezoneOffset();
       const localTime = new Date(parsed.getTime() - offset * 60 * 1000);
