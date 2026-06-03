@@ -3357,14 +3357,24 @@ function DashboardContent() {
                     onClick={() => setActiveDrawer({ type: "deadline", data: closestDeadline })} 
                   />
                 )}
-                {deadlines.filter(d => d.id !== closestDeadline?.id).map((d, i) => (
-                  <DeadlineListItem 
-                    key={d.id} 
-                    index={i + 2} 
-                    {...mapDeadlineProps(d)} 
-                    onClick={() => setActiveDrawer({ type: "deadline", data: d })} 
-                  />
-                ))}
+                {[...deadlines]
+                  .filter(d => d.id !== closestDeadline?.id)
+                  .sort((a, b) => {
+                    if (a.completed !== b.completed) {
+                      return a.completed ? 1 : -1;
+                    }
+                    const timeA = new Date(a.due_date).getTime();
+                    const timeB = new Date(b.due_date).getTime();
+                    return a.completed ? timeB - timeA : timeA - timeB;
+                  })
+                  .map((d, i) => (
+                    <DeadlineListItem 
+                      key={d.id} 
+                      index={i + 2} 
+                      {...mapDeadlineProps(d)} 
+                      onClick={() => setActiveDrawer({ type: "deadline", data: d })} 
+                    />
+                  ))}
               </>
             )}
           </TabContent>
