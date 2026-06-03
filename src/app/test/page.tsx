@@ -2646,6 +2646,8 @@ function DetailDrawer({ activeDrawer, onClose, onEditTap }: DetailDrawerProps) {
           boxShadow: "0 -8px 32px rgba(0,0,0,0.5)",
           userSelect: "none",
           touchAction: "pan-y",
+          maxHeight: "min(86dvh, 720px)",
+          overflowY: "auto",
         }}
       >
         {/* Glass top highlight */}
@@ -2713,7 +2715,7 @@ function DetailDrawer({ activeDrawer, onClose, onEditTap }: DetailDrawerProps) {
             <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
               Subtasks checklist ({completedTasksCount} of {totalTasksCount})
             </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24, maxHeight: 180, overflowY: 'auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
               {subtasks.length === 0 ? (
                 <p className="text-xs text-neutral-500 italic py-2">No subtasks defined. Tap Edit to add checkpoint tasks.</p>
               ) : (

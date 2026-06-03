@@ -74,7 +74,7 @@ export function GoalDetailContent({ goal, onClose, onEditTap }: GoalDetailConten
       <h3 style={{ fontSize: 11, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>
         Subtasks checklist ({completedTasksCount} of {totalTasksCount})
       </h3>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24, maxHeight: 180, overflowY: "auto" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
         {subtasks.length === 0 ? (
           <p className="text-xs text-neutral-500 italic py-2">No subtasks defined. Tap Edit to add checkpoint tasks.</p>
         ) : (
