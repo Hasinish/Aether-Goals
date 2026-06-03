@@ -26,7 +26,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {/* Toast container */}
       <div style={{
         position: "fixed", top: 60, left: "50%", transform: "translateX(-50%)",
-        zIndex: 9999, display: "flex", flexDirection: "column", gap: 8,
+        zIndex: 999999, display: "flex", flexDirection: "column", gap: 8,
         width: "90%", maxWidth: 350, pointerEvents: "none",
       }}>
         {toasts.map(t => (
