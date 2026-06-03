@@ -37,11 +37,26 @@ interface StoreContextProps {
 
 const StoreContext = createContext<StoreContextProps | undefined>(undefined);
 
-export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const StoreProvider: React.FC<{ children: React.ReactNode; guestMode?: boolean }> = ({ children, guestMode }) => {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [user, setUser] = useState<User | null>(null);
-  const [username, setUsername] = useState<string>("");
+  const [user, setUser] = useState<User | null>(
+    guestMode
+      ? ({
+          id: "guest-id",
+          email: "guest@example.com",
+          user_metadata: { username: "Guest Discipline" }
+        } as unknown as User)
+      : null
+  );
+  const [username, setUsername] = useState<string>(guestMode ? "Guest Discipline" : "");
+
+  // LocalStorage sync for Guest Mode goals
+  useEffect(() => {
+    if (guestMode && user) {
+      localStorage.setItem("guest_goals", JSON.stringify(goals));
+    }
+  }, [goals, guestMode, user]);
   
   // Track concurrent pending goals
   const [pendingGoalIds, setPendingGoalIds] = useState<Set<string>>(new Set());
@@ -128,6 +143,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      if (guestMode) {
+        const cached = localStorage.getItem("guest_goals");
+        setGoals(cached ? JSON.parse(cached) : []);
+        setLoading(false);
+        return;
+      }
       const dbConfigured = isSupabaseConfigured();
       if (dbConfigured && user) {
         // ── Authenticated path: 100% Supabase only. No localStorage reads. ──
@@ -180,9 +201,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } finally {
       setLoading(false);
     }
-  }, [user, calculateGoalMetrics, seedDataToSupabase]);
+  }, [user, calculateGoalMetrics, seedDataToSupabase, guestMode]);
 
   useEffect(() => {
+    if (guestMode) return;
     const dbConfigured = isSupabaseConfigured();
 
     let subscription: { unsubscribe: () => void } | null = null;
@@ -228,10 +250,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         subscription.unsubscribe();
       }
     };
-  }, []);
+  }, [guestMode]);
 
   // Fetch username from DB when user changes
   useEffect(() => {
+    if (guestMode) return;
     const fetchUsername = async () => {
       if (user) {
         if (user.user_metadata?.username) {
@@ -258,7 +281,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     };
     fetchUsername();
-  }, [user]);
+  }, [user, guestMode]);
 
   useEffect(() => {
     fetchData();
@@ -272,6 +295,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       throw new Error("Username must be at least 3 characters.");
     }
     try {
+      if (guestMode) {
+        setUsername(newUsername.trim());
+        return;
+      }
       if (isSupabaseConfigured()) {
         const client = getSupabaseClient();
         const { error: profileError } = await client
@@ -345,23 +372,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     try {
       if (user) {
-        const client = getSupabaseClient();
-        const { error: gError } = await client.from("goals").insert({
-          id: newGoal.id,
-          user_id: newGoal.user_id,
-          title: newGoal.title,
-          tags: newGoal.tags,
-          created_at: newGoal.created_at,
-          sort_order: newGoal.sort_order,
-        });
+        if (!guestMode) {
+          const client = getSupabaseClient();
+          const { error: gError } = await client.from("goals").insert({
+            id: newGoal.id,
+            user_id: newGoal.user_id,
+            title: newGoal.title,
+            tags: newGoal.tags,
+            created_at: newGoal.created_at,
+            sort_order: newGoal.sort_order,
+          });
 
-        if (gError) throw gError;
+          if (gError) throw gError;
 
-        if (newSubtasks.length > 0) {
-          const { error: sError } = await client.from("subtasks").insert(newSubtasks);
-          if (sError) {
-            await client.from("goals").delete().eq("id", newGoal.id);
-            throw sError;
+          if (newSubtasks.length > 0) {
+            const { error: sError } = await client.from("subtasks").insert(newSubtasks);
+            if (sError) {
+              await client.from("goals").delete().eq("id", newGoal.id);
+              throw sError;
+            }
           }
         }
       } else {
@@ -411,31 +440,33 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     try {
       if (user) {
-        const client = getSupabaseClient();
-        
-        const originalSubtasks = goalToUpdate?.subtasks || [];
-        const updatedSubtaskIds = new Set(updatedSubtasks.map((s) => s.id));
-        const deletedSubtaskIds = originalSubtasks
-          .filter((s) => !updatedSubtaskIds.has(s.id))
-          .map((s) => s.id);
+        if (!guestMode) {
+          const client = getSupabaseClient();
+          
+          const originalSubtasks = goalToUpdate?.subtasks || [];
+          const updatedSubtaskIds = new Set(updatedSubtasks.map((s) => s.id));
+          const deletedSubtaskIds = originalSubtasks
+            .filter((s) => !updatedSubtaskIds.has(s.id))
+            .map((s) => s.id);
 
-        const sanitizedSubtasks = updatedSubtasks.map((s) => ({
-          id: s.id,
-          title: s.title,
-          is_complete: s.is_complete,
-          sort_order: s.sort_order,
-        }));
+          const sanitizedSubtasks = updatedSubtasks.map((s) => ({
+            id: s.id,
+            title: s.title,
+            is_complete: s.is_complete,
+            sort_order: s.sort_order,
+          }));
 
-        const { error } = await client.rpc("update_goal_with_subtasks", {
-          p_goal_id: goalId,
-          p_title: title,
-          p_tags: tags,
-          p_sort_order: goalToUpdate?.sort_order || 0,
-          p_subtasks: sanitizedSubtasks,
-          p_deleted_subtask_ids: deletedSubtaskIds,
-        });
+          const { error } = await client.rpc("update_goal_with_subtasks", {
+            p_goal_id: goalId,
+            p_title: title,
+            p_tags: tags,
+            p_sort_order: goalToUpdate?.sort_order || 0,
+            p_subtasks: sanitizedSubtasks,
+            p_deleted_subtask_ids: deletedSubtaskIds,
+          });
 
-        if (error) throw error;
+          if (error) throw error;
+        }
       } else {
         throw new Error("User must be authenticated to update a goal.");
       }
@@ -462,11 +493,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     try {
       if (user) {
-        const client = getSupabaseClient();
-        const { data, error: gError } = await client.from("goals").delete().eq("id", goalId).select();
-        if (gError) throw gError;
-        if (!data || data.length === 0) {
-          throw new Error("Delete blocked by Row Level Security (RLS). Please ensure you have a DELETE policy configured for the 'goals' table.");
+        if (!guestMode) {
+          const client = getSupabaseClient();
+          const { data, error: gError } = await client.from("goals").delete().eq("id", goalId).select();
+          if (gError) throw gError;
+          if (!data || data.length === 0) {
+            throw new Error("Delete blocked by Row Level Security (RLS). Please ensure you have a DELETE policy configured for the 'goals' table.");
+          }
         }
       } else {
         throw new Error("User must be authenticated to delete a goal.");
@@ -535,16 +568,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     try {
       if (user) {
-        const client = getSupabaseClient();
-        const { data, error: upErr } = await client
-          .from("subtasks")
-          .update({ is_complete: newIsComplete })
-          .eq("id", subtaskId)
-          .select();
+        if (!guestMode) {
+          const client = getSupabaseClient();
+          const { data, error: upErr } = await client
+            .from("subtasks")
+            .update({ is_complete: newIsComplete })
+            .eq("id", subtaskId)
+            .select();
 
-        if (upErr) throw upErr;
-        if (!data || data.length === 0) {
-          throw new Error("Update did not affect any rows. Subtask may have been deleted.");
+          if (upErr) throw upErr;
+          if (!data || data.length === 0) {
+            throw new Error("Update did not affect any rows. Subtask may have been deleted.");
+          }
         }
       } else {
         throw new Error("User must be authenticated to toggle a subtask.");
@@ -593,20 +628,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     try {
       if (user) {
-        const client = getSupabaseClient();
-        const updatePromises = reordered.map((g) =>
-          client
-            .from("goals")
-            .update({ sort_order: g.sort_order })
-            .eq("id", g.id)
-            .eq("user_id", user.id)
-            .select()
-        );
-        const results = await Promise.all(updatePromises);
-        for (const res of results) {
-          if (res.error) throw res.error;
-          if (!res.data || res.data.length === 0) {
-            throw new Error("Update did not affect any rows. A goal may have been deleted.");
+        if (!guestMode) {
+          const client = getSupabaseClient();
+          const updatePromises = reordered.map((g) =>
+            client
+              .from("goals")
+              .update({ sort_order: g.sort_order })
+              .eq("id", g.id)
+              .eq("user_id", user.id)
+              .select()
+          );
+          const results = await Promise.all(updatePromises);
+          for (const res of results) {
+            if (res.error) throw res.error;
+            if (!res.data || res.data.length === 0) {
+              throw new Error("Update did not affect any rows. A goal may have been deleted.");
+            }
           }
         }
       } else {

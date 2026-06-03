@@ -201,7 +201,14 @@ export const HabitStoreProvider: React.FC<{
       let logs: HabitLog[] = [];
 
       if (user) {
-        ({ rawHabits, logs } = await fetchFromSupabase());
+        if (user.id === "guest-id") {
+          const cachedHabits = localStorage.getItem("guest_habits");
+          const cachedLogs = localStorage.getItem("guest_habit_logs");
+          rawHabits = cachedHabits ? JSON.parse(cachedHabits) : [];
+          logs = cachedLogs ? JSON.parse(cachedLogs) : [];
+        } else {
+          ({ rawHabits, logs } = await fetchFromSupabase());
+        }
       }
 
       setAllLogs(logs);
@@ -213,6 +220,20 @@ export const HabitStoreProvider: React.FC<{
       setLoading(false);
     }
   }, [user, fetchFromSupabase, buildHabits]);
+
+  // LocalStorage sync for Guest Mode habits
+  useEffect(() => {
+    if (user && user.id === "guest-id") {
+      const rawHabits = habits.map(({ logs, completionsToday, streak, ...h }) => h);
+      localStorage.setItem("guest_habits", JSON.stringify(rawHabits));
+    }
+  }, [habits, user]);
+
+  useEffect(() => {
+    if (user && user.id === "guest-id") {
+      localStorage.setItem("guest_habit_logs", JSON.stringify(allLogs));
+    }
+  }, [allLogs, user]);
 
   useEffect(() => {
     fetchData();
@@ -247,17 +268,19 @@ export const HabitStoreProvider: React.FC<{
 
       try {
         if (user) {
-          const client = getSupabaseClient();
-          const { error } = await client.from("habits").insert({
-            id: newRaw.id,
-            user_id: newRaw.user_id,
-            title: newRaw.title,
-            tags: newRaw.tags,
-            daily_target: newRaw.daily_target,
-            sort_order: newRaw.sort_order,
-            created_at: newRaw.created_at,
-          });
-          if (error) throw error;
+          if (user.id !== "guest-id") {
+            const client = getSupabaseClient();
+            const { error } = await client.from("habits").insert({
+              id: newRaw.id,
+              user_id: newRaw.user_id,
+              title: newRaw.title,
+              tags: newRaw.tags,
+              daily_target: newRaw.daily_target,
+              sort_order: newRaw.sort_order,
+              created_at: newRaw.created_at,
+            });
+            if (error) throw error;
+          }
         } else {
           throw new Error("User must be authenticated to create a habit.");
         }
@@ -298,15 +321,17 @@ export const HabitStoreProvider: React.FC<{
 
       try {
         if (user) {
-          const client = getSupabaseClient();
-          const { data, error } = await client
-            .from("habits")
-            .update({ title, tags: dbTags, daily_target: dailyTarget })
-            .eq("id", id)
-            .select();
-          if (error) throw error;
-          if (!data || data.length === 0) {
-            throw new Error("Update did not affect any rows. Habit may have been deleted.");
+          if (user.id !== "guest-id") {
+            const client = getSupabaseClient();
+            const { data, error } = await client
+              .from("habits")
+              .update({ title, tags: dbTags, daily_target: dailyTarget })
+              .eq("id", id)
+              .select();
+            if (error) throw error;
+            if (!data || data.length === 0) {
+              throw new Error("Update did not affect any rows. Habit may have been deleted.");
+            }
           }
         } else {
           throw new Error("User must be authenticated to update a habit.");
@@ -334,11 +359,13 @@ export const HabitStoreProvider: React.FC<{
 
       try {
         if (user) {
-          const client = getSupabaseClient();
-          const { data, error } = await client.from("habits").delete().eq("id", id).select();
-          if (error) throw error;
-          if (!data || data.length === 0) {
-            throw new Error("Delete blocked by Row Level Security (RLS). Please ensure you have a DELETE policy configured for the 'habits' table.");
+          if (user.id !== "guest-id") {
+            const client = getSupabaseClient();
+            const { data, error } = await client.from("habits").delete().eq("id", id).select();
+            if (error) throw error;
+            if (!data || data.length === 0) {
+              throw new Error("Delete blocked by Row Level Security (RLS). Please ensure you have a DELETE policy configured for the 'habits' table.");
+            }
           }
         } else {
           throw new Error("User must be authenticated to delete a habit.");
@@ -414,31 +441,33 @@ export const HabitStoreProvider: React.FC<{
 
       try {
         if (user) {
-          const client = getSupabaseClient();
-          if (newCompletions === 0) {
-            // Delete the log row
-            const { error } = await client
-              .from("habit_logs")
-              .delete()
-              .eq("habit_id", habitId)
-              .eq("log_date", today)
-              .select();
-            if (error) throw error;
-          } else {
-            // Upsert (insert or update)
-            const { data, error } = await client.from("habit_logs").upsert(
-              {
-                id: logId,
-                habit_id: habitId,
-                user_id: habit.user_id,
-                log_date: today,
-                completions: newCompletions,
-              },
-              { onConflict: "habit_id,log_date" }
-            ).select();
-            if (error) throw error;
-            if (!data || data.length === 0) {
-              throw new Error("Upsert did not affect any rows.");
+          if (user.id !== "guest-id") {
+            const client = getSupabaseClient();
+            if (newCompletions === 0) {
+              // Delete the log row
+              const { error } = await client
+                .from("habit_logs")
+                .delete()
+                .eq("habit_id", habitId)
+                .eq("log_date", today)
+                .select();
+              if (error) throw error;
+            } else {
+              // Upsert (insert or update)
+              const { data, error } = await client.from("habit_logs").upsert(
+                {
+                  id: logId,
+                  habit_id: habitId,
+                  user_id: habit.user_id,
+                  log_date: today,
+                  completions: newCompletions,
+                },
+                { onConflict: "habit_id,log_date" }
+              ).select();
+              if (error) throw error;
+              if (!data || data.length === 0) {
+                throw new Error("Upsert did not affect any rows.");
+              }
             }
           }
         } else {
@@ -470,20 +499,22 @@ export const HabitStoreProvider: React.FC<{
 
       try {
         if (user) {
-          const client = getSupabaseClient();
-          const updatePromises = reordered.map((h) =>
-            client
-              .from("habits")
-              .update({ sort_order: h.sort_order })
-              .eq("id", h.id)
-              .eq("user_id", user.id)
-              .select()
-          );
-          const results = await Promise.all(updatePromises);
-          for (const res of results) {
-            if (res.error) throw res.error;
-            if (!res.data || res.data.length === 0) {
-              throw new Error("Update did not affect any rows. A habit may have been deleted.");
+          if (user.id !== "guest-id") {
+            const client = getSupabaseClient();
+            const updatePromises = reordered.map((h) =>
+              client
+                .from("habits")
+                .update({ sort_order: h.sort_order })
+                .eq("id", h.id)
+                .eq("user_id", user.id)
+                .select()
+            );
+            const results = await Promise.all(updatePromises);
+            for (const res of results) {
+              if (res.error) throw res.error;
+              if (!res.data || res.data.length === 0) {
+                throw new Error("Update did not affect any rows. A habit may have been deleted.");
+              }
             }
           }
         } else {

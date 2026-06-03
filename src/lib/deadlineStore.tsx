@@ -76,7 +76,12 @@ export const DeadlineStoreProvider: React.FC<{
     try {
       let list: Deadline[] = [];
       if (user) {
-        list = await fetchFromSupabase();
+        if (user.id === "guest-id") {
+          const cached = localStorage.getItem("guest_deadlines");
+          list = cached ? JSON.parse(cached) : [];
+        } else {
+          list = await fetchFromSupabase();
+        }
       }
       setDeadlines(list);
     } catch (e) {
@@ -86,6 +91,13 @@ export const DeadlineStoreProvider: React.FC<{
       setLoading(false);
     }
   }, [user, fetchFromSupabase]);
+
+  // LocalStorage sync for Guest Mode deadlines
+  useEffect(() => {
+    if (user && user.id === "guest-id") {
+      localStorage.setItem("guest_deadlines", JSON.stringify(deadlines));
+    }
+  }, [deadlines, user]);
 
   useEffect(() => {
     fetchData();
@@ -110,9 +122,11 @@ export const DeadlineStoreProvider: React.FC<{
 
       try {
         if (user) {
-          const client = getSupabaseClient();
-          const { error } = await client.from("deadlines").insert(newDeadline);
-          if (error) throw error;
+          if (user.id !== "guest-id") {
+            const client = getSupabaseClient();
+            const { error } = await client.from("deadlines").insert(newDeadline);
+            if (error) throw error;
+          }
         } else {
           throw new Error("User must be authenticated to create a deadline.");
         }
@@ -141,15 +155,17 @@ export const DeadlineStoreProvider: React.FC<{
 
       try {
         if (user) {
-          const client = getSupabaseClient();
-          const { data, error } = await client
-            .from("deadlines")
-            .update({ title, due_date: dueDate, completed })
-            .eq("id", id)
-            .select();
-          if (error) throw error;
-          if (!data || data.length === 0) {
-            throw new Error("Update did not affect any rows. Deadline may have been deleted.");
+          if (user.id !== "guest-id") {
+            const client = getSupabaseClient();
+            const { data, error } = await client
+              .from("deadlines")
+              .update({ title, due_date: dueDate, completed })
+              .eq("id", id)
+              .select();
+            if (error) throw error;
+            if (!data || data.length === 0) {
+              throw new Error("Update did not affect any rows. Deadline may have been deleted.");
+            }
           }
         } else {
           throw new Error("User must be authenticated to update a deadline.");
@@ -175,11 +191,13 @@ export const DeadlineStoreProvider: React.FC<{
 
       try {
         if (user) {
-          const client = getSupabaseClient();
-          const { data, error } = await client.from("deadlines").delete().eq("id", id).select();
-          if (error) throw error;
-          if (!data || data.length === 0) {
-            throw new Error("Delete blocked by Row Level Security (RLS). Please ensure you have a DELETE policy configured for the 'deadlines' table.");
+          if (user.id !== "guest-id") {
+            const client = getSupabaseClient();
+            const { data, error } = await client.from("deadlines").delete().eq("id", id).select();
+            if (error) throw error;
+            if (!data || data.length === 0) {
+              throw new Error("Delete blocked by Row Level Security (RLS). Please ensure you have a DELETE policy configured for the 'deadlines' table.");
+            }
           }
         } else {
           throw new Error("User must be authenticated to delete a deadline.");
