@@ -87,7 +87,7 @@ export function DrawerShell({ onClose, animate, sheetRef, children, title }: Dra
           }}
           style={{
             width: 36, height: 5, borderRadius: 2.5,
-            background: "var(--card-3)", margin: "0 auto 24px",
+            background: "rgba(255, 255, 255, 0.45)", margin: "0 auto 24px",
             cursor: "pointer",
             outline: "none",
           }} 

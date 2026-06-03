@@ -167,9 +167,8 @@ export function SpringDrawer({
             style={{
               width: 38,
               height: 5,
-              borderRadius: 3,
-              background: "var(--card-3)",
-              opacity: 0.8,
+              borderRadius: 2.5,
+              background: "rgba(255, 255, 255, 0.45)",
             }}
           />
         </div>
