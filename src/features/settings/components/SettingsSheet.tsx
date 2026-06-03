@@ -99,7 +99,13 @@ export function SettingsSheet({ onNav }: SettingsSheetProps) {
         },
       });
 
-      const result = await response.json();
+      const text = await response.text();
+      let result;
+      try {
+        result = JSON.parse(text);
+      } catch (e) {
+        throw new Error(`Failed to parse response as JSON. Status: ${response.status}. Raw response: ${text.slice(0, 200)}`);
+      }
       if (!response.ok || result.error) {
         throw new Error(result.error || "Failed to delete account");
       }
