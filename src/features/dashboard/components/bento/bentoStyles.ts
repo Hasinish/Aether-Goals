@@ -6,7 +6,7 @@ export const bentoCardBaseStyle: React.CSSProperties = {
   backdropFilter: "blur(24px)",
   WebkitBackdropFilter: "blur(24px)",
   border: "1.5px solid rgba(255, 255, 255, 0.55)",
-  padding: 18,
+  padding: "16px 14px",
   minHeight: 130,
   position: "relative",
   overflow: "hidden",

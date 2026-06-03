@@ -84,7 +84,7 @@ export function BentoStreak({ onNav, habit }: BentoStreakProps) {
         background: "rgba(204,255,0,0.1)",
         border: "1px solid rgba(204,255,0,0.18)",
         display: "flex", alignItems: "center", justifyContent: "center",
-        marginBottom: 14,
+        marginBottom: 10,
         position: "relative", zIndex: 1,
       }}>
         <svg 
@@ -128,8 +128,8 @@ export function BentoStreak({ onNav, habit }: BentoStreakProps) {
       </div>
 
       <div style={{
-        fontSize: 48, fontWeight: 900, color: "#fff",
-        lineHeight: 0.9, letterSpacing: "-1px", marginBottom: 6,
+        fontSize: 42, fontWeight: 900, color: "#fff",
+        lineHeight: 0.9, letterSpacing: "-1px", marginBottom: 4,
         position: "relative", zIndex: 1,
       }}>{streak}</div>
       <div style={{ fontSize: 12, fontWeight: 600, color: "var(--t2)", position: "relative", zIndex: 1 }}>day streak</div>
@@ -153,7 +153,7 @@ export function BentoCompletion({ onNav, progress: progressPercent }: BentoCompl
     return () => clearTimeout(t);
   }, [progressPercent]);
 
-  const size = 56, stroke = 5;
+  const size = 46, stroke = 4;
   const r = (size - stroke * 2) / 2;
   const circ = 2 * Math.PI * r;
   const offset = circ - (ring / 100) * circ;
@@ -164,6 +164,7 @@ export function BentoCompletion({ onNav, progress: progressPercent }: BentoCompl
       onClick={() => { onNav("goals"); toast("Viewing all goals", "info"); }}
       style={{ 
         ...bentoCardBaseStyle, 
+        minHeight: 140,
         animation: "fadeUp 0.4s 0.36s ease both", 
         cursor: "pointer",
       }}
@@ -172,7 +173,7 @@ export function BentoCompletion({ onNav, progress: progressPercent }: BentoCompl
         position: "absolute", top: 0, left: 14, right: 14, height: 1,
         background: "rgba(255,255,255,0.06)", pointerEvents: "none",
       }} />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, gap: 10 }}>
         <svg width={size} height={size} style={{ transform: "rotate(-90deg)", flexShrink: 0 }}>
           <circle cx={c} cy={c} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={stroke} />
           <circle cx={c} cy={c} r={r} fill="none" stroke="var(--ac)" strokeWidth={stroke}
@@ -180,7 +181,7 @@ export function BentoCompletion({ onNav, progress: progressPercent }: BentoCompl
             style={{ transition: "stroke-dashoffset 900ms cubic-bezier(0.16,1,0.3,1)" }} />
         </svg>
         <div style={{
-          fontSize: 36, fontWeight: 900, color: "var(--ac)",
+          fontSize: 30, fontWeight: 900, color: "var(--ac)",
           lineHeight: 0.9, letterSpacing: "-0.5px", textAlign: "right",
         }}>{rate}%</div>
       </div>
@@ -207,6 +208,7 @@ export function BentoHabitsToday({ onNav, completed, total }: BentoHabitsTodayPr
       onClick={() => { onNav("habits"); toast("Viewing daily habits", "info"); }}
       style={{ 
         ...bentoCardBaseStyle, 
+        minHeight: 140,
         animation: "fadeUp 0.4s 0.43s ease both", 
         cursor: "pointer",
       }}
@@ -215,7 +217,7 @@ export function BentoHabitsToday({ onNav, completed, total }: BentoHabitsTodayPr
         position: "absolute", top: 0, left: 14, right: 14, height: 1,
         background: "rgba(255,255,255,0.06)", pointerEvents: "none",
       }} />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 2 }}>
           <span style={{ fontSize: 36, fontWeight: 900, color: "#fff", lineHeight: 0.9 }}>{completed}</span>
           <span style={{ fontSize: 20, fontWeight: 600, color: "var(--t3)", lineHeight: 1 }}>/{total}</span>
@@ -230,7 +232,7 @@ export function BentoHabitsToday({ onNav, completed, total }: BentoHabitsTodayPr
           <CheckSquare size={20} color="var(--ac)" />
         </div>
       </div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--t2)", marginBottom: 10 }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--t2)", marginBottom: 8 }}>
         Habits Today
       </div>
       <div style={{ display: "flex", gap: 4 }}>

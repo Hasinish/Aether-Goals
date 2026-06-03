@@ -1,4 +1,4 @@
-const CACHE_NAME = "aether-goals-v52";
+const CACHE_NAME = "aether-goals-v53";
 const ASSETS_TO_CACHE = [
   "/",
   "/manifest.json",
