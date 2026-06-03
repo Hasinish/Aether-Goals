@@ -49,7 +49,7 @@ export default function AuthScreen() {
 
       if (!isSignIn) {
         // Sign Up
-        const { error: authError } = await client.auth.signUp({
+        const { data, error: authError } = await client.auth.signUp({
           email: email.trim(),
           password: password,
           options: {
@@ -58,6 +58,14 @@ export default function AuthScreen() {
         });
 
         if (authError) throw authError;
+
+        // Supabase silently "succeeds" for existing emails to prevent enumeration.
+        // The tell: user object exists but identities array is empty.
+        if (data.user && (data.user.identities?.length ?? 0) === 0) {
+          setError("An account with this email already exists. Sign in instead.");
+          return;
+        }
+
         setMessage("Account created. Please check your email or log in directly if auto-confirmed.");
       } else {
         // Sign In
