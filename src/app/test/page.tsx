@@ -2821,11 +2821,17 @@ function DetailDrawer({ activeDrawer, onClose, onEditTap }: DetailDrawerProps) {
                 </svg>
                 <div style={{
                   position: 'absolute', inset: 0,
-                  display: 'flex', flexDirection: 'column',
+                  display: 'flex',
                   alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <span style={{ fontSize: 18, fontWeight: 900, color: '#fff' }}>{habitDone}</span>
-                  <span style={{ fontSize: 10, color: 'var(--t3)', marginTop: -2 }}>/{habitTarget}</span>
+                  {habitCheckedIn ? (
+                    <span style={{ fontSize: 22, fontWeight: 900, color: 'var(--ac)' }}>✓</span>
+                  ) : (
+                    <span style={{ fontSize: 18, fontWeight: 900, color: '#fff', display: 'flex', alignItems: 'baseline' }}>
+                      {habitDone}
+                      <span style={{ fontSize: 12, color: 'var(--t3)', fontWeight: 500 }}>/{habitTarget}</span>
+                    </span>
+                  )}
                 </div>
               </div>
 
