@@ -1,123 +1,112 @@
 # Aether Goals
 
-<div align="center">
-  <p><strong>A premium, minimalist, mobile-first Progressive Web App (PWA) goal tracker.</strong></p>
-  <p>Designed with sleek dark aesthetics, frosted glassmorphism, vibrant progress rings, and NLP deadline parser to help you build discipline and reach your milestones.</p>
-</div>
+A dark, minimalist, mobile-first goal tracker built as a PWA. Track goals with subtask checklists, stay consistent with daily habit streaks, and manage deadlines with a live countdown — all in one focused interface.
 
 ---
 
-## :: Interface Preview
+## Preview
 
 <div align="center">
   <table>
     <tr>
-      <td align="center"><strong>[Home Dashboard]</strong></td>
-      <td align="center"><strong>[Goals Tracker]</strong></td>
-      <td align="center"><strong>[Habits Matrix]</strong></td>
-      <td align="center"><strong>[Smart Deadlines]</strong></td>
+      <td align="center"><strong>Dashboard</strong></td>
+      <td align="center"><strong>Goals</strong></td>
+      <td align="center"><strong>Habits</strong></td>
+      <td align="center"><strong>Deadlines</strong></td>
     </tr>
     <tr>
-      <td><img src="./public/screenshots/home.png" width="180" alt="Home Dashboard"/></td>
-      <td><img src="./public/screenshots/goals.png" width="180" alt="Goals Tracker"/></td>
-      <td><img src="./public/screenshots/habits.png" width="180" alt="Habits Matrix"/></td>
-      <td><img src="./public/screenshots/deadlines.png" width="180" alt="Smart Deadlines"/></td>
+      <td><img src="./public/screenshots/home.png" width="180" alt="Dashboard"/></td>
+      <td><img src="./public/screenshots/goals.png" width="180" alt="Goals"/></td>
+      <td><img src="./public/screenshots/habits.png" width="180" alt="Habits"/></td>
+      <td><img src="./public/screenshots/deadlines.png" width="180" alt="Deadlines"/></td>
     </tr>
   </table>
 </div>
 
 ---
 
-## :: Core Pillars
+## Features
 
-### 1. [Guest] Guest Sandbox Mode (`/guest`)
-* **Instant local playground**: Explore the app without registering or configuring a database.
-* **Sync-to-LocalStorage**: Automatic state persistence of goals, habits, progress logs, and deadlines inside `localStorage`.
-* **Zero-config walkthrough**: A frosted glass banner lets you "Seed Demo Data" to instantly preview the app's visual potential or "Reset" to a clean slate.
+### Goals & Subtasks
+Create goals with a list of subtasks. Each goal card shows an animated progress bar, a completion count (`3/6 tasks`), tags, and a delta badge tracking weekly momentum. Tap a goal to open a detail drawer where you can toggle individual subtasks or edit the goal.
 
-### 2. [Onboard] Progressive Onboarding Path
-* **Step-by-step guidance**: Guiding checklist items that walk you through:
-  * **Phase 1**: Define a core goal.
-  * **Phase 2**: Set a target deadline.
-  * **Phase 3**: Establish a daily habit to build consistency.
-* **Checklist Progress Pills**: Segmented checklist tracking that dynamically fills as onboarding is finished.
+### Daily Habit Streaks
+Track daily habits with a tap-to-check-in system. Each habit card shows a circular SVG progress ring, a live streak counter, and a **100-day activity grid** — a 5 × 20 matrix of dots representing your consistency over the past 100 days (same pattern as GitHub's contribution graph). Habits support configurable daily targets (e.g. "do 3 sets").
 
-### 3. [NLP] Smart NLP Deadlines (`chrono-node`)
-* **Natural language parser**: Type deadlines like `"tomorrow at 5pm"`, `"next Friday"`, or `"June 15th"`.
-* **Smart defaults**: If no specific hour is supplied (e.g. `"tomorrow"`), the app defaults the deadline to **11:59 PM** (`23:59`) of that day. Custom hours (e.g. `"at 5pm"`) are fully respected.
-* **Urgency-based prioritization**: Priorities are dynamically mapped with colored status lights (Pulsing Red for critical, Yellow for high, Lime Green for normal).
+### Deadline Countdown
+Add deadlines with a live countdown timer (`14h 23m left`) displayed prominently. Each deadline card shows priority-coded status lights that pulse based on urgency — red for critical/overdue, yellow for high, lime green for normal. An elapsed time bar fills as the deadline approaches. Deadlines can be toggled complete.
 
-### 4. [Aesthetics] Premium Dark Aesthetics & Micro-interactions
-* **Glassmorphic notifications**: Ambient-colored glows and frosted blur effects (`backdrop-filter`) for interactive messages.
-* **100-day activity grid**: Beautiful GitHub-inspired 100-day consistency matrix (5x20 grid of circular indicator nodes) for habits.
-* **Crossfading video overlays**: Sleek background video loops running inside custom React requestAnimationFrame double-buffering layers to eliminate loop cuts.
+### Natural Language Date Input
+Type deadlines in plain English: `"tomorrow at 5pm"`, `"next Friday"`, `"June 15th"`. Powered by `chrono-node`. If no time is specified, the system defaults the deadline to **11:59 PM** of that day.
 
-### 5. [Sync] Supabase Cloud Sync (Full Mode)
-* **Real-time DB sync**: Automatic backup of database profiles, goals, subtasks, habits, and deadlines.
-* **Secure auth**: Built-in email auth, signups, and metadata configurations.
+### Onboarding Guide
+On first use, a 3-phase guided checklist walks new users through setup: create a goal → set a deadline → start a habit. The guide shows animated pill progress indicators and disappears once all three actions are complete.
+
+### Guest Sandbox (`/guest`)
+The entire app runs locally without any account or database configuration. All data is persisted in `localStorage`. A floating banner at the top exposes two controls: **Seed Demo** (populates realistic dummy goals, habits with 100-day logs, and deadlines) and **Reset** (wipes localStorage and reloads).
+
+### Cloud Sync (Supabase)
+For full use, connect a Supabase project for persistent storage across devices. Goals, subtasks, habits, habit logs, deadlines, and user profiles all sync to PostgreSQL with Row Level Security. Auth supports email/password login and signup.
 
 ---
 
-## :: Technology Stack
+## Stack
 
-* **Front-end / App**: [Next.js 15](https://nextjs.org/) (App Router) & [React 19](https://react.dev/)
-* **Languages**: [TypeScript](https://www.typescriptlang.org/)
-* **Styling**: [Tailwind CSS](https://tailwindcss.com/) & custom Vanilla CSS design tokens
-* **Database & Auth**: [Supabase](https://supabase.com/) (PostgreSQL + RLS)
-* **Natural Language Parsing**: [Chrono-node](https://github.com/wanasit/chrono)
-* **PWA Standalone Capabilities**: Web App Manifest & Service Worker shell caching
-* **Native Compilation**: [Capacitor CLI](https://capacitorjs.com/) for Android compilation
+| Layer | Tech |
+|---|---|
+| Framework | Next.js 15 (App Router) |
+| Language | TypeScript |
+| Styling | Tailwind CSS + Vanilla CSS tokens |
+| Database | Supabase (PostgreSQL + RLS) |
+| Auth | Supabase Auth |
+| NLP | chrono-node |
+| PWA | Web App Manifest + Service Worker |
+| Native | Capacitor (Android APK) |
 
 ---
 
-## :: Local Setup Instructions
+## Local Setup
 
-### 1. Clone & Install
+### 1. Clone & install
 ```bash
 git clone https://github.com/Hasinish/Aether-Goals.git
 cd Aether-Goals
 npm install
 ```
 
-### 2. Configuration (`.env.local`)
-Create a `.env.local` file in the root:
+### 2. Environment variables
+Create `.env.local` in the project root:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anonymous-anon-key-string
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
-*Note: If you leave these variables empty, the app will display a setup assistant prompting config, but you can immediately enter `/guest` to play in sandbox mode.*
+If these are left empty, the app shows a setup screen. You can skip directly to `/guest` to use it without any config.
 
-### 3. Supabase Migrations
-If using Supabase, run the initial migration script in the SQL editor:
+### 3. Database migration
+In your Supabase project, open the SQL editor and run:
 [supabase/migrations/001_init_schema.sql](supabase/migrations/001_init_schema.sql)
 
-To enable instant signups, turn off email verification:
-* **Supabase Console > Authentication > Providers > Email**.
-* Toggle **Confirm email** to **OFF**.
+To allow instant signups without email verification:
+- Supabase Dashboard > Authentication > Providers > Email
+- Toggle **Confirm email** OFF
 
-### 4. Start Development Server
+### 4. Run
 ```bash
 npm run dev
 ```
-Open **`http://localhost:3000/guest`** in your browser.
+Open `http://localhost:3000` or go straight to `http://localhost:3000/guest`.
 
 ---
 
-## :: Native Android Compilation (Capacitor)
-This project is pre-configured to build a native Android APK using Capacitor:
+## Android Build (Capacitor)
 
-1. Ensure **OpenJDK 17** (configured in `JAVA_HOME`) and the **Android SDK** (configured in `ANDROID_HOME`) are installed.
-2. Compile and export static assets:
-   ```bash
-   npm run build
-   ```
-3. Sync assets to the Capacitor Android project:
-   ```bash
-   npx cap sync android
-   ```
-4. Build the debug APK via Gradle:
-   ```bash
-   cd android
-   .\gradlew.bat assembleDebug
-   ```
-   *The output APK will be located at: `android/app/build/outputs/apk/debug/app-debug.apk`*
+Requires OpenJDK 17 (`JAVA_HOME`) and Android SDK (`ANDROID_HOME`).
+
+```bash
+npm run build
+npx cap sync android
+cd android
+.\gradlew.bat assembleDebug
+```
+
+Output APK: `android/app/build/outputs/apk/debug/app-debug.apk`
