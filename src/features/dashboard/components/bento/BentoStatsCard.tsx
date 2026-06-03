@@ -172,7 +172,7 @@ export function BentoCompletion({ onNav, progress: progressPercent }: BentoCompl
         position: "absolute", top: 0, left: 14, right: 14, height: 1,
         background: "rgba(255,255,255,0.06)", pointerEvents: "none",
       }} />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 16 }}>
         <svg width={size} height={size} style={{ transform: "rotate(-90deg)", flexShrink: 0 }}>
           <circle cx={c} cy={c} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={stroke} />
           <circle cx={c} cy={c} r={r} fill="none" stroke="var(--ac)" strokeWidth={stroke}
