@@ -13,7 +13,11 @@ interface BentoHeroCardProps {
 
 export function BentoHeroCard({ onDrawer, onNav }: BentoHeroCardProps) {
   const { goals } = useGoalsStore();
-  const goal = goals[0];
+  const goal = goals.length > 0
+    ? goals.reduce((best, g) =>
+        (g.progressPercent || 0) > (best.progressPercent || 0) ? g : best
+      , goals[0])
+    : null;
 
   const title = goal ? goal.title : "INITIALIZE FIRST MILESTONE";
   const progressPercent = goal ? (goal.progressPercent || 0) : 0;

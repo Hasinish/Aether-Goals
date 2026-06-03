@@ -555,7 +555,9 @@ export default function DashboardContent() {
                 <p className="text-xs text-neutral-300 font-light">No goals tracked. Tap Add to create your first goal.</p>
               </div>
             ) : (
-              goals.map((g, i) => (
+              [...goals]
+                .sort((a, b) => (b.progressPercent || 0) - (a.progressPercent || 0))
+                .map((g, i) => (
                 <GoalCard 
                   key={g.id} 
                   title={g.title}
