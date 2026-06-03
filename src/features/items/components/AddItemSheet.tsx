@@ -20,6 +20,7 @@ export function AddItemSheet({ onClose, onCreate, editItem, defaultType }: AddIt
     handleAddSubtaskInput,
     handleSubtaskChange,
     handleSubtaskRemove,
+    handleSubtaskReorder,
     habitTitle,
     setHabitTitle,
     habitTags,
@@ -127,6 +128,7 @@ export function AddItemSheet({ onClose, onCreate, editItem, defaultType }: AddIt
             handleAddSubtaskInput={handleAddSubtaskInput}
             handleSubtaskChange={handleSubtaskChange}
             handleSubtaskRemove={handleSubtaskRemove}
+            handleSubtaskReorder={handleSubtaskReorder}
           />
         )}
 

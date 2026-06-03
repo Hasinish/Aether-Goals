@@ -136,6 +136,14 @@ export function useAddItemForm({ onClose, onCreate, editItem, defaultType }: Use
     setGoalSubtasks(filtered.length === 0 ? [{ title: "", is_complete: false }] : filtered);
   };
 
+  const handleSubtaskReorder = (fromIdx: number, toIdx: number) => {
+    if (fromIdx === toIdx) return;
+    const next = [...goalSubtasks];
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(toIdx, 0, moved);
+    setGoalSubtasks(next);
+  };
+
   const handleSubmit = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
@@ -234,6 +242,7 @@ export function useAddItemForm({ onClose, onCreate, editItem, defaultType }: Use
     handleAddSubtaskInput,
     handleSubtaskChange,
     handleSubtaskRemove,
+    handleSubtaskReorder,
     habitTitle,
     setHabitTitle,
     habitTags,
