@@ -21,6 +21,7 @@ import { BottomNav } from "./components/BottomNav";
 import { ChooseUsernameModal } from "./components/ChooseUsernameModal";
 import { SpringDrawer } from "../ui/drawer/SpringDrawer";
 import { mapDeadlineProps } from "@/features/deadlines/utils/deadlineStatus";
+import { OnboardingGuide } from "./components/OnboardingGuide";
 
 // CrossfadeVideo: two stacked <video> elements that crossfade at loop end
 // so playback is continuous with no visible cut.
@@ -133,8 +134,14 @@ export default function DashboardContent() {
   const [activeNav, setActiveNav] = React.useState("home");
   const [activeDrawer, setActiveDrawer] = React.useState<ActiveDrawer | null>(null);
   const [isAddOpen, setIsAddOpen] = React.useState(false);
+  const [defaultAddType, setDefaultAddType] = React.useState<"goal" | "habit" | "deadline" | undefined>(undefined);
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   const toast = useToast();
+
+  const handleOpenAdd = React.useCallback((type?: "goal" | "habit" | "deadline") => {
+    setDefaultAddType(type);
+    setIsAddOpen(true);
+  }, []);
 
   const handleVideoLoaded = React.useCallback(() => {
     setVideoLoaded(true);
@@ -142,13 +149,13 @@ export default function DashboardContent() {
 
   const handleNavChange = React.useCallback((id: string) => {
     if (id === "add") {
-      setIsAddOpen(true);
+      handleOpenAdd();
     } else if (id === "settings") {
       setIsSettingsOpen(true);
     } else {
       setActiveNav(id);
     }
-  }, []);
+  }, [handleOpenAdd]);
   
   const { 
     goals, 
@@ -418,6 +425,12 @@ export default function DashboardContent() {
           )}
 
           <TabContent id="home" active={activeNav}>
+            <OnboardingGuide
+              goalsCount={goals.length}
+              deadlinesCount={deadlines.length}
+              habitsCount={habits.length}
+              onAction={handleOpenAdd}
+            />
             {/* Hero Bento grid section */}
             <BentoHeroCard onDrawer={setActiveDrawer} onNav={handleNavChange} />
             <BentoGrid 
@@ -629,6 +642,7 @@ export default function DashboardContent() {
           onClose={() => {
             setIsAddOpen(false);
             setEditingItem(null);
+            setDefaultAddType(undefined);
           }}
           title={editingItem ? "Edit Item" : "Create Item"}
         >
@@ -636,11 +650,14 @@ export default function DashboardContent() {
             onClose={() => {
               setIsAddOpen(false);
               setEditingItem(null);
+              setDefaultAddType(undefined);
             }} 
             editItem={editingItem}
+            defaultType={defaultAddType}
             onCreate={(type) => {
               setIsAddOpen(false);
               setEditingItem(null);
+              setDefaultAddType(undefined);
               if (type === 'goal') {
                 setActiveNav('goals');
               } else if (type === 'habit') {

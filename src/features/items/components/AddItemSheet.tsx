@@ -8,7 +8,7 @@ import { HabitFormFields } from "./HabitFormFields";
 import { DeadlineFormFields } from "./DeadlineFormFields";
 import { DeleteConfirmOverlay } from "./DeleteConfirmOverlay";
 
-export function AddItemSheet({ onClose, onCreate, editItem }: AddItemSheetProps) {
+export function AddItemSheet({ onClose, onCreate, editItem, defaultType }: AddItemSheetProps) {
   const {
     activeType,
     setActiveType,
@@ -39,7 +39,7 @@ export function AddItemSheet({ onClose, onCreate, editItem }: AddItemSheetProps)
     setShowConfirmDelete,
     handleSubmit,
     handleDelete
-  } = useAddItemForm({ onClose, onCreate, editItem });
+  } = useAddItemForm({ onClose, onCreate, editItem, defaultType });
 
   return (
     <div style={{

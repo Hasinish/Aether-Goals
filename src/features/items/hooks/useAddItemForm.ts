@@ -20,15 +20,16 @@ interface UseAddItemFormProps {
   onClose: () => void;
   onCreate?: (type: "goal" | "habit" | "deadline") => void;
   editItem?: EditItem | null;
+  defaultType?: "goal" | "habit" | "deadline";
 }
 
-export function useAddItemForm({ onClose, onCreate, editItem }: UseAddItemFormProps) {
+export function useAddItemForm({ onClose, onCreate, editItem, defaultType }: UseAddItemFormProps) {
   const toast = useToast();
   const { addGoal, updateGoal, deleteGoal } = useGoalsStore();
   const { addHabit, updateHabit, deleteHabit } = useHabitsStore();
   const { addDeadline, updateDeadline, deleteDeadline } = useDeadlinesStore();
 
-  const [activeType, setActiveType] = React.useState<"goal" | "habit" | "deadline">("goal");
+  const [activeType, setActiveType] = React.useState<"goal" | "habit" | "deadline">(defaultType || "goal");
 
   // Form States
   const [goalTitle, setGoalTitle] = React.useState("");
@@ -100,6 +101,7 @@ export function useAddItemForm({ onClose, onCreate, editItem }: UseAddItemFormPr
         setNlpInput("");
       }
     } else {
+      setActiveType(defaultType || "goal");
       setGoalTitle("");
       setGoalTags("");
       setGoalSubtasks([{ title: "", is_complete: false }]);
@@ -112,7 +114,7 @@ export function useAddItemForm({ onClose, onCreate, editItem }: UseAddItemFormPr
       setParsedDate(new Date(defaultDate));
       setNlpInput("");
     }
-  }, [editItem]);
+  }, [editItem, defaultType]);
 
   const handleAddSubtaskInput = () => {
     setGoalSubtasks([...goalSubtasks, { title: "", is_complete: false }]);

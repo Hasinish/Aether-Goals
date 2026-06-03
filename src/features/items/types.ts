@@ -9,4 +9,5 @@ export interface AddItemSheetProps {
   onClose: () => void;
   onCreate?: (type: "goal" | "habit" | "deadline") => void;
   editItem?: EditItem | null;
+  defaultType?: "goal" | "habit" | "deadline";
 }
