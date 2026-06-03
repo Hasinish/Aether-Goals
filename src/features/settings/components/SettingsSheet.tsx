@@ -103,7 +103,7 @@ export function SettingsSheet({ onNav }: SettingsSheetProps) {
       let result;
       try {
         result = JSON.parse(text);
-      } catch (e) {
+      } catch {
         throw new Error(`Failed to parse response as JSON. Status: ${response.status}. Raw response: ${text.slice(0, 200)}`);
       }
       if (!response.ok || result.error) {
