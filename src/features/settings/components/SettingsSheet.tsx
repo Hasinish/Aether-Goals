@@ -12,14 +12,21 @@ interface SettingsSheetProps {
 
 export function SettingsSheet({ onNav }: SettingsSheetProps) {
   const toast = useToast();
-  const { logout, username, updateUsername } = useGoalsStore();
+  const { logout, username, updateUsername, user } = useGoalsStore();
   const [isEditingProfile, setIsEditingProfile] = React.useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = React.useState(false);
+
+  const isGuest = user?.id === "guest-id";
 
   // Profile Editor state
   const [editUsername, setEditUsername] = React.useState(username);
   const [password, setPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [isSaving, setIsSaving] = React.useState(false);
+
+  // Delete Account state
+  const [confirmEmail, setConfirmEmail] = React.useState("");
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   // Sync state if username loaded later
   React.useEffect(() => {
@@ -67,6 +74,130 @@ export function SettingsSheet({ onNav }: SettingsSheetProps) {
       setIsSaving(false);
     }
   };
+
+  const handleDeleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user?.email || confirmEmail !== user.email) {
+      toast("Email does not match", "error");
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const client = getSupabaseClient();
+      const { data: { session } } = await client.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        throw new Error("No active session found");
+      }
+
+      const response = await fetch("/api/delete-account", {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || "Failed to delete account");
+      }
+
+      toast("Account successfully deleted", "success");
+      await logout();
+      window.location.reload();
+    } catch (err) {
+      toast((err as { message?: string }).message || "Failed to delete account", "error");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  if (isDeletingAccount) {
+    return (
+      <div style={{
+        animation: 'fadeUp 0.4s ease both',
+        background: 'var(--card)',
+        borderRadius: 24,
+        border: '1px solid var(--b1)',
+        padding: 24,
+        marginTop: 8,
+        position: 'relative',
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          position: 'absolute', top: 0, left: 14, right: 14, height: 1,
+          background: 'rgba(255,255,255,0.06)', pointerEvents: 'none',
+        }} />
+
+        <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--danger)', marginBottom: 8, letterSpacing: '-0.5px' }}>
+          Delete Account
+        </h2>
+        <p style={{ fontSize: 13, color: 'var(--t2)', marginBottom: 20, lineHeight: 1.4 }}>
+          This action is permanent and cannot be undone. All your goals, subtasks, habits, deadlines, and profile information will be permanently wiped.
+        </p>
+
+        <form onSubmit={handleDeleteAccount} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Email confirmation Input Bento Cell */}
+          <div style={{
+            background: 'var(--bg)', borderRadius: 16,
+            border: '1px solid var(--b1)', padding: '12px 18px',
+            display: 'flex', flexDirection: 'column', gap: 4,
+          }}>
+            <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Confirm your email ({user?.email})
+            </label>
+            <input
+              type="email"
+              placeholder="Type your email to confirm"
+              value={confirmEmail}
+              onChange={e => setConfirmEmail(e.target.value)}
+              required
+              disabled={isDeleting}
+              style={{
+                background: 'transparent', border: 'none', outline: 'none',
+                color: '#fff', fontSize: 14, fontWeight: 600, padding: 0, width: '100%',
+              }}
+            />
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
+            <button
+              type="button"
+              onClick={() => {
+                setIsDeletingAccount(false);
+                setConfirmEmail("");
+              }}
+              disabled={isDeleting}
+              style={{
+                flex: 1, height: 46, borderRadius: 14, background: 'var(--card-3)', border: 'none',
+                color: 'var(--t2)', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isDeleting || confirmEmail !== user?.email}
+              style={{
+                flex: 2, height: 46, borderRadius: 14,
+                background: confirmEmail === user?.email ? 'var(--danger)' : 'var(--card-3)',
+                border: 'none',
+                color: confirmEmail === user?.email ? '#fff' : 'var(--t3)',
+                fontSize: 13, fontWeight: 800, cursor: confirmEmail === user?.email ? 'pointer' : 'not-allowed',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: confirmEmail === user?.email ? '0 4px 14px rgba(255,92,92,0.3)' : 'none',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              {isDeleting ? "Deleting..." : "Delete My Account"}
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
 
   if (isEditingProfile) {
     return (
@@ -233,7 +364,15 @@ export function SettingsSheet({ onNav }: SettingsSheetProps) {
     },
   ];
 
-
+  if (user && !isGuest) {
+    settingsItems.push({
+      title: "Delete Account",
+      subtitle: "Permanently delete your account and all data",
+      action: "Delete",
+      actionColor: 'var(--danger)',
+      onClick: () => setIsDeletingAccount(true),
+    });
+  }
 
   settingsItems.push(
     {
