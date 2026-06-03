@@ -1,20 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import { Capacitor } from "@capacitor/core";
 
 export default function ServiceWorkerRegister() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
-
-    if (Capacitor.isNativePlatform()) {
-      navigator.serviceWorker.getRegistrations().then((registrations) => {
-        for (const registration of registrations) {
-          registration.unregister();
-        }
-      });
-      return;
-    }
 
     if (process.env.NODE_ENV !== "production") {
       // Programmatically clean up service workers in development to avoid stale caching issues
@@ -49,7 +39,8 @@ export default function ServiceWorkerRegister() {
       });
     };
 
-    // Auto-reload the page when a new service worker version takes control
+    // Auto-reload the page when a new service worker version takes control.
+    // The `refreshing` guard prevents an infinite reload loop.
     let refreshing = false;
     const handleControllerChange = () => {
       if (!refreshing) {

@@ -49,17 +49,19 @@ function CrossfadeVideo({ src, style, onLoaded }: { src: string; style?: React.C
 
     vA.play().catch(() => {});
 
-    const handleCanPlay = () => {
-      onLoaded?.();
-    };
+    // Mark video ready — multiple events and error all resolve loading
+    const handleCanPlay = () => { onLoaded?.(); };
+    const handleError = () => { onLoaded?.(); };
 
-    if (vA.readyState >= 3) {
+    if (vA.readyState >= 2) {
       onLoaded?.();
     }
 
     vA.addEventListener("canplay", handleCanPlay);
     vA.addEventListener("canplaythrough", handleCanPlay);
     vA.addEventListener("playing", handleCanPlay);
+    vA.addEventListener("loadeddata", handleCanPlay);
+    vA.addEventListener("error", handleError);
 
     const tick = () => {
       const active = activeRef.current === 0 ? vA : vB;
@@ -110,6 +112,8 @@ function CrossfadeVideo({ src, style, onLoaded }: { src: string; style?: React.C
       vA.removeEventListener("canplay", handleCanPlay);
       vA.removeEventListener("canplaythrough", handleCanPlay);
       vA.removeEventListener("playing", handleCanPlay);
+      vA.removeEventListener("loadeddata", handleCanPlay);
+      vA.removeEventListener("error", handleError);
     };
   }, [onLoaded]);
 
@@ -131,6 +135,7 @@ function CrossfadeVideo({ src, style, onLoaded }: { src: string; style?: React.C
 
 export default function DashboardContent() {
   const [videoLoaded, setVideoLoaded] = React.useState(false);
+  const videoLoadedRef = React.useRef(false);
   const [activeNav, setActiveNav] = React.useState("home");
   const [activeDrawer, setActiveDrawer] = React.useState<ActiveDrawer | null>(null);
   const [isAddOpen, setIsAddOpen] = React.useState(false);
@@ -143,9 +148,24 @@ export default function DashboardContent() {
     setIsAddOpen(true);
   }, []);
 
+  // Mark video loaded exactly once — called by CrossfadeVideo on any ready/error event
   const handleVideoLoaded = React.useCallback(() => {
-    setVideoLoaded(true);
+    if (!videoLoadedRef.current) {
+      videoLoadedRef.current = true;
+      setVideoLoaded(true);
+    }
   }, []);
+
+  // Safety timeout: never block the dashboard more than 2500ms for a decorative video
+  React.useEffect(() => {
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReduced) {
+      handleVideoLoaded();
+      return;
+    }
+    const id = setTimeout(handleVideoLoaded, 2500);
+    return () => clearTimeout(id);
+  }, [handleVideoLoaded]);
 
   const handleNavChange = React.useCallback((id: string) => {
     if (id === "add") {

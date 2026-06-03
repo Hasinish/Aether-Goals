@@ -10,27 +10,56 @@ interface AuthBackgroundProps {
 export function AuthBackground({ children }: AuthBackgroundProps) {
   const [videoLoaded, setVideoLoaded] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const loadedRef = useRef(false);
 
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const handleCanPlay = () => {
-      setVideoLoaded(true);
+    // Helper: mark video ready exactly once
+    const markVideoReady = () => {
+      if (!loadedRef.current) {
+        loadedRef.current = true;
+        setVideoLoaded(true);
+      }
     };
 
-    if (video.readyState >= 3) {
-      setVideoLoaded(true);
+    // Respect prefers-reduced-motion — skip waiting for video entirely
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReduced) {
+      markVideoReady();
+      return;
     }
 
-    video.addEventListener("canplay", handleCanPlay);
-    video.addEventListener("canplaythrough", handleCanPlay);
-    video.addEventListener("playing", handleCanPlay);
+    const video = videoRef.current;
+
+    // Timeout fallback: never block the app more than 2500ms
+    const timeoutId = setTimeout(markVideoReady, 2500);
+
+    if (!video) {
+      // No video element — unblock immediately
+      markVideoReady();
+      clearTimeout(timeoutId);
+      return;
+    }
+
+    // If already buffered enough, unblock now
+    if (video.readyState >= 2) {
+      markVideoReady();
+      clearTimeout(timeoutId);
+      return;
+    }
+
+    video.addEventListener("canplay", markVideoReady);
+    video.addEventListener("canplaythrough", markVideoReady);
+    video.addEventListener("playing", markVideoReady);
+    video.addEventListener("loadeddata", markVideoReady);
+    video.addEventListener("error", markVideoReady);
 
     return () => {
-      video.removeEventListener("canplay", handleCanPlay);
-      video.removeEventListener("canplaythrough", handleCanPlay);
-      video.removeEventListener("playing", handleCanPlay);
+      clearTimeout(timeoutId);
+      video.removeEventListener("canplay", markVideoReady);
+      video.removeEventListener("canplaythrough", markVideoReady);
+      video.removeEventListener("playing", markVideoReady);
+      video.removeEventListener("loadeddata", markVideoReady);
+      video.removeEventListener("error", markVideoReady);
     };
   }, []);
 
@@ -98,7 +127,7 @@ export function AuthBackground({ children }: AuthBackgroundProps) {
       
       <LoadingScreen isLoaded={videoLoaded} />
 
-      {/* Volumetric Full Bleed Looping Video Background */}
+      {/* Volumetric Full Bleed Looping Video Background — decorative only */}
       <video
         ref={videoRef}
         src="/auth-loop.mp4"
@@ -106,6 +135,12 @@ export function AuthBackground({ children }: AuthBackgroundProps) {
         loop
         muted
         playsInline
+        onError={() => {
+          if (!loadedRef.current) {
+            loadedRef.current = true;
+            setVideoLoaded(true);
+          }
+        }}
         style={{
           position: "absolute",
           inset: 0,
