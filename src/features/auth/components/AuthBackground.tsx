@@ -1,12 +1,39 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
+import LoadingScreen from "@/components/LoadingScreen";
 
 interface AuthBackgroundProps {
   children: React.ReactNode;
 }
 
 export function AuthBackground({ children }: AuthBackgroundProps) {
+  const [videoLoaded, setVideoLoaded] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleCanPlay = () => {
+      setVideoLoaded(true);
+    };
+
+    if (video.readyState >= 3) {
+      setVideoLoaded(true);
+    }
+
+    video.addEventListener("canplay", handleCanPlay);
+    video.addEventListener("canplaythrough", handleCanPlay);
+    video.addEventListener("playing", handleCanPlay);
+
+    return () => {
+      video.removeEventListener("canplay", handleCanPlay);
+      video.removeEventListener("canplaythrough", handleCanPlay);
+      video.removeEventListener("playing", handleCanPlay);
+    };
+  }, []);
+
   return (
     <div style={{
       background: "#000000",
@@ -69,8 +96,11 @@ export function AuthBackground({ children }: AuthBackgroundProps) {
         }
       `}</style>
       
+      <LoadingScreen isLoaded={videoLoaded} />
+
       {/* Volumetric Full Bleed Looping Video Background */}
       <video
+        ref={videoRef}
         src="/auth-loop.mp4"
         autoPlay
         loop

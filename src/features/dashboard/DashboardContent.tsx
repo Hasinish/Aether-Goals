@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import LoadingScreen from "@/components/LoadingScreen";
 import { useGoalsStore } from "@/lib/store";
 import { useHabitsStore } from "@/lib/habitStore";
 import { useDeadlinesStore } from "@/lib/deadlineStore";
@@ -23,7 +24,7 @@ import { mapDeadlineProps } from "@/features/deadlines/utils/deadlineStatus";
 
 // CrossfadeVideo: two stacked <video> elements that crossfade at loop end
 // so playback is continuous with no visible cut.
-function CrossfadeVideo({ src, style }: { src: string; style?: React.CSSProperties }) {
+function CrossfadeVideo({ src, style, onLoaded }: { src: string; style?: React.CSSProperties; onLoaded?: () => void }) {
   const refA = React.useRef<HTMLVideoElement | null>(null);
   const refB = React.useRef<HTMLVideoElement | null>(null);
   // 0 = A is active, 1 = B is active
@@ -31,7 +32,7 @@ function CrossfadeVideo({ src, style }: { src: string; style?: React.CSSProperti
   const crossfadingRef = React.useRef(false);
   const animIdRef = React.useRef<number>(0);
 
-  const SPEED = 0.5;          // 50% playback speed
+  const SPEED = 1.0;          // 100% playback speed
   const FADE_SECS = 2.5;      // crossfade overlap duration in seconds
 
   React.useEffect(() => {
@@ -46,6 +47,18 @@ function CrossfadeVideo({ src, style }: { src: string; style?: React.CSSProperti
     vB.style.opacity = "0";
 
     vA.play().catch(() => {});
+
+    const handleCanPlay = () => {
+      onLoaded?.();
+    };
+
+    if (vA.readyState >= 3) {
+      onLoaded?.();
+    }
+
+    vA.addEventListener("canplay", handleCanPlay);
+    vA.addEventListener("canplaythrough", handleCanPlay);
+    vA.addEventListener("playing", handleCanPlay);
 
     const tick = () => {
       const active = activeRef.current === 0 ? vA : vB;
@@ -93,8 +106,11 @@ function CrossfadeVideo({ src, style }: { src: string; style?: React.CSSProperti
       cancelAnimationFrame(animIdRef.current);
       vA.pause();
       vB.pause();
+      vA.removeEventListener("canplay", handleCanPlay);
+      vA.removeEventListener("canplaythrough", handleCanPlay);
+      vA.removeEventListener("playing", handleCanPlay);
     };
-  }, []);
+  }, [onLoaded]);
 
   const sharedStyle: React.CSSProperties = {
     ...style,
@@ -113,11 +129,16 @@ function CrossfadeVideo({ src, style }: { src: string; style?: React.CSSProperti
 
 
 export default function DashboardContent() {
+  const [videoLoaded, setVideoLoaded] = React.useState(false);
   const [activeNav, setActiveNav] = React.useState("home");
   const [activeDrawer, setActiveDrawer] = React.useState<ActiveDrawer | null>(null);
   const [isAddOpen, setIsAddOpen] = React.useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   const toast = useToast();
+
+  const handleVideoLoaded = React.useCallback(() => {
+    setVideoLoaded(true);
+  }, []);
 
   const handleNavChange = React.useCallback((id: string) => {
     if (id === "add") {
@@ -311,6 +332,8 @@ export default function DashboardContent() {
         }
       `}</style>
 
+      <LoadingScreen isLoaded={videoLoaded} />
+
       <div style={{
         background: "var(--bg)",
         minHeight: "100vh",
@@ -334,6 +357,7 @@ export default function DashboardContent() {
         }}>
           <CrossfadeVideo
             src="/loop-video.mp4"
+            onLoaded={handleVideoLoaded}
             style={{
               width: "100%",
               height: "100%",
@@ -435,6 +459,7 @@ export default function DashboardContent() {
                     streak={activeHabit.streak || 0}
                     rate={activeHabit.daily_target > 0 ? Math.round(((activeHabit.completionsToday || 0) / activeHabit.daily_target) * 100) : 0}
                     animDelay={400}
+                    logs={activeHabit.logs}
                     onClick={() => setActiveDrawer({ type: "habit", data: activeHabit })}
                     onCheckIn={async () => {
                       try {
@@ -454,6 +479,7 @@ export default function DashboardContent() {
                     streak={laggingHabit.streak || 0}
                     rate={laggingHabit.daily_target > 0 ? Math.round(((laggingHabit.completionsToday || 0) / laggingHabit.daily_target) * 100) : 0}
                     animDelay={480}
+                    logs={laggingHabit.logs}
                     onClick={() => setActiveDrawer({ type: "habit", data: laggingHabit })}
                     onCheckIn={async () => {
                       try {
@@ -528,6 +554,7 @@ export default function DashboardContent() {
                   streak={h.streak || 0}
                   rate={h.daily_target > 0 ? Math.round(((h.completionsToday || 0) / h.daily_target) * 100) : 0}
                   animDelay={100 + i * 80} 
+                  logs={h.logs}
                   onClick={() => setActiveDrawer({ type: "habit", data: h })} 
                   onCheckIn={async () => {
                     try {

@@ -30,8 +30,11 @@ export function GoalCard({ title, progress, tags, delta, done, total, animDelay,
       style={{
         background: 'var(--card)',
         borderRadius: 20,
-        border: '1px solid var(--b1)',
-        padding: '18px 18px 18px 22px',
+        borderLeft: `4px solid ${stripColor}`,
+        borderTop: '1px solid var(--b1)',
+        borderRight: '1px solid var(--b1)',
+        borderBottom: '1px solid var(--b1)',
+        padding: '18px',
         position: 'relative', 
         overflow: 'hidden',
         marginBottom: 10,
@@ -40,18 +43,10 @@ export function GoalCard({ title, progress, tags, delta, done, total, animDelay,
         cursor: onClick ? 'pointer' : 'default',
       }}
     >
-      {/* Left accent strip */}
-      <div style={{
-        position: 'absolute', left: 0, top: 0, bottom: 0,
-        width: 3, background: stripColor, borderRadius: '20px 0 0 20px',
-        transform: 'scaleY(0)',
-        transformOrigin: 'top',
-        animation: `stripGrow 0.4s ${animDelay + 200}ms cubic-bezier(0.16,1,0.3,1) both`,
-      }} />
 
       {/* Glass top highlight */}
       <div style={{
-        position: 'absolute', top: 0, left: 22, right: 18, height: 1,
+        position: 'absolute', top: 0, left: 18, right: 18, height: 1,
         background: 'rgba(255,255,255,0.05)',
       }} />
 

@@ -42,7 +42,7 @@ export function BottomNav({ active, onSelect }: BottomNavProps) {
         opacity: 1,
         left: `${leftOffset}px`,
         width: `${width}px`,
-        transition: "left 420ms cubic-bezier(0.34, 1.56, 0.64, 1.15), width 420ms cubic-bezier(0.34, 1.56, 0.64, 1.15), opacity 300ms ease",
+        transition: "left 320ms cubic-bezier(0.22, 1, 0.36, 1), width 320ms cubic-bezier(0.22, 1, 0.36, 1), opacity 250ms ease",
       });
     } else {
       setOrbStyle({ opacity: 0 });
@@ -86,35 +86,23 @@ export function BottomNav({ active, onSelect }: BottomNavProps) {
         animationDelay: "800ms"
       }}
     >
-      <style jsx global>{`
-        @keyframes navOrbFloat {
-          0%, 100% { transform: translateY(0) scale(1); filter: brightness(1); }
-          50% { transform: translateY(-1px) scale(1.02); filter: brightness(1.05); }
-        }
-        .nav-orb-pulse {
-          animation: navOrbFloat 3s ease-in-out infinite;
-        }
-      `}</style>
-
-      {/* Shared elastic sliding backdrop capsule (Nav Orb) */}
+      {/* Shared elastic sliding top indicator line */}
       <div
         style={{
           position: "absolute",
-          top: 6,
-          bottom: "calc(6px + 16px + env(safe-area-inset-bottom))",
+          top: 0,
           pointerEvents: "none",
-          zIndex: 1,
+          zIndex: 10,
           ...orbStyle,
         }}
       >
         <div
-          className="nav-orb-pulse"
           style={{
             width: "100%",
-            height: "100%",
-            borderRadius: 14,
+            height: 3,
+            borderRadius: "0 0 3px 3px",
             background: "var(--ac)",
-            boxShadow: "0 4px 15px rgba(204,255,0,0.38), 0 0 25px rgba(204,255,0,0.15)",
+            boxShadow: "0 2px 10px rgba(204,255,0,0.55), 0 0 15px rgba(204,255,0,0.25)",
           }}
         />
       </div>
@@ -196,7 +184,7 @@ export function BottomNav({ active, onSelect }: BottomNavProps) {
               <div style={{ position: 'relative' }}>
                 <Icon
                   size={22}
-                  color={isActive ? "#000000" : "var(--t3)"}
+                  color={isActive ? "var(--ac)" : "var(--t3)"}
                   strokeWidth={isActive ? 2.5 : 2}
                   style={{
                     transition: "color 280ms ease, transform 280ms ease",
@@ -219,7 +207,7 @@ export function BottomNav({ active, onSelect }: BottomNavProps) {
             <span style={{
               fontSize: 10,
               fontWeight: 700,
-              color: isActive ? "#000000" : "var(--t3)",
+              color: isActive ? "var(--ac)" : "var(--t3)",
               transition: "color 300ms ease"
             }}>
               {item.label}

@@ -6,6 +6,47 @@ import { formatTime } from "../utils/deadlineStatus";
 import { DeadlineProps } from "../types";
 import { ParallaxCard } from "@/components/ParallaxCard";
 
+const getPriorityColor = (priority: string) => {
+  switch (priority) {
+    case "OVERDUE":
+    case "CRITICAL":
+      return "#ff4040"; // Red
+    case "HIGH":
+      return "var(--warn)"; // Yellow/Orange
+    case "NORMAL":
+    default:
+      return "var(--ac)"; // Lime Green
+  }
+};
+
+const getPriorityBadgeStyle = (priority: string, completed: boolean): React.CSSProperties => {
+  if (completed) {
+    return {
+      background: "rgba(74,222,128,0.2)",
+      color: "var(--ok)",
+    };
+  }
+  switch (priority) {
+    case "OVERDUE":
+    case "CRITICAL":
+      return {
+        background: "rgba(255, 92, 92, 0.2)",
+        color: "var(--danger)",
+      };
+    case "HIGH":
+      return {
+        background: "rgba(251, 191, 36, 0.15)",
+        color: "var(--warn)",
+      };
+    case "NORMAL":
+    default:
+      return {
+        background: "var(--ac-soft)",
+        color: "var(--ac)",
+      };
+  }
+};
+
 export function FeaturedDeadline({ id, title, sub, priority, due, total, completed, onToggle, onClick }: DeadlineProps) {
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => {
@@ -20,16 +61,19 @@ export function FeaturedDeadline({ id, title, sub, priority, due, total, complet
   const remainingMs = Math.max(0, due - Date.now());
   const elapsedPercent = completed ? 100 : Math.round(Math.min(100, Math.max(0, (1 - remainingMs / total) * 100)));
 
+  const priorityColor = getPriorityColor(priority);
+  const badgeStyle = getPriorityBadgeStyle(priority, completed);
+
   return (
     <ParallaxCard 
       onClick={onClick}
       style={{
         background: "var(--card)",
         borderRadius: 16,
-        borderLeft: completed ? "4px solid var(--ok)" : "4px solid var(--danger)",
+        borderLeft: completed ? "4px solid var(--ok)" : `4px solid ${priorityColor}`,
         backgroundImage: completed 
           ? "linear-gradient(90deg, rgba(74,222,128,0.04) 0%, transparent 100%)"
-          : "linear-gradient(90deg, rgba(255,92,92,0.04) 0%, transparent 100%)",
+          : `linear-gradient(90deg, ${priorityColor}0a 0%, transparent 100%)`,
         borderTop: "1px solid var(--b1)",
         borderRight: "1px solid var(--b1)",
         borderBottom: "1px solid var(--b1)",
@@ -53,7 +97,7 @@ export function FeaturedDeadline({ id, title, sub, priority, due, total, complet
         {/* Radar pulsing dot before badge */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {!completed && (
-            <div className="radar-container">
+            <div className="radar-container" style={{ "--dot-color": priorityColor } as React.CSSProperties}>
               <style jsx>{`
                 @keyframes bentoRadarPulse {
                   0% {
@@ -77,17 +121,17 @@ export function FeaturedDeadline({ id, title, sub, priority, due, total, complet
                   width: 8px;
                   height: 8px;
                   border-radius: 50%;
-                  background: #ff4040;
+                  background: var(--dot-color);
                   position: relative;
                   z-index: 2;
-                  box-shadow: 0 0 8px #ff4040;
+                  box-shadow: 0 0 8px var(--dot-color);
                 }
                 .radar-ring {
                   position: absolute;
                   width: 8px;
                   height: 8px;
                   border-radius: 50%;
-                  border: 1.5px solid #ff4040;
+                  border: 1.5px solid var(--dot-color);
                   opacity: 0;
                   z-index: 1;
                   pointer-events: none;
@@ -101,8 +145,7 @@ export function FeaturedDeadline({ id, title, sub, priority, due, total, complet
             </div>
           )}
           <span style={{
-            background: completed ? "rgba(74,222,128,0.2)" : "rgba(255, 92, 92, 0.2)",
-            color: completed ? "var(--ok)" : "var(--danger)",
+            ...badgeStyle,
             fontSize: 9,
             fontWeight: 700,
             letterSpacing: "0.08em",
@@ -115,7 +158,7 @@ export function FeaturedDeadline({ id, title, sub, priority, due, total, complet
         <span style={{
           fontSize: 28,
           fontWeight: 900,
-          color: completed ? "var(--ok)" : "var(--danger)",
+          color: completed ? "var(--ok)" : priorityColor,
           animation: completed ? "none" : "pulse 1.5s ease-in-out infinite"
         }}>
           {formattedText}
@@ -191,6 +234,9 @@ export function DeadlineListItem({ index, title, priority, due, total, completed
   const remainingMs = Math.max(0, due - Date.now());
   const elapsedPercent = completed ? 100 : Math.round(Math.min(100, Math.max(0, (1 - remainingMs / total) * 100)));
 
+  const priorityColor = getPriorityColor(priority);
+  const badgeStyle = getPriorityBadgeStyle(priority, completed);
+
   return (
     <ParallaxCard 
       onClick={onClick}
@@ -212,7 +258,7 @@ export function DeadlineListItem({ index, title, priority, due, total, completed
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {/* Radar pulsing dot before priority label on list items */}
           {!completed && (
-            <div className="radar-container" style={{ marginRight: 2 }}>
+            <div className="radar-container" style={{ marginRight: 2, "--dot-color": priorityColor } as React.CSSProperties}>
               <style jsx>{`
                 @keyframes bentoRadarPulse {
                   0% {
@@ -237,17 +283,17 @@ export function DeadlineListItem({ index, title, priority, due, total, completed
                   width: 8px;
                   height: 8px;
                   border-radius: 50%;
-                  background: #ff4040;
+                  background: var(--dot-color);
                   position: relative;
                   z-index: 2;
-                  box-shadow: 0 0 8px #ff4040;
+                  box-shadow: 0 0 8px var(--dot-color);
                 }
                 .radar-ring {
                   position: absolute;
                   width: 8px;
                   height: 8px;
                   border-radius: 50%;
-                  border: 1.5px solid #ff4040;
+                  border: 1.5px solid var(--dot-color);
                   opacity: 0;
                   z-index: 1;
                   pointer-events: none;
@@ -260,8 +306,7 @@ export function DeadlineListItem({ index, title, priority, due, total, completed
             </div>
           )}
           <span style={{
-            background: completed ? "rgba(74,222,128,0.15)" : "var(--ac-soft)",
-            color: completed ? "var(--ok)" : "var(--ac)",
+            ...badgeStyle,
             fontSize: 9,
             fontWeight: 700,
             letterSpacing: "0.08em",
@@ -280,7 +325,7 @@ export function DeadlineListItem({ index, title, priority, due, total, completed
         <span style={{ 
           fontSize: 13, 
           fontWeight: 700, 
-          color: completed ? "var(--ok)" : "var(--t1)" 
+          color: completed ? "var(--ok)" : priorityColor 
         }}>
           {formattedText}
         </span>

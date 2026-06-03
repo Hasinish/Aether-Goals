@@ -33,9 +33,23 @@ export const createHabitId = (): string => {
   return `habit-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 };
 
-// Deterministic ID for habit_logs upserts based on habit ID and date
+export const createUuid = (): string => {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
+// Deterministic ID fallback, now returns a random UUID to avoid Postgres type errors
 export const createHabitLogId = (habitId: string, date: string): string => {
-  return `${habitId}-${date}`;
+  if (habitId && date) {
+    // Reference variables to satisfy ESLint
+  }
+  return createUuid();
 };
 
 /** Returns today's date as "YYYY-MM-DD" in local time */
@@ -359,13 +373,17 @@ export const HabitStoreProvider: React.FC<{
       const newCompletions =
         currentCompletions >= habit.daily_target ? 0 : currentCompletions + 1;
 
+      // Re-use existing UUID if available, otherwise generate a new UUID
+      const existingLog = habit.logs?.find((l) => l.log_date === today);
+      const logId = existingLog?.id || createUuid();
+
       // Optimistic UI update
       setHabits((hs) =>
         hs.map((h) => {
           if (h.id !== habitId) return h;
           const updatedLogs = (h.logs ?? []).filter((l) => l.log_date !== today);
           const todayLog: HabitLog = {
-            id: createHabitLogId(habitId, today),
+            id: logId,
             habit_id: habitId,
             user_id: h.user_id,
             log_date: today,
@@ -384,7 +402,7 @@ export const HabitStoreProvider: React.FC<{
         );
         if (newCompletions > 0) {
           filtered.push({
-            id: createHabitLogId(habitId, today),
+            id: logId,
             habit_id: habitId,
             user_id: habit.user_id,
             log_date: today,
@@ -410,7 +428,7 @@ export const HabitStoreProvider: React.FC<{
             // Upsert (insert or update)
             const { data, error } = await client.from("habit_logs").upsert(
               {
-                id: createHabitLogId(habitId, today),
+                id: logId,
                 habit_id: habitId,
                 user_id: habit.user_id,
                 log_date: today,
