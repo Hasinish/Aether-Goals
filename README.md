@@ -2,7 +2,7 @@
 
 A dark, minimalist mobile-first PWA for disciplined people. Track long-term goals broken into subtasks, build daily habits with streak accountability, and manage deadlines with live countdowns — all from a single focused dashboard. Ships as an installable PWA and compiles to a native Android APK via Capacitor.
 
-> Try it instantly — no account required: `http://localhost:3000/guest`
+> Try it instantly — no account required: [aethergoals.vercel.app/guest](https://aethergoals.vercel.app/guest)
 
 ---
 
