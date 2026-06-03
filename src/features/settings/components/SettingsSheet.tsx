@@ -91,7 +91,8 @@ export function SettingsSheet({ onNav }: SettingsSheetProps) {
         throw new Error("No active session found");
       }
 
-      const response = await fetch("/api/delete-account", {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+      const response = await fetch(`${baseUrl}/api/delete-account`, {
         method: "DELETE",
         headers: {
           "Authorization": `Bearer ${token}`,
