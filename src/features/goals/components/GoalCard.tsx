@@ -22,7 +22,7 @@ export function GoalCard({ title, progress, tags, delta, done, total, animDelay,
     return () => clearTimeout(t);
   }, [progress]);
 
-  const stripColor = progress > 60 ? 'var(--ac)' : progress >= 30 ? 'var(--warn)' : 'var(--t3)';
+  const stripColor = progress > 60 ? 'var(--ac)' : progress > 0 ? 'var(--warn)' : 'var(--t3)';
 
   return (
     <ParallaxCard
