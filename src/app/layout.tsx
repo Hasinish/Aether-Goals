@@ -21,9 +21,9 @@ export const metadata: Metadata = {
   description: "Minimalist dark PWA goal tracker with segmented progress indicators.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/icon.svg",
-    shortcut: "/icon.svg",
-    apple: "/icon-192.png",
+    icon: "/icon.svg?v=2",
+    shortcut: "/icon.svg?v=2",
+    apple: "/icon-192.png?v=2",
   },
   appleWebApp: {
     capable: true,
