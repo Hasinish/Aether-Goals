@@ -301,11 +301,14 @@ function GreetingHero({ onProfileClick }: GreetingHeroProps) {
     ? Math.round(goals.reduce((acc, g) => acc + (g.progressPercent || 0), 0) / goals.length)
     : 0;
 
-  const formattedDate = new Date().toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    year: "numeric"
-  });
+  const now = new Date();
+  const day = now.getDate();
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const month = monthNames[now.getMonth()];
+  const year = now.getFullYear();
+  const weekdayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const weekday = weekdayNames[now.getDay()];
+  const formattedDate = `${day} ${month} ${year} ${weekday}`;
 
   return (
     <div style={{
