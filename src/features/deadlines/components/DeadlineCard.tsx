@@ -47,7 +47,7 @@ const getPriorityBadgeStyle = (priority: string, completed: boolean): React.CSSP
   }
 };
 
-export function FeaturedDeadline({ id, title, sub, priority, due, total, completed, onToggle, onClick }: DeadlineProps) {
+export function FeaturedDeadline({ title, sub, priority, due, total, completed, onToggle, onClick }: DeadlineProps) {
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => {
     setMounted(true);

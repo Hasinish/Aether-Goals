@@ -31,11 +31,6 @@ export function HabitDetailContent({ habit, onEditTap }: HabitDetailContentProps
   const offset = circ - (Math.min(100, habitProgress) / 100) * circ;
   const c = size / 2;
 
-  // Helper date
-  const todayString = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  };
 
   // Build monthly logs and calendar days dynamically
   const { calendarDays } = React.useMemo(() => {
@@ -68,8 +63,6 @@ export function HabitDetailContent({ habit, onEditTap }: HabitDetailContentProps
         completions: 0,
       });
     }
-
-    const todayStr = todayString();
 
     let perfectDays = 0;
     let partialDays = 0;

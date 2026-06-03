@@ -7,13 +7,7 @@ import {
   Calendar, 
   Target, 
   Repeat, 
-  ArrowRight,
-  ChevronRight,
-  ClipboardList,
-  CheckSquare,
-  Sparkle,
-  Clock,
-  Briefcase
+  ArrowRight
 } from "lucide-react";
 import ConstellationBackground from "@/components/ConstellationBackground";
 

@@ -27,7 +27,6 @@ export default function RadialNavBar({
   const currentDragOffset = useRef(0);
 
   // Animation snap state
-  const [targetOffset, setTargetOffset] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
 
   // We map index to a base offset (index 0 is active when offset is 35deg, index 1 when 0deg, index 2 when -35deg)
