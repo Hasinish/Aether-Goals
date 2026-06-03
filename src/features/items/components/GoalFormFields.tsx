@@ -322,7 +322,7 @@ export function GoalFormFields({
             flexDirection: "column",
             gap: `${ROW_GAP}px`,
             position: "relative",
-            touchAction: "none",
+            touchAction: "pan-y",   // allow vertical scroll; grip handles override with none
             userSelect: "none",
             WebkitUserSelect: "none",
           }}
