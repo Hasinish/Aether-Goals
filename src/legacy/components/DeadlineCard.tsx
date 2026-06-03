@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Deadline } from "../lib/types";
-import { useDeadlinesStore } from "../lib/deadlineStore";
+import { Deadline } from "../../lib/types";
+import { useDeadlinesStore } from "../../lib/deadlineStore";
 import { MoreHorizontal, Edit2, Trash2, AlertTriangle, Check, Clock } from "lucide-react";
 
 interface DeadlineCardProps {
