@@ -407,17 +407,24 @@ export function SettingsSheet({ onNav }: SettingsSheetProps) {
               ]
             });
           } else {
-            // Web browser test notification
-            setTimeout(() => {
-              if (Notification.permission === "granted") {
-                new Notification("Aether Goals Test Alert", {
-                  body: "This is a local test notification. It works! 🎉",
-                  icon: "/icon-192.png"
+            // Web browser test notification - use Service Worker showNotification immediately to support mobile browsers
+            if (Notification.permission === "granted") {
+              if ("serviceWorker" in navigator) {
+                const reg = await navigator.serviceWorker.ready;
+                await reg.showNotification("Aether Goals Test Alert", {
+                  body: "This is a PWA test notification. It works! 🎉",
+                  icon: "/icon-192.png",
+                  badge: "/icon-192.png",
                 });
               } else {
-                toast("Web notification permission not granted.", "error");
+                new Notification("Aether Goals Test Alert", {
+                  body: "This is a local test notification. It works! 🎉",
+                  icon: "/icon-192.png",
+                });
               }
-            }, 5000);
+            } else {
+              toast("Web notification permission not granted.", "error");
+            }
           }
         } catch (e) {
           console.error(e);
