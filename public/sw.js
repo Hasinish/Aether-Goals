@@ -1,10 +1,11 @@
-const CACHE_NAME = "aether-goals-v62";
+const CACHE_NAME = "aether-goals-v63";
 const ASSETS_TO_CACHE = [
   "/",
   "/manifest.json",
   "/icon.svg",
   "/icon-192.png",
-  "/icon-512.png"
+  "/icon-512.png",
+  "/badge.svg"
 ];
 
 self.addEventListener("install", (event) => {

@@ -414,7 +414,7 @@ export function SettingsSheet({ onNav }: SettingsSheetProps) {
                 await reg.showNotification("Aether Goals Test Alert", {
                   body: "This is a PWA test notification. It works! 🎉",
                   icon: "/icon-192.png",
-                  badge: "/icon-192.png",
+                  badge: "/badge.svg",
                 });
               } else {
                 new Notification("Aether Goals Test Alert", {
