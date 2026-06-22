@@ -11,6 +11,13 @@ import { Deadline } from "./types";
 import { getSupabaseClient } from "./supabase";
 import { User } from "@supabase/supabase-js";
 import { getErrorMessage } from "./habitStore"; // Re-use error helper
+import {
+  scheduleDeadlineNotifications,
+  cancelDeadlineNotifications,
+  updateDailyMorningSummaries,
+  cancelAllNotifications,
+  requestNotificationPermission,
+} from "./notificationService";
 
 interface DeadlineStoreContextProps {
   deadlines: Deadline[];
@@ -23,6 +30,8 @@ interface DeadlineStoreContextProps {
   deleteDeadline: (id: string) => Promise<void>;
   toggleDeadlineCompletion: (id: string) => Promise<void>;
   refreshDeadlines: () => Promise<void>;
+  notificationsEnabled: boolean;
+  toggleNotifications: (enabled: boolean) => Promise<boolean>;
 }
 
 const DeadlineStoreContext = createContext<DeadlineStoreContextProps | undefined>(undefined);
@@ -43,6 +52,23 @@ export const DeadlineStoreProvider: React.FC<{
   const [pendingDeadlineIds, setPendingDeadlineIds] = useState<Set<string>>(new Set());
   const [syncError, setSyncError] = useState<string | null>(null);
   const clearSyncError = () => setSyncError(null);
+
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+
+  // Load notification preference on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("aether_deadline_notifications_enabled");
+      setNotificationsEnabled(saved === "true");
+    }
+  }, []);
+
+  // Update daily morning summaries whenever deadlines or settings change
+  useEffect(() => {
+    if (!loading && notificationsEnabled) {
+      updateDailyMorningSummaries(deadlines);
+    }
+  }, [deadlines, loading, notificationsEnabled]);
 
   const addPending = useCallback(
     (id: string) => setPendingDeadlineIds((p) => new Set(p).add(id)),
@@ -132,8 +158,13 @@ export const DeadlineStoreProvider: React.FC<{
         } else {
           throw new Error("User must be authenticated to create a deadline.");
         }
+
+        if (notificationsEnabled) {
+          scheduleDeadlineNotifications(newDeadline);
+        }
       } catch (e) {
         setDeadlines((prev) => prev.filter((d) => d.id !== id));
+        cancelDeadlineNotifications(id);
         const msg = getErrorMessage(e);
         setSyncError(`Failed to create deadline: ${msg}`);
         throw e;
@@ -141,17 +172,25 @@ export const DeadlineStoreProvider: React.FC<{
         removePending(id);
       }
     },
-    [user, addPending, removePending]
+    [user, addPending, removePending, notificationsEnabled]
   );
 
   // ── updateDeadline ────────────────────────────────────────────────────────
   const updateDeadline = useCallback(
     async (id: string, title: string, dueDate: string, completed: boolean) => {
       const prev = deadlines.find((d) => d.id === id);
+      const updatedDeadline = {
+        id,
+        title,
+        due_date: dueDate,
+        completed,
+        user_id: user ? user.id : null,
+        created_at: prev?.created_at || new Date().toISOString()
+      };
 
       // Optimistic update
       setDeadlines((prevList) =>
-        prevList.map((d) => (d.id === id ? { ...d, title, due_date: dueDate, completed } : d))
+        prevList.map((d) => (d.id === id ? updatedDeadline : d))
       );
       addPending(id);
 
@@ -172,8 +211,27 @@ export const DeadlineStoreProvider: React.FC<{
         } else {
           throw new Error("User must be authenticated to update a deadline.");
         }
+
+        if (notificationsEnabled) {
+          if (completed) {
+            cancelDeadlineNotifications(id);
+          } else {
+            scheduleDeadlineNotifications(updatedDeadline);
+          }
+        } else {
+          cancelDeadlineNotifications(id);
+        }
       } catch (e) {
-        if (prev) setDeadlines((prevList) => prevList.map((d) => (d.id === id ? prev : d)));
+        if (prev) {
+          setDeadlines((prevList) => prevList.map((d) => (d.id === id ? prev : d)));
+          if (notificationsEnabled && !prev.completed) {
+            scheduleDeadlineNotifications(prev);
+          } else {
+            cancelDeadlineNotifications(id);
+          }
+        } else {
+          cancelDeadlineNotifications(id);
+        }
         const msg = getErrorMessage(e);
         setSyncError(`Failed to update deadline: ${msg}`);
         throw e;
@@ -181,7 +239,7 @@ export const DeadlineStoreProvider: React.FC<{
         removePending(id);
       }
     },
-    [deadlines, user, addPending, removePending]
+    [deadlines, user, addPending, removePending, notificationsEnabled]
   );
 
   // ── deleteDeadline ────────────────────────────────────────────────────────
@@ -190,6 +248,9 @@ export const DeadlineStoreProvider: React.FC<{
       const prev = deadlines.find((d) => d.id === id);
       addPending(id);
       setDeadlines((prevList) => prevList.filter((d) => d.id !== id));
+
+      // Optimistically cancel notifications
+      cancelDeadlineNotifications(id);
 
       try {
         if (user) {
@@ -205,7 +266,12 @@ export const DeadlineStoreProvider: React.FC<{
           throw new Error("User must be authenticated to delete a deadline.");
         }
       } catch (e) {
-        if (prev) setDeadlines((prevList) => [prev, ...prevList]);
+        if (prev) {
+          setDeadlines((prevList) => [prev, ...prevList]);
+          if (notificationsEnabled && !prev.completed) {
+            scheduleDeadlineNotifications(prev);
+          }
+        }
         const msg = getErrorMessage(e);
         setSyncError(`Failed to delete deadline: ${msg}`);
         throw e;
@@ -213,7 +279,7 @@ export const DeadlineStoreProvider: React.FC<{
         removePending(id);
       }
     },
-    [deadlines, user, addPending, removePending]
+    [deadlines, user, addPending, removePending, notificationsEnabled]
   );
 
   // ── toggleDeadlineCompletion ──────────────────────────────────────────────
@@ -224,6 +290,38 @@ export const DeadlineStoreProvider: React.FC<{
       await updateDeadline(id, target.title, target.due_date, !target.completed);
     },
     [deadlines, updateDeadline]
+  );
+
+  const toggleNotifications = useCallback(
+    async (enabled: boolean): Promise<boolean> => {
+      if (enabled) {
+        const granted = await requestNotificationPermission();
+        if (granted) {
+          localStorage.setItem("aether_deadline_notifications_enabled", "true");
+          setNotificationsEnabled(true);
+
+          // Schedule warnings for all active (uncompleted) deadlines
+          deadlines.forEach((d) => {
+            if (!d.completed) {
+              scheduleDeadlineNotifications(d);
+            }
+          });
+
+          // Schedule daily morning summaries
+          updateDailyMorningSummaries(deadlines);
+          return true;
+        }
+        return false;
+      } else {
+        localStorage.setItem("aether_deadline_notifications_enabled", "false");
+        setNotificationsEnabled(false);
+
+        // Cancel all currently scheduled notifications
+        await cancelAllNotifications(deadlines);
+        return true;
+      }
+    },
+    [deadlines]
   );
 
   return (
@@ -239,6 +337,8 @@ export const DeadlineStoreProvider: React.FC<{
         deleteDeadline,
         toggleDeadlineCompletion,
         refreshDeadlines: fetchData,
+        notificationsEnabled,
+        toggleNotifications,
       }}
     >
       {children}

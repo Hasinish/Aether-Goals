@@ -3,8 +3,11 @@
 import React from "react";
 
 import { useGoalsStore } from "@/lib/store";
+import { useDeadlinesStore } from "@/lib/deadlineStore";
 import { useToast } from "../../dashboard/components/ToastProvider";
 import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
+import { Capacitor } from "@capacitor/core";
+import { LocalNotifications } from "@capacitor/local-notifications";
 
 interface SettingsSheetProps {
   onNav: (id: string) => void;
@@ -13,8 +16,10 @@ interface SettingsSheetProps {
 export function SettingsSheet({ onNav }: SettingsSheetProps) {
   const toast = useToast();
   const { logout, username, updateUsername, user } = useGoalsStore();
+  const { notificationsEnabled, toggleNotifications } = useDeadlinesStore();
   const [isEditingProfile, setIsEditingProfile] = React.useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = React.useState(false);
+  const [isTogglingNotifications, setIsTogglingNotifications] = React.useState(false);
 
   const isGuest = user?.id === "guest-id";
 
@@ -349,6 +354,76 @@ export function SettingsSheet({ onNav }: SettingsSheetProps) {
       subtitle: "Update your username and account password",
       action: "Manage",
       onClick: () => setIsEditingProfile(true),
+    },
+    {
+      title: "Deadline Reminders",
+      subtitle: "Get alerts 5 days before (12:01 PM) plus hourly countdowns",
+      action: isTogglingNotifications ? "..." : (notificationsEnabled ? "On" : "Off"),
+      actionColor: notificationsEnabled ? 'var(--ok)' : 'var(--t3)',
+      onClick: async () => {
+        if (isTogglingNotifications) return;
+        setIsTogglingNotifications(true);
+        try {
+          const success = await toggleNotifications(!notificationsEnabled);
+          if (success) {
+            toast(
+              !notificationsEnabled 
+                ? "Deadline reminders enabled!" 
+                : "Deadline reminders disabled.", 
+              "success"
+            );
+          } else {
+            toast("Permission denied. Check system settings.", "error");
+          }
+        } catch (e) {
+          console.error(e);
+          toast("Failed to update notification settings", "error");
+        } finally {
+          setIsTogglingNotifications(false);
+        }
+      },
+    },
+    {
+      title: "Trigger Test Notification",
+      subtitle: "Sends a local test notification in 5 seconds to verify permissions",
+      action: "Test",
+      onClick: async () => {
+        if (!notificationsEnabled) {
+          toast("Please enable 'Deadline Reminders' first!", "error");
+          return;
+        }
+        toast("Test notification scheduled for 5 seconds!", "info");
+        try {
+          if (Capacitor.isNativePlatform()) {
+            await LocalNotifications.schedule({
+              notifications: [
+                {
+                  id: 99999,
+                  title: "Aether Goals Test Alert",
+                  body: "This is a local test notification. It works! 🎉",
+                  schedule: { at: new Date(Date.now() + 5000) },
+                  smallIcon: "res://icon",
+                }
+              ]
+            });
+          } else {
+            // Web browser test notification
+            setTimeout(() => {
+              if (Notification.permission === "granted") {
+                new Notification("Aether Goals Test Alert", {
+                  body: "This is a local test notification. It works! 🎉",
+                  icon: "/icon-192.png"
+                });
+              } else {
+                toast("Web notification permission not granted.", "error");
+              }
+            }, 5000);
+          }
+        } catch (e) {
+          console.error(e);
+          toast("Failed to schedule test notification", "error");
+        }
+      },
     },
     {
       title: "Dashboard Colors",
